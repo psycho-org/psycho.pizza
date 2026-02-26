@@ -1,4 +1,4 @@
-package pizza.psycho.sos.sos
+package pizza.psycho.sos
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
