@@ -39,6 +39,12 @@ out/
 ### Kotlin ###
 .kotlin
 
+### Spring Boot ###
+application.yml
+application-*.yml
+application.properties
+application-*.properties
+
 # General
 .DS_Store
 .AppleDouble
