@@ -1,9 +1,9 @@
 name: CI/CD.yml
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, dev ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, dev ]
 
 env:
   DOCKER_IMAGE: dnya0/psycho
