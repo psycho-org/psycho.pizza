@@ -5,7 +5,7 @@ import jakarta.persistence.MappedSuperclass
 import java.time.Instant
 
 @MappedSuperclass
-abstract class BaseSafeDeletedEntity(
+abstract class BaseSoftDeletedEntity(
 
     @Column(name = "is_deleted", nullable = false, columnDefinition = "boolean default false")
     var isDeleted: Boolean = false,
