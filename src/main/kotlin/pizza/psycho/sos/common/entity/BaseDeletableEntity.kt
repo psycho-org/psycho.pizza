@@ -6,16 +6,12 @@ import java.time.Instant
 import java.util.UUID
 
 @MappedSuperclass
-abstract class BaseSoftDeletedEntity protected constructor(
-
+abstract class BaseDeletableEntity protected constructor(
     @Column(name = "deleted_at", updatable = true, nullable = true)
     var deletedAt: Instant? = null,
-
     @Column(name = "deleted_by", nullable = true)
-    var deletedBy: UUID? = null
-
+    var deletedBy: UUID? = null,
 ) : BaseEntity() {
-
     val isDeleted: Boolean
         get() = deletedAt != null
 
@@ -26,6 +22,6 @@ abstract class BaseSoftDeletedEntity protected constructor(
 
     fun restore() {
         this.deletedAt = null
+        this.deletedBy = null
     }
-
 }
