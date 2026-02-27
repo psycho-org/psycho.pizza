@@ -9,7 +9,7 @@ import java.time.Instant
  */
 data class OffsetPagedApiResponse<T>(
     override val timestamp: Instant = Instant.now(),
-    override val code: String = HttpStatus.OK.name,
+    override val status: Int = HttpStatus.OK.value(),
     override val message: String = "success",
     val data: List<T>,
     val pageInfo: OffsetPageInfo,
@@ -21,6 +21,15 @@ data class OffsetPageInfo(
     val totalPages: Int,
     val totalElements: Long,
 )
+
+fun <T> pagedResponseOf(
+    page: Page<T>,
+    oneIndexed: Boolean = true,
+): OffsetPagedApiResponse<T> =
+    OffsetPagedApiResponse(
+        data = page.content,
+        pageInfo = page.toOffsetPageInfo(oneIndexed),
+    )
 
 fun Page<*>.toOffsetPageInfo(oneIndexed: Boolean = true): OffsetPageInfo =
     OffsetPageInfo(

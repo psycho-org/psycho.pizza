@@ -3,15 +3,15 @@ package pizza.psycho.sos.common.response
 import org.springframework.http.HttpStatus
 import java.time.Instant
 
-sealed interface ApiResponse<out T> {
+interface ApiResponse<out T> {
     val timestamp: Instant
-    val code: String
+    val status: Int
     val message: String
 }
 
 data class Success<T>(
     override val timestamp: Instant = Instant.now(),
-    override val code: String = HttpStatus.OK.name,
+    override val status: Int = HttpStatus.OK.value(),
     override val message: String = "success",
     val data: T? = null,
 ) : ApiResponse<T>
@@ -29,7 +29,7 @@ fun <T> responseOf(
     message: String? = null,
 ): ApiResponse<T> =
     Success(
-        code = status.value().toString(),
+        status = status.value(),
         message = message ?: status.reasonPhrase,
         data = data,
     )
