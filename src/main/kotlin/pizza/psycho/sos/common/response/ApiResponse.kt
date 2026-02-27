@@ -16,20 +16,13 @@ data class Success<T>(
     val data: T? = null,
 ) : ApiResponse<T>
 
-fun <T> responseOf(data: T): ApiResponse<T> = Success(data = data)
-
 fun <T> responseOf(
-    message: String?,
-    data: T,
-): ApiResponse<T> = Success(message = message ?: "success", data = data)
-
-fun <T> responseOf(
-    status: HttpStatus,
     data: T? = null,
-    message: String? = null,
+    status: HttpStatus = HttpStatus.OK,
+    message: String = status.reasonPhrase,
 ): ApiResponse<T> =
     Success(
         status = status.value(),
-        message = message ?: status.reasonPhrase,
+        message = message,
         data = data,
     )
