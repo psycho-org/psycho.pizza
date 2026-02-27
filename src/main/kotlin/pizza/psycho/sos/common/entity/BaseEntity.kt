@@ -21,7 +21,7 @@ abstract class BaseEntity protected constructor(
     @Column(name = "id", updatable = false, unique = true, nullable = false)
     var id: UUID? = null,
     @CreatedDate
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at", updatable = false, nullable = false)
     var createdAt: Instant? = null,
     @LastModifiedDate
     @Column(name = "updated_at", updatable = true)
