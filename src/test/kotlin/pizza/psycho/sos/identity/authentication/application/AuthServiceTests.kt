@@ -14,15 +14,15 @@ import pizza.psycho.sos.identity.authentication.application.service.AuthService
 import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthQuery
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthResult
-import pizza.psycho.sos.identity.security.token.JwtTokenProvider
+import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import java.util.UUID
 
 class AuthServiceTests {
     private val accountRepository = mock(AccountRepository::class.java)
     private val passwordEncoder = mock(PasswordEncoder::class.java)
-    private val jwtTokenProvider = mock(JwtTokenProvider::class.java)
+    private val accessTokenProvider = mock(AccessTokenProvider::class.java)
     private val refreshTokenService = mock(RefreshTokenService::class.java)
-    private val authService = AuthService(accountRepository, passwordEncoder, jwtTokenProvider, refreshTokenService)
+    private val authService = AuthService(accountRepository, passwordEncoder, accessTokenProvider, refreshTokenService)
 
     @Test
     fun `login returns invalid credentials failure when account is missing`() {
@@ -78,7 +78,7 @@ class AuthServiceTests {
 
         `when`(accountRepository.findByEmailIgnoreCaseAndDeletedAtIsNull("user@psycho.pizza")).thenReturn(account)
         `when`(passwordEncoder.matches("Password123!", "encoded-password")).thenReturn(true)
-        `when`(jwtTokenProvider.issueAccessToken(account)).thenReturn("mock-access-token")
+        `when`(accessTokenProvider.issueAccessToken(account)).thenReturn("mock-access-token")
         `when`(refreshTokenService.issue(UUID.fromString("00000000-0000-0000-0000-000000000333"))).thenReturn(
             "mock-refresh-token",
         )
@@ -113,7 +113,7 @@ class AuthServiceTests {
             ),
         )
         `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
-        `when`(jwtTokenProvider.issueAccessToken(account)).thenReturn("new-access-token")
+        `when`(accessTokenProvider.issueAccessToken(account)).thenReturn("new-access-token")
 
         val result = authService.refresh(AuthQuery.Refresh("refresh-token"))
         val response = result as AuthResult.Refresh.Authenticated

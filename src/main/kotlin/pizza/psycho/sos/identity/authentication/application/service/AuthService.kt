@@ -7,14 +7,14 @@ import pizza.psycho.sos.identity.account.domain.Account
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthQuery
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthResult
-import pizza.psycho.sos.identity.security.token.JwtTokenProvider
+import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 
 @Service
 @Transactional
 class AuthService(
     private val accountRepository: AccountRepository,
     private val passwordEncoder: PasswordEncoder,
-    private val jwtTokenProvider: JwtTokenProvider,
+    private val accessTokenProvider: AccessTokenProvider,
     private val refreshTokenService: RefreshTokenService,
 ) {
     fun login(query: AuthQuery.Login): AuthResult.Login {
@@ -53,7 +53,7 @@ class AuthService(
         refreshToken: String,
     ): AuthResult.Login.Authenticated =
         AuthResult.Login.Authenticated(
-            accessToken = jwtTokenProvider.issueAccessToken(account),
+            accessToken = accessTokenProvider.issueAccessToken(account),
             refreshToken = refreshToken,
             user =
                 AuthResult.User(
@@ -69,7 +69,7 @@ class AuthService(
         refreshToken: String,
     ): AuthResult.Refresh.Authenticated =
         AuthResult.Refresh.Authenticated(
-            accessToken = jwtTokenProvider.issueAccessToken(account),
+            accessToken = accessTokenProvider.issueAccessToken(account),
             refreshToken = refreshToken,
             user =
                 AuthResult.User(
