@@ -1,4 +1,4 @@
-package pizza.psycho.sos.common.config
+package pizza.psycho.sos.identity.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
