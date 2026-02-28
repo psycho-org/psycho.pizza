@@ -40,8 +40,8 @@ out/
 .kotlin
 
 ### Spring Boot ###
-application.yml
-application-*.yml
+application-local.yml
+application-dev.yml
 application.properties
 application-*.properties
 
