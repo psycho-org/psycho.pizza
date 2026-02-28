@@ -86,6 +86,7 @@ class GlobalExceptionHandler {
     // EXTENSIONS -----------------------------------------------------------------------------------------------------
 
     private fun HttpStatus.toResponse(
+        code: String? = null,
         message: String,
         path: String,
         details: Map<String, List<String>>? = null,
@@ -95,6 +96,7 @@ class GlobalExceptionHandler {
                 timestamp = Instant.now(),
                 status = value(),
                 error = reasonPhrase,
+                code = code,
                 message = message,
                 path = path,
                 details = details,
@@ -102,6 +104,7 @@ class GlobalExceptionHandler {
         )
 
     private fun HttpStatusCode.toResponse(
+        code: String? = null,
         message: String,
         path: String,
         details: Map<String, List<String>>? = null,
@@ -111,6 +114,7 @@ class GlobalExceptionHandler {
                 timestamp = Instant.now(),
                 status = value(),
                 error = reasonPhraseOrFallback(),
+                code = code,
                 message = message,
                 path = path,
                 details = details,
