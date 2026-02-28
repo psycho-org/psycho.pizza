@@ -41,6 +41,7 @@ class AccessTokenProvider(
                 Jwts
                     .parser()
                     .verifyWith(signingKey())
+                    .requireIssuer(properties.issuer)
                     .build()
                     .parseSignedClaims(token)
                     .payload
