@@ -41,8 +41,10 @@ class RefreshTokenService(
     fun rotate(rawToken: String): RotatedRefreshToken? {
         val current = findValidToken(rawToken) ?: return null
         val accountId = requireNotNull(current.accountId) { "Refresh token account id is required" }
-        current.revoke()
-        refreshTokenRepository.save(current)
+        val tokenId = requireNotNull(current.id) { "Refresh token id is required" }
+        val updatedRows = refreshTokenRepository.revokeIfActive(tokenId, Instant.now())
+        if (updatedRows != 1) return null
+
         val newRawToken = issue(accountId)
         return RotatedRefreshToken(accountId = accountId, refreshToken = newRawToken)
     }
