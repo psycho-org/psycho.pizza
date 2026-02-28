@@ -10,19 +10,19 @@ import org.mockito.Mockito.`when`
 import org.springframework.security.crypto.password.PasswordEncoder
 import pizza.psycho.sos.identity.account.domain.Account
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
-import pizza.psycho.sos.identity.authentication.application.security.JwtTokenService
 import pizza.psycho.sos.identity.authentication.application.service.AuthService
 import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthQuery
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthResult
+import pizza.psycho.sos.identity.security.token.JwtTokenProvider
 import java.util.UUID
 
 class AuthServiceTests {
     private val accountRepository = mock(AccountRepository::class.java)
     private val passwordEncoder = mock(PasswordEncoder::class.java)
-    private val jwtTokenService = mock(JwtTokenService::class.java)
+    private val jwtTokenProvider = mock(JwtTokenProvider::class.java)
     private val refreshTokenService = mock(RefreshTokenService::class.java)
-    private val authService = AuthService(accountRepository, passwordEncoder, jwtTokenService, refreshTokenService)
+    private val authService = AuthService(accountRepository, passwordEncoder, jwtTokenProvider, refreshTokenService)
 
     @Test
     fun `login returns invalid credentials failure when account is missing`() {
@@ -78,7 +78,7 @@ class AuthServiceTests {
 
         `when`(accountRepository.findByEmailIgnoreCaseAndDeletedAtIsNull("user@psycho.pizza")).thenReturn(account)
         `when`(passwordEncoder.matches("Password123!", "encoded-password")).thenReturn(true)
-        `when`(jwtTokenService.issueAccessToken(account)).thenReturn("mock-access-token")
+        `when`(jwtTokenProvider.issueAccessToken(account)).thenReturn("mock-access-token")
         `when`(refreshTokenService.issue(UUID.fromString("00000000-0000-0000-0000-000000000333"))).thenReturn(
             "mock-refresh-token",
         )
@@ -113,7 +113,7 @@ class AuthServiceTests {
             ),
         )
         `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
-        `when`(jwtTokenService.issueAccessToken(account)).thenReturn("new-access-token")
+        `when`(jwtTokenProvider.issueAccessToken(account)).thenReturn("new-access-token")
 
         val result = authService.refresh(AuthQuery.Refresh("refresh-token"))
         val response = result as AuthResult.Refresh.Authenticated

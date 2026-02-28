@@ -1,4 +1,4 @@
-package pizza.psycho.sos.identity.authentication.application.security
+package pizza.psycho.sos.identity.security.token
 
 import io.jsonwebtoken.JwtException
 import io.jsonwebtoken.Jwts
@@ -7,14 +7,15 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.identity.account.domain.Account
-import pizza.psycho.sos.identity.config.JwtProperties
+import pizza.psycho.sos.identity.security.config.JwtProperties
+import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.util.Date
 import java.util.UUID
 
 @Service
-class JwtTokenService(
+class JwtTokenProvider(
     private val properties: JwtProperties,
 ) {
     fun issueAccessToken(account: Account): String {
