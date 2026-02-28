@@ -15,7 +15,7 @@ import java.util.Date
 import java.util.UUID
 
 @Service
-class JwtTokenProvider(
+class AccessTokenProvider(
     private val properties: JwtProperties,
 ) {
     fun issueAccessToken(account: Account): String {

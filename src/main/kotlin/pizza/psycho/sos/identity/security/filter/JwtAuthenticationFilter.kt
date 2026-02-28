@@ -7,11 +7,11 @@ import org.springframework.http.HttpHeaders
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
-import pizza.psycho.sos.identity.security.token.JwtTokenProvider
+import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 
 @Component
 class JwtAuthenticationFilter(
-    private val jwtTokenProvider: JwtTokenProvider,
+    private val accessTokenProvider: AccessTokenProvider,
 ) : OncePerRequestFilter() {
     override fun doFilterInternal(
         request: HttpServletRequest,
@@ -22,7 +22,7 @@ class JwtAuthenticationFilter(
         if (bearerToken.startsWith(BEARER_PREFIX, ignoreCase = true)) {
             val accessToken = bearerToken.substring(BEARER_PREFIX.length).trim()
             if (accessToken.isNotBlank() && SecurityContextHolder.getContext().authentication == null) {
-                val authentication = jwtTokenProvider.toAuthentication(accessToken)
+                val authentication = accessTokenProvider.toAuthentication(accessToken)
                 if (authentication != null) {
                     SecurityContextHolder.getContext().authentication = authentication
                 }
