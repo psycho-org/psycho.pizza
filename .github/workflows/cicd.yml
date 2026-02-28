@@ -8,6 +8,10 @@ on:
 env:
   DOCKER_IMAGE: dnya0/psycho
   SERVICE_NAME: sos
+  SPRING_PROFILES_ACTIVE: ${{ secrets.SPRING_PROFILES_ACTIVE }}
+  SPRING_DATASOURCE_URL: ${{ secrets.SPRING_DATASOURCE_URL }}
+  SPRING_DATASOURCE_USERNAME: ${{ secrets.SPRING_DATASOURCE_USERNAME }}
+  SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
 
 jobs:
   build:
@@ -25,6 +29,9 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
+
+      - name: Debug profile
+        run: echo "Profile=$SPRING_PROFILES_ACTIVE"
 
       - name: Build & Test
         run: ./gradlew clean test bootJar
