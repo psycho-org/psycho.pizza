@@ -12,8 +12,8 @@ import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.identity.account.application.service.AccountService
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
 import pizza.psycho.sos.identity.account.application.service.dto.AccountResult
-import pizza.psycho.sos.identity.account.presentation.dto.RegisterRequest
-import pizza.psycho.sos.identity.account.presentation.dto.RegisterResponse
+import pizza.psycho.sos.identity.account.presentation.dto.AccountRequest
+import pizza.psycho.sos.identity.account.presentation.dto.AccountResponse
 
 @RestController
 @RequestMapping("/api/v1/accounts")
@@ -22,8 +22,8 @@ class AccountController(
 ) {
     @PostMapping("/register")
     fun register(
-        @Valid @RequestBody request: RegisterRequest,
-    ): ApiResponse<RegisterResponse> =
+        @Valid @RequestBody request: AccountRequest.Register,
+    ): ApiResponse<AccountResponse.Register> =
         accountService
             .register(
                 AccountCommand.Register(
@@ -34,12 +34,12 @@ class AccountController(
                 ),
             ).toApiResponse()
 
-    private fun AccountResult.toApiResponse(): ApiResponse<RegisterResponse> =
+    private fun AccountResult.toApiResponse(): ApiResponse<AccountResponse.Register> =
         when (this) {
             is AccountResult.Registered ->
                 responseOf(
                     data =
-                        RegisterResponse(
+                        AccountResponse.Register(
                             id = account.id,
                             email = account.email,
                             firstName = account.firstName,
@@ -47,7 +47,9 @@ class AccountController(
                         ),
                 )
 
-            AccountResult.Failure.EmailAlreadyRegistered ->
-                throw ResponseStatusException(HttpStatus.CONFLICT, "Email already registered")
+            AccountResult.Failure.EmailAlreadyRegistered -> throw ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Email already registered",
+            )
         }
 }

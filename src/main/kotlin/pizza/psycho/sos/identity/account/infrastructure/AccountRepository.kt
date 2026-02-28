@@ -8,4 +8,6 @@ interface AccountRepository : JpaRepository<Account, UUID> {
     fun existsByEmailIgnoreCaseAndDeletedAtIsNull(email: String): Boolean
 
     fun findByEmailIgnoreCaseAndDeletedAtIsNull(email: String): Account?
+
+    fun findByIdAndDeletedAtIsNull(id: UUID): Account?
 }
