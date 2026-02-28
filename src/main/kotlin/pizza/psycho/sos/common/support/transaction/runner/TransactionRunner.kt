@@ -5,10 +5,10 @@ import org.springframework.transaction.annotation.Transactional
 import pizza.psycho.sos.common.support.transaction.annotation.ReadOnlyTransactional
 
 @Component
-open class TransactionRunner {
+class TransactionRunner {
     @Transactional
-    open fun <T> run(block: () -> T): T = block()
+    fun <T> run(block: () -> T): T = block()
 
     @ReadOnlyTransactional
-    open fun <T> runReadOnly(block: () -> T): T = block()
+    fun <T> runReadOnly(block: () -> T): T = block()
 }
