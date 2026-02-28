@@ -3,7 +3,3 @@ spring:
     import: optional:file:.env[.properties]
   profiles:
     default: ${SPRING_PROFILES_ACTIVE}
-
-  jpa:
-    hibernate:
-      ddl-auto: update
