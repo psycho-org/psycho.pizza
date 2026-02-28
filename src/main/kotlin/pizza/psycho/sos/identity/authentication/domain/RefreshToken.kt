@@ -47,6 +47,10 @@ class RefreshToken protected constructor() : BaseEntity() {
         revokedAt = revokedAt ?: now
     }
 
+    fun id(): UUID = requireNotNull(id) { "RefreshToken.id must not be null after persistence" }
+
+    fun accountId(): UUID = requireNotNull(accountId) { "RefreshToken.accountId must not be null" }
+
     companion object {
         fun create(
             accountId: UUID,
