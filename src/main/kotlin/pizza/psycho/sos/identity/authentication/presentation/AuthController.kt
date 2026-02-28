@@ -20,7 +20,7 @@ import pizza.psycho.sos.identity.authentication.application.service.dto.AuthQuer
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthResult
 import pizza.psycho.sos.identity.authentication.presentation.dto.AuthRequest
 import pizza.psycho.sos.identity.authentication.presentation.dto.AuthResponse
-import pizza.psycho.sos.identity.config.JwtProperties
+import pizza.psycho.sos.identity.security.config.JwtProperties
 import java.time.Duration
 
 @RestController

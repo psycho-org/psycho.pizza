@@ -1,4 +1,4 @@
-package pizza.psycho.sos.identity.config
+package pizza.psycho.sos.identity.security.config
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.stereotype.Component

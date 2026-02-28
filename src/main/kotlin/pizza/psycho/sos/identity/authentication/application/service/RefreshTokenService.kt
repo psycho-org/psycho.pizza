@@ -4,7 +4,7 @@ import jakarta.transaction.Transactional
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.identity.authentication.domain.RefreshToken
 import pizza.psycho.sos.identity.authentication.infrastructure.RefreshTokenRepository
-import pizza.psycho.sos.identity.config.JwtProperties
+import pizza.psycho.sos.identity.security.config.JwtProperties
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
