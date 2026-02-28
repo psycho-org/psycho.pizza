@@ -14,7 +14,7 @@ import org.mockito.Mockito.`when`
 import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
 import pizza.psycho.sos.identity.authentication.domain.RefreshToken
 import pizza.psycho.sos.identity.authentication.infrastructure.RefreshTokenRepository
-import pizza.psycho.sos.identity.config.JwtProperties
+import pizza.psycho.sos.identity.security.config.JwtProperties
 import java.time.Instant
 import java.util.UUID
 

@@ -1,4 +1,4 @@
-package pizza.psycho.sos.identity.authentication.application.security
+package pizza.psycho.sos.identity.security.filter
 
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
@@ -7,10 +7,11 @@ import org.springframework.http.HttpHeaders
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
+import pizza.psycho.sos.identity.security.token.JwtTokenProvider
 
 @Component
 class JwtAuthenticationFilter(
-    private val jwtTokenService: JwtTokenService,
+    private val jwtTokenProvider: JwtTokenProvider,
 ) : OncePerRequestFilter() {
     override fun doFilterInternal(
         request: HttpServletRequest,
@@ -21,7 +22,7 @@ class JwtAuthenticationFilter(
         if (bearerToken.startsWith(BEARER_PREFIX, ignoreCase = true)) {
             val accessToken = bearerToken.substring(BEARER_PREFIX.length).trim()
             if (accessToken.isNotBlank() && SecurityContextHolder.getContext().authentication == null) {
-                val authentication = jwtTokenService.toAuthentication(accessToken)
+                val authentication = jwtTokenProvider.toAuthentication(accessToken)
                 if (authentication != null) {
                     SecurityContextHolder.getContext().authentication = authentication
                 }

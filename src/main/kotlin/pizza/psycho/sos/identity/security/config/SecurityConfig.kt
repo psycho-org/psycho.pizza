@@ -1,4 +1,4 @@
-package pizza.psycho.sos.identity.config
+package pizza.psycho.sos.identity.security.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -11,7 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.HttpStatusEntryPoint
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
-import pizza.psycho.sos.identity.authentication.application.security.JwtAuthenticationFilter
+import pizza.psycho.sos.identity.security.filter.JwtAuthenticationFilter
 
 @Configuration
 @EnableWebSecurity

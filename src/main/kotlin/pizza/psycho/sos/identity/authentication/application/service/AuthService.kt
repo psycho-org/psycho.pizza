@@ -5,16 +5,16 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.identity.account.domain.Account
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
-import pizza.psycho.sos.identity.authentication.application.security.JwtTokenService
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthQuery
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthResult
+import pizza.psycho.sos.identity.security.token.JwtTokenProvider
 
 @Service
 @Transactional
 class AuthService(
     private val accountRepository: AccountRepository,
     private val passwordEncoder: PasswordEncoder,
-    private val jwtTokenService: JwtTokenService,
+    private val jwtTokenProvider: JwtTokenProvider,
     private val refreshTokenService: RefreshTokenService,
 ) {
     fun login(query: AuthQuery.Login): AuthResult.Login {
@@ -53,7 +53,7 @@ class AuthService(
         refreshToken: String,
     ): AuthResult.Login.Authenticated =
         AuthResult.Login.Authenticated(
-            accessToken = jwtTokenService.issueAccessToken(account),
+            accessToken = jwtTokenProvider.issueAccessToken(account),
             refreshToken = refreshToken,
             user =
                 AuthResult.User(
@@ -69,7 +69,7 @@ class AuthService(
         refreshToken: String,
     ): AuthResult.Refresh.Authenticated =
         AuthResult.Refresh.Authenticated(
-            accessToken = jwtTokenService.issueAccessToken(account),
+            accessToken = jwtTokenProvider.issueAccessToken(account),
             refreshToken = refreshToken,
             user =
                 AuthResult.User(

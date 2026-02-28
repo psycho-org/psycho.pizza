@@ -1,4 +1,4 @@
-package pizza.psycho.sos.identity.authentication.application.security
+package pizza.psycho.sos.identity.security.principal
 
 import java.util.UUID
 
