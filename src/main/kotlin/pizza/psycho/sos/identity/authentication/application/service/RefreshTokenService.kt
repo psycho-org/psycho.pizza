@@ -22,65 +22,64 @@ class RefreshTokenService(
         repeat(MAX_TOKEN_GENERATION_RETRIES) {
             val rawToken = generateRawToken()
             val tokenHash = hash(rawToken)
-            if (!refreshTokenRepository.existsByTokenHash(tokenHash)) {
-                val expiresAt = Instant.now().plusSeconds(jwtProperties.refreshTokenValiditySeconds)
-                refreshTokenRepository.save(
-                    RefreshToken.create(
-                        accountId = accountId,
-                        tokenHash = tokenHash,
-                        jti = UUID.randomUUID().toString(),
-                        expiresAt = expiresAt,
-                    ),
-                )
-                return rawToken
-            }
+            if (refreshTokenRepository.existsByTokenHash(tokenHash)) return@repeat
+            refreshTokenRepository.save(
+                RefreshToken.create(
+                    accountId = accountId,
+                    tokenHash = tokenHash,
+                    jti = UUID.randomUUID().toString(),
+                    expiresAt = Instant.now().plusSeconds(jwtProperties.refreshTokenValiditySeconds),
+                ),
+            )
+            return rawToken
         }
         throw IllegalStateException("Failed to generate unique refresh token")
     }
 
     fun rotate(rawToken: String): RotatedRefreshToken? {
         val current = findValidToken(rawToken) ?: return null
-        val accountId = requireNotNull(current.accountId) { "Refresh token account id is required" }
-        val tokenId = requireNotNull(current.id) { "Refresh token id is required" }
-        val updatedRows = refreshTokenRepository.revokeIfActive(tokenId, Instant.now())
-        if (updatedRows != 1) return null
+        if (refreshTokenRepository.revokeIfActive(current.id(), Instant.now()) != 1) return null
+        val accountId = current.accountId()
 
-        val newRawToken = issue(accountId)
-        return RotatedRefreshToken(accountId = accountId, refreshToken = newRawToken)
+        return RotatedRefreshToken(
+            accountId = accountId,
+            refreshToken = issue(accountId),
+        )
     }
 
     fun revoke(rawToken: String) {
-        val tokenHash = hashOrNull(rawToken) ?: return
-        val token = refreshTokenRepository.findByTokenHash(tokenHash) ?: return
+        val token =
+            hashOrNull(rawToken)
+                ?.let(refreshTokenRepository::findByTokenHash) ?: return
+
         token.revoke()
         refreshTokenRepository.save(token)
     }
 
-    private fun findValidToken(rawToken: String): RefreshToken? {
-        val tokenHash = hashOrNull(rawToken) ?: return null
-        val token = refreshTokenRepository.findByTokenHash(tokenHash) ?: return null
-        if (token.isRevoked()) return null
-        if (token.isExpired()) return null
-        return token
-    }
+    private fun findValidToken(rawToken: String): RefreshToken? =
+        hashOrNull(rawToken)
+            ?.let(refreshTokenRepository::findByTokenHash)
+            ?.takeUnless { it.isRevoked() || it.isExpired() }
 
-    private fun hashOrNull(rawToken: String): String? {
-        val normalized = rawToken.trim()
-        if (normalized.isEmpty()) return null
-        return hash(normalized)
-    }
+    private fun hashOrNull(rawToken: String): String? =
+        rawToken
+            .trim()
+            .takeIf(String::isNotEmpty)
+            ?.let(this::hash)
 
     private fun hash(value: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val bytes = digest.digest(value.toByteArray(StandardCharsets.UTF_8))
-        return bytes.joinToString(separator = "") { byte -> "%02x".format(byte) }
+        val bytes =
+            MessageDigest
+                .getInstance(HASH_ALGORITHM)
+                .digest(value.toByteArray(StandardCharsets.UTF_8))
+
+        return bytes.joinToString("") { "%02x".format(it) }
     }
 
-    private fun generateRawToken(): String {
-        val randomBytes = ByteArray(REFRESH_TOKEN_BYTE_SIZE)
-        secureRandom.nextBytes(randomBytes)
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes)
-    }
+    private fun generateRawToken(): String =
+        ByteArray(REFRESH_TOKEN_BYTE_SIZE)
+            .also(secureRandom::nextBytes)
+            .let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
 
     data class RotatedRefreshToken(
         val accountId: UUID,
@@ -90,6 +89,7 @@ class RefreshTokenService(
     companion object {
         private const val MAX_TOKEN_GENERATION_RETRIES = 3
         private const val REFRESH_TOKEN_BYTE_SIZE = 48
+        private const val HASH_ALGORITHM = "SHA-256"
         private val secureRandom = SecureRandom()
     }
 }
