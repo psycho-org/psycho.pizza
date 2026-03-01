@@ -13,3 +13,14 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+security:
+  jwt:
+    issuer: ${JWT_ISSUER}
+    access-token-validity-seconds: ${JWT_ACCESS_TOKEN_VALIDITY_SECONDS}
+    refresh-token-validity-seconds: ${JWT_REFRESH_TOKEN_VALIDITY_SECONDS}
+    refresh-cookie-name: ${JWT_REFRESH_COOKIE_NAME}
+    refresh-cookie-path: ${JWT_REFRESH_COOKIE_PATH}
+    refresh-cookie-same-site: ${JWT_REFRESH_COOKIE_SAME_SITE}
+    refresh-cookie-secure: ${JWT_REFRESH_COOKIE_SECURE:true}
+    secret: ${JWT_SECRET}
