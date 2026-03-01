@@ -34,6 +34,8 @@ jobs:
         run: echo "Profile=$SPRING_PROFILES_ACTIVE"
 
       - name: Test
+        env:
+          SPRING_PROFILES_ACTIVE: test
         run: ./gradlew clean test --stacktrace --info
 
       - name: Build JAR

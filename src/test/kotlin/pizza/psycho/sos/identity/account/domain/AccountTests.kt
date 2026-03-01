@@ -1,8 +1,10 @@
 package pizza.psycho.sos.identity.account.domain
 
+import org.springframework.test.context.ActiveProfiles
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+@ActiveProfiles("test")
 class AccountTests {
     @Test
     fun `create sets account fields`() {
