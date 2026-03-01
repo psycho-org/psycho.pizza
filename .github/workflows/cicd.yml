@@ -8,10 +8,6 @@ on:
 env:
   DOCKER_IMAGE: dnya0/psycho
   SERVICE_NAME: sos
-  SPRING_PROFILES_ACTIVE: ${{ secrets.SPRING_PROFILES_ACTIVE }}
-  SPRING_DATASOURCE_URL: ${{ secrets.SPRING_DATASOURCE_URL }}
-  SPRING_DATASOURCE_USERNAME: ${{ secrets.SPRING_DATASOURCE_USERNAME }}
-  SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
 
 jobs:
   build:
@@ -33,8 +29,30 @@ jobs:
       - name: Debug profile
         run: echo "Profile=$SPRING_PROFILES_ACTIVE"
 
-      - name: Build & Test
-        run: ./gradlew clean test bootJar
+      - name: Test
+        env:
+          SPRING_PROFILES_ACTIVE: test
+        run: ./gradlew clean test
+
+      - name: Print test failure details
+        if: failure()
+        run: |
+          echo "=== TEST RESULT XML FILES ==="
+          find build/test-results/test -name "*.xml" -print || true
+          echo "=== FAILED TEST DETAILS ==="
+          grep -RIn "<failure\\|<error" build/test-results/test || true
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            build/test-results/test/**
+            build/reports/tests/test/**
+
+      - name: Build JAR
+        run: ./gradlew bootJar
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
