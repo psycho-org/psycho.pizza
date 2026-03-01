@@ -9,5 +9,3 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
-  profiles:
-    default: test
