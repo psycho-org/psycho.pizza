@@ -36,7 +36,24 @@ jobs:
       - name: Test
         env:
           SPRING_PROFILES_ACTIVE: test
-        run: ./gradlew clean test --stacktrace --info
+        run: ./gradlew clean test
+
+      - name: Print test failure details
+        if: failure()
+        run: |
+          echo "=== TEST RESULT XML FILES ==="
+          find build/test-results/test -name "*.xml" -print || true
+          echo "=== FAILED TEST DETAILS ==="
+          grep -RIn "<failure\\|<error" build/test-results/test || true
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            build/test-results/test/**
+            build/reports/tests/test/**
 
       - name: Build JAR
         run: ./gradlew bootJar
