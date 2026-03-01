@@ -2,9 +2,11 @@ package pizza.psycho.sos.identity.account.domain
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.Table
 import pizza.psycho.sos.common.entity.BaseDeletableEntity
 
 @Entity
+@Table(name = "accounts")
 class Account protected constructor() : BaseDeletableEntity() {
     @Column(name = "email", nullable = false)
     var email: String? = null
