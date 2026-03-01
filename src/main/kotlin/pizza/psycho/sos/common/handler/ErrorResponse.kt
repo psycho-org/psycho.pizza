@@ -8,6 +8,7 @@ data class ErrorResponse(
     override val status: Int,
     override val message: String,
     val error: String,
+    val code: String? = null,
     val path: String,
     val details: Map<String, List<String>>? = null,
 ) : ApiResponse<Nothing>
