@@ -10,9 +10,13 @@ data class TaskDueDate(
     @Column(name = "due_date", nullable = true)
     var value: Instant? = null,
 ) {
-    init {
-        value?.let {
-            if (!it.isAfter(Instant.now())) throw InvalidDueDateException("마감일은 현재 시간 이후여야 합니다")
+    companion object {
+        fun withValidation(value: Instant? = null): TaskDueDate {
+            value?.let {
+                if (!it.isAfter(Instant.now())) throw InvalidDueDateException("마감일은 현재 시간 이후여야 합니다")
+            }
+
+            return TaskDueDate(value)
         }
     }
 }

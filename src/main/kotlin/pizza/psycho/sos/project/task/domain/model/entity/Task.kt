@@ -13,6 +13,8 @@ import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.task.domain.model.vo.AssigneeId
 import pizza.psycho.sos.project.task.domain.model.vo.Status
 import pizza.psycho.sos.project.task.domain.model.vo.TaskDueDate
+import java.time.Instant
+import java.util.UUID
 
 @Entity
 @Table(name = "tasks")
@@ -40,8 +42,8 @@ class Task protected constructor(
         this.description = description ?: this.description
     }
 
-    fun assign(assigneeId: AssigneeId) {
-        this.assigneeId = assigneeId
+    fun assign(assigneeId: UUID) {
+        this.assigneeId = AssigneeId(assigneeId)
     }
 
     fun unassign() {
@@ -52,8 +54,8 @@ class Task protected constructor(
         this.status = status
     }
 
-    fun changeDueDate(dueDate: TaskDueDate) {
-        this.dueDate = dueDate
+    fun changeDueDate(dueDate: Instant) {
+        this.dueDate = TaskDueDate.withValidation(dueDate)
     }
 
     fun clearDueDate() {
@@ -64,14 +66,16 @@ class Task protected constructor(
         fun create(
             title: String,
             description: String,
-            assigneeId: AssigneeId,
-            workspaceId: WorkspaceId,
+            assigneeId: UUID? = null,
+            workspaceId: UUID,
+            dueDate: Instant? = null,
         ): Task =
             Task(
                 title = title,
                 description = description,
-                assigneeId = assigneeId,
-                workspaceId = workspaceId,
+                assigneeId = AssigneeId(assigneeId),
+                workspaceId = WorkspaceId(workspaceId),
+                dueDate = TaskDueDate.withValidation(dueDate),
             )
     }
 }
