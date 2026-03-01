@@ -2,6 +2,7 @@ package pizza.psycho.sos.project.task.domain.model.vo
 
 import jakarta.persistence.Column
 import jakarta.persistence.Embeddable
+import pizza.psycho.sos.project.task.domain.exception.InvalidDueDateException
 import java.time.Instant
 
 @Embeddable
@@ -11,7 +12,7 @@ data class TaskDueDate(
 ) {
     init {
         value?.let {
-            require(it.isAfter(Instant.now())) { "due date must be after ${Instant.now()}" }
+            if (!it.isAfter(Instant.now())) throw InvalidDueDateException("마감일은 현재 시간 이후여야 합니다")
         }
     }
 }

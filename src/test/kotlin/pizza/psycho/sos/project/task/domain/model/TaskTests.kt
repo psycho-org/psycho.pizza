@@ -1,6 +1,7 @@
 package pizza.psycho.sos.project.task.domain.model
 
 import org.springframework.test.context.ActiveProfiles
+import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.task.domain.model.entity.Task
 import pizza.psycho.sos.project.task.domain.model.vo.AssigneeId
@@ -180,7 +181,7 @@ class TaskDueDateTests {
     fun `TaskDueDate - 과거 날짜는 거부된다`() {
         val past = Instant.now().minusSeconds(3600)
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<DomainException> {
             TaskDueDate(past)
         }
     }
