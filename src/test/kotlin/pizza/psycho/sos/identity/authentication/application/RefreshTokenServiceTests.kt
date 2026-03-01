@@ -13,6 +13,7 @@ import org.mockito.Mockito.mock
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
+import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
 import pizza.psycho.sos.identity.authentication.domain.RefreshToken
 import pizza.psycho.sos.identity.authentication.infrastructure.RefreshTokenRepository
@@ -20,6 +21,7 @@ import pizza.psycho.sos.identity.security.config.JwtProperties
 import java.time.Instant
 import java.util.UUID
 
+@ActiveProfiles("test")
 class RefreshTokenServiceTests {
     private val refreshTokenRepository = mock(RefreshTokenRepository::class.java)
     private val jwtProperties =

@@ -8,6 +8,7 @@ import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.identity.account.domain.Account
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
 import pizza.psycho.sos.identity.authentication.application.service.AuthService
@@ -17,6 +18,7 @@ import pizza.psycho.sos.identity.authentication.application.service.dto.AuthResu
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import java.util.UUID
 
+@ActiveProfiles("test")
 class AuthServiceTests {
     private val accountRepository = mock(AccountRepository::class.java)
     private val passwordEncoder = mock(PasswordEncoder::class.java)

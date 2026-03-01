@@ -4,6 +4,7 @@ import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.identity.account.domain.Account
 import pizza.psycho.sos.identity.security.config.JwtProperties
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
@@ -12,6 +13,7 @@ import java.time.Instant
 import java.util.Date
 import java.util.UUID
 
+@ActiveProfiles("test")
 class AccessTokenProviderTests {
     private val properties =
         JwtProperties().apply {

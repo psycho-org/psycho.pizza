@@ -1,5 +1,6 @@
 package pizza.psycho.sos.identity.authentication.domain
 
+import org.springframework.test.context.ActiveProfiles
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.Test
@@ -7,6 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+@ActiveProfiles("test")
 class RefreshTokenTests {
     @Test
     fun `isExpired returns false when now is before expiresAt`() {
