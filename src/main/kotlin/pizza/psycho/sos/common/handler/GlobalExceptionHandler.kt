@@ -71,6 +71,15 @@ class GlobalExceptionHandler {
         path = request.requestURI,
     )
 
+    @ExceptionHandler(DomainException::class)
+    fun handleDomainException(
+        ex: DomainException,
+        request: HttpServletRequest,
+    ) = HttpStatus.BAD_REQUEST.toResponse(
+        message = ex.message ?: "Bad Request",
+        path = request.requestURI,
+    )
+
     @ExceptionHandler(Exception::class)
     fun handleException(
         ex: Exception,
