@@ -43,4 +43,8 @@ class Account protected constructor() : BaseDeletableEntity() {
                 this.displayName = "$givenName $familyName"
             }
     }
+
+    fun updateDisplayName(displayName: String) {
+        this.displayName = displayName
+    }
 }

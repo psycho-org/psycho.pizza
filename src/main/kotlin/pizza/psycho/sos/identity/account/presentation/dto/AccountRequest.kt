@@ -18,6 +18,11 @@ sealed interface AccountRequest {
         val lastName: String,
     )
 
+    data class UpdateDisplayName(
+        @field:NotBlank
+        val displayName: String,
+    )
+
     data class Withdraw(
         // TODO
         val example: Nothing,
