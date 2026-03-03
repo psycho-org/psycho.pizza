@@ -54,7 +54,7 @@ class TaskServiceTests {
                 title = "새로운 태스크",
                 description = "태스크 설명",
                 assigneeId = assigneeId,
-                dueDate = Instant.now(),
+                dueDate = Instant.now().plusSeconds(3600), // 1시간 후
             )
 
         val taskId = UUID.randomUUID()
