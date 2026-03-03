@@ -39,9 +39,11 @@ interface TaskJpaRepository :
         id: UUID,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
-    ) {
-        findByIdAndWorkspaceIdValueAndDeletedAtIsNull(id, workspaceId.value)?.delete(deletedBy)
-    }
+    ): Int =
+        findByIdAndWorkspaceIdValueAndDeletedAtIsNull(id, workspaceId.value)
+            ?.also { it.delete(deletedBy) }
+            ?.let { 1 }
+            ?: 0
 
     fun findByIdAndWorkspaceIdValue(
         id: UUID,

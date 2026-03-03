@@ -34,8 +34,12 @@ class TaskService(
     fun remove(command: TaskCommand.RemoveTask): TaskResult =
         Tx.writable {
             with(command) {
-                taskRepository.deleteById(id = id, deletedBy = deletedBy, workspaceId = WorkspaceId(workspaceId))
-                TaskResult.Success
+                taskRepository
+                    .deleteById(
+                        id = id,
+                        deletedBy = deletedBy,
+                        workspaceId = WorkspaceId(workspaceId),
+                    ).let { TaskResult.Remove(it) }
             }
         }
 

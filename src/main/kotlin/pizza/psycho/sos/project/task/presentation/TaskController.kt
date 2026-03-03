@@ -68,7 +68,7 @@ class TaskController(
 
     private fun handleResult(function: () -> TaskResult): ApiResponse<*> =
         when (val result: TaskResult = function()) {
-            is TaskResult.Success -> responseOf(message = "데이터 삭제에 성공하였습니다.", data = null)
+            is TaskResult.Remove -> responseOf(message = "데이터 삭제에 성공하였습니다.", data = TaskResponse.Remove(result.count))
             is TaskResult.TaskInformation -> responseOf(data = result.toResponse())
             is TaskResult.TaskList -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
             is TaskResult.Failure.IdNotFound -> throw DomainException("id not found")

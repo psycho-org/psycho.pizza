@@ -31,7 +31,7 @@ interface TaskRepository {
         id: UUID,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
-    )
+    ): Int
 
     fun save(task: Task): Task
 }

@@ -27,4 +27,8 @@ sealed interface TaskResponse {
         val name: String,
         val email: String,
     )
+
+    data class Remove(
+        val count: Int,
+    )
 }

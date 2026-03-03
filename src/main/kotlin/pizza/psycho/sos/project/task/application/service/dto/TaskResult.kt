@@ -6,8 +6,6 @@ import java.time.Instant
 import java.util.UUID
 
 sealed interface TaskResult {
-    data object Success : TaskResult
-
     data class TaskInformation(
         val id: UUID,
         val title: String,
@@ -34,6 +32,10 @@ sealed interface TaskResult {
         val assignee: Assignee? = null,
         val dueDate: Instant? = null,
     )
+
+    data class Remove(
+        val count: Int,
+    ) : TaskResult
 
     sealed interface Failure : TaskResult {
         data object IdNotFound : Failure

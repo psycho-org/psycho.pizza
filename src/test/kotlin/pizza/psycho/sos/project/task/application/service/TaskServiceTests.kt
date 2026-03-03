@@ -159,11 +159,11 @@ class TaskServiceTests {
         val userId = UUID.randomUUID()
         val command = TaskCommand.RemoveTask(workspaceId, taskId, userId)
 
-        every { taskRepository.deleteById(taskId, userId, WorkspaceId(workspaceId)) } returns Unit
+        every { taskRepository.deleteById(taskId, userId, WorkspaceId(workspaceId)) } returns 1
 
         val result = taskService.remove(command)
 
-        assertTrue(result is TaskResult.Success)
+        assertTrue(result is TaskResult.Remove)
         verify { taskRepository.deleteById(taskId, userId, WorkspaceId(workspaceId)) }
     }
 }
