@@ -5,6 +5,7 @@ import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
+import jakarta.persistence.PostLoad
 import jakarta.persistence.Table
 import pizza.psycho.sos.common.entity.BaseDeletableEntity
 import pizza.psycho.sos.common.event.AggregateRoot
@@ -60,6 +61,12 @@ class Task protected constructor(
 
     fun clearDueDate() {
         this.dueDate = TaskDueDate()
+    }
+
+    @PostLoad
+    private fun ensureNonNullFields() {
+        if (assigneeId == null) assigneeId = AssigneeId.empty()
+        if (dueDate == null) dueDate = TaskDueDate()
     }
 
     companion object {
