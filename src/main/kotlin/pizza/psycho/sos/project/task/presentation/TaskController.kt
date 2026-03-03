@@ -1,5 +1,6 @@
 package pizza.psycho.sos.project.task.presentation
 
+import jakarta.validation.Valid
 import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -7,7 +8,6 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.common.handler.DomainException
@@ -22,15 +22,15 @@ import pizza.psycho.sos.project.task.presentation.dto.TaskResponse
 import java.util.UUID
 
 @RestController
-@RequestMapping("/api/v1/tasks")
+@RequestMapping("/api/v1/{workspaceId}/tasks")
 class TaskController(
     private val taskService: TaskService,
     private val pageInfoSupport: PageInfoSupport,
 ) {
     @PostMapping
     fun createTask(
-        @RequestHeader("WORKSPACE_ID") workspaceId: UUID,
-        @RequestBody request: TaskRequest.Create,
+        @PathVariable workspaceId: UUID,
+        @Valid @RequestBody request: TaskRequest.Create,
     ): ApiResponse<*> =
         handleResult {
             taskService.create(request.toCommand(workspaceId))
@@ -38,30 +38,30 @@ class TaskController(
 
     @GetMapping
     fun findAllTasks(
-        @RequestHeader("WORKSPACE_ID") spaceId: UUID,
+        @PathVariable workspaceId: UUID,
         @PageableDefault(size = 10) pageable: Pageable,
     ): ApiResponse<*> =
         handleResult {
-            taskService.getAll(TaskCommand.FindTasks(spaceId, pageable))
+            taskService.getAll(TaskCommand.FindTasks(workspaceId, pageable))
         }
 
     @GetMapping("/{id}")
     fun findTaskById(
-        @RequestHeader("WORKSPACE_ID") spaceId: UUID,
+        @PathVariable workspaceId: UUID,
         @PathVariable id: UUID,
     ): ApiResponse<*> =
         handleResult {
-            taskService.getInformation(TaskCommand.FindTask(spaceId, id))
+            taskService.getInformation(TaskCommand.FindTask(workspaceId, id))
         }
 
     @DeleteMapping("/{id}/{userId}")
     fun remove(
-        @RequestHeader("WORKSPACE_ID") spaceId: UUID,
+        @PathVariable workspaceId: UUID,
         @PathVariable id: UUID,
         @PathVariable userId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            taskService.remove(TaskCommand.RemoveTask(spaceId, id, userId))
+            taskService.remove(TaskCommand.RemoveTask(workspaceId, id, userId))
         }
 
     // ------------------------------------------------------------------------------------------------

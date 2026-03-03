@@ -83,8 +83,7 @@ class TaskControllerTests {
 
         mockMvc
             .perform(
-                post("/api/v1/tasks")
-                    .header("WORKSPACE_ID", workspaceId.toString())
+                post("/api/v1/$workspaceId/tasks")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
@@ -135,8 +134,7 @@ class TaskControllerTests {
 
         mockMvc
             .perform(
-                get("/api/v1/tasks")
-                    .header("WORKSPACE_ID", workspaceId.toString())
+                get("/api/v1/$workspaceId/tasks")
                     .param("page", "0")
                     .param("size", "10"),
             ).andExpect(status().isOk)
@@ -169,8 +167,7 @@ class TaskControllerTests {
 
         mockMvc
             .perform(
-                get("/api/v1/tasks/$taskId")
-                    .header("WORKSPACE_ID", workspaceId.toString()),
+                get("/api/v1/$workspaceId/tasks/$taskId"),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.id").value(taskId.toString()))
             .andExpect(jsonPath("$.data.title").value("조회할 태스크"))
@@ -190,8 +187,7 @@ class TaskControllerTests {
 
         mockMvc
             .perform(
-                get("/api/v1/tasks/$taskId")
-                    .header("WORKSPACE_ID", workspaceId.toString()),
+                get("/api/v1/$workspaceId/tasks/$taskId"),
             ).andExpect(status().is4xxClientError)
     }
 
@@ -224,8 +220,7 @@ class TaskControllerTests {
 
         mockMvc
             .perform(
-                post("/api/v1/tasks")
-                    .header("WORKSPACE_ID", workspaceId.toString())
+                post("/api/v1/$workspaceId/tasks")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
