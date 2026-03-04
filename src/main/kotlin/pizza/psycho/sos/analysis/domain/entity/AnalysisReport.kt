@@ -35,11 +35,11 @@ class AnalysisReport(
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "category_penalties", nullable = false, columnDefinition = "jsonb", updatable = false)
-    val categoryPenalties: List<CategoryPenalty>,
+    val categoryPenalties: String,
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "penalty_details", nullable = false, columnDefinition = "jsonb", updatable = false)
-    val penaltyDetails: List<PenaltyDetail>,
+    val penaltyDetails: String,
 
     ) : BaseEntity() {
 
