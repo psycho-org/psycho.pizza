@@ -9,7 +9,6 @@ import jakarta.persistence.Table
 import pizza.psycho.sos.common.entity.BaseDeletableEntity
 import pizza.psycho.sos.workspace.domain.model.membership.Membership
 import pizza.psycho.sos.workspace.domain.model.membership.Role
-import java.util.HashSet
 import java.util.UUID
 
 @Entity
@@ -72,15 +71,17 @@ class Workspace protected constructor(
             memberships.firstOrNull { it.accountId == requesterAccountId && !it.isDeleted }
                 ?: throw IllegalArgumentException("membership not found for requesterAccountId=$requesterAccountId")
 
-        if (!requesterMembership.role.isOwner())
+        if (!requesterMembership.role.isOwner()) {
             throw IllegalArgumentException("only owner can transfer ownership")
+        }
 
         val newOwnerMembership =
             memberships.firstOrNull { it.accountId == newOwnerAccountId && !it.isDeleted }
                 ?: throw IllegalArgumentException("membership not found for newOwnerAccountId=$newOwnerAccountId")
 
-        if (requesterMembership.accountId == newOwnerMembership.accountId)
+        if (requesterMembership.accountId == newOwnerMembership.accountId) {
             return newOwnerMembership
+        }
 
         requesterMembership.role = Role.CREW
         newOwnerMembership.role = Role.OWNER

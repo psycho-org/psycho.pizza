@@ -84,8 +84,7 @@ class WorkspaceServiceTests {
 
         override fun findByIdOrNull(id: UUID): Workspace? = store[id]
 
-        override fun findActiveByIdOrNull(id: UUID): Workspace? =
-            store[id]?.takeIf { !it.isDeleted }
+        override fun findActiveByIdOrNull(id: UUID): Workspace? = store[id]?.takeIf { !it.isDeleted }
 
         override fun save(workspace: Workspace): Workspace {
             if (workspace.id == null) {
