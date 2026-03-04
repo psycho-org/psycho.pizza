@@ -31,10 +31,12 @@ class AnalysisReport(
     @Column(name = "score_version", nullable = false, length = 50, updatable = false)
     val scoreVersion: String,
 
+    // TODO: vo 지정 필요할 수도 있음
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "category_penalties", nullable = false, columnDefinition = "jsonb", updatable = false)
     val categoryPenalties: String,
 
+    // TODO: vo 지정 필요할 수도 있음
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "penalty_details", nullable = false, columnDefinition = "jsonb", updatable = false)
     val penaltyDetails: String,
