@@ -3,10 +3,14 @@ os: Linux
 
 files:
   - source: /
-    destination: /home/ec2-user/app
+    destination: /home/ubuntu/app
 
 hooks:
+  ApplicationStop:
+    - location: scripts/stop.sh
+      timeout: 60
+      runas: ubuntu
   AfterInstall:
     - location: scripts/deploy.sh
       timeout: 600
-      runas: ec2-user
+      runas: ubuntu

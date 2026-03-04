@@ -3,3 +3,12 @@ spring:
     import: optional:file:.env[.properties]
   profiles:
     default: ${SPRING_PROFILES_ACTIVE}
+
+management:
+  endpoints:
+    web:
+      base-path: /
+      path-mapping:
+        health: health
+      exposure:
+        include: health
