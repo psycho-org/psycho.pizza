@@ -12,7 +12,7 @@ create table if not exists public.accounts (
                                  password_hash character varying(255) not null
 );
 -- accounts 테이블 email 유니크키 추가
-create unique index if not exists uk_accounts_email on accounts using btree (email) WHERE (deleted_at IS NULL);
+create unique index if not exists uk_accounts_email on accounts using btree (lower(email)) WHERE (deleted_at IS NULL);
 
 -- refresh_tokens 테이블 생성
 create table if not exists public.refresh_tokens (
