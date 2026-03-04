@@ -2,6 +2,8 @@ package pizza.psycho.sos.identity.account.presentation
 
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.security.core.Authentication
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -14,6 +16,7 @@ import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
 import pizza.psycho.sos.identity.account.application.service.dto.AccountResult
 import pizza.psycho.sos.identity.account.presentation.dto.AccountRequest
 import pizza.psycho.sos.identity.account.presentation.dto.AccountResponse
+import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 
 @RestController
 @RequestMapping("/api/v1/accounts")
@@ -32,9 +35,27 @@ class AccountController(
                     firstName = request.firstName,
                     lastName = request.lastName,
                 ),
-            ).toApiResponse()
+            ).toRegisterApiResponse()
 
-    private fun AccountResult.toApiResponse(): ApiResponse<AccountResponse.Register> =
+    @PatchMapping("/me/display-name")
+    fun updateDisplayName(
+        authentication: Authentication,
+        @Valid @RequestBody request: AccountRequest.UpdateDisplayName,
+    ): ApiResponse<AccountResponse.UpdateDisplayName> {
+        val principal =
+            authentication.principal as? AuthenticatedAccountPrincipal
+                ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized")
+
+        return accountService
+            .updateDisplayName(
+                AccountCommand.UpdateDisplayName(
+                    accountId = principal.accountId,
+                    displayName = request.displayName,
+                ),
+            ).toUpdateDisplayNameApiResponse()
+    }
+
+    private fun AccountResult.toRegisterApiResponse(): ApiResponse<AccountResponse.Register> =
         when (this) {
             is AccountResult.Registered ->
                 responseOf(
@@ -51,5 +72,30 @@ class AccountController(
                 HttpStatus.CONFLICT,
                 "Email already registered",
             )
+
+            else -> throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR)
+        }
+
+    private fun AccountResult.toUpdateDisplayNameApiResponse(): ApiResponse<AccountResponse.UpdateDisplayName> =
+        when (this) {
+            is AccountResult.Updated.DisplayName ->
+                responseOf(
+                    data =
+                        AccountResponse.UpdateDisplayName(
+                            displayName = displayName,
+                        ),
+                )
+
+            AccountResult.Failure.InvalidDisplayName -> throw ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Invalid display name",
+            )
+
+            AccountResult.Failure.AccountNotFound -> throw ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Account not found",
+            )
+
+            else -> throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR)
         }
 }

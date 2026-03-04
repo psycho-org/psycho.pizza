@@ -40,4 +40,24 @@ class AccountService(
                 ),
         )
     }
+
+    fun updateDisplayName(command: AccountCommand.UpdateDisplayName): AccountResult {
+        val normalizedDisplayName = command.displayName.trim()
+        if (normalizedDisplayName.length !in DISPLAY_NAME_LENGTH_RANGE) {
+            return AccountResult.Failure.InvalidDisplayName
+        }
+
+        val account =
+            accountRepository.findByIdAndDeletedAtIsNull(command.accountId)
+                ?: return AccountResult.Failure.AccountNotFound
+
+        account.updateDisplayName(normalizedDisplayName)
+        return AccountResult.Updated.DisplayName(
+            displayName = normalizedDisplayName,
+        )
+    }
+
+    companion object {
+        private val DISPLAY_NAME_LENGTH_RANGE = 1..40
+    }
 }

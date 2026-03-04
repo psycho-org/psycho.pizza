@@ -8,6 +8,10 @@ sealed interface AccountResponse {
         val lastName: String,
     )
 
+    data class UpdateDisplayName(
+        val displayName: String,
+    )
+
     data class Withdraw(
         // TODO
         val example: Nothing,

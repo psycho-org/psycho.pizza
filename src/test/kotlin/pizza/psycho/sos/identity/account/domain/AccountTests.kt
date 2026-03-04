@@ -34,4 +34,19 @@ class AccountTests {
 
         assertEquals("Rick Sanchez", account.displayName)
     }
+
+    @Test
+    fun `update display name changes display name`() {
+        val account =
+            Account.create(
+                email = "user@psycho.pizza",
+                passwordHash = "encoded-password",
+                givenName = "Rick",
+                familyName = "Sanchez",
+            )
+
+        account.updateDisplayName("Pickle Rick")
+
+        assertEquals("Pickle Rick", account.displayName)
+    }
 }

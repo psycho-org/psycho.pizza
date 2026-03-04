@@ -72,4 +72,106 @@ class AccountServiceTests {
         assertEquals("Rick", registered.account.firstName)
         assertEquals("Sanchez", registered.account.lastName)
     }
+
+    @Test
+    fun `update display name trims and updates account`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000111")
+        val account =
+            Account
+                .create(
+                    email = "user@psycho.pizza",
+                    passwordHash = "encoded-password",
+                    givenName = "Rick",
+                    familyName = "Sanchez",
+                ).also { it.id = accountId }
+        val command =
+            AccountCommand.UpdateDisplayName(
+                accountId = accountId,
+                displayName = "  Pickle Rick  ",
+            )
+
+        `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
+
+        val result = accountService.updateDisplayName(command)
+
+        assertEquals(
+            AccountResult.Updated.DisplayName(
+                displayName = "Pickle Rick",
+            ),
+            result,
+        )
+        assertEquals("Pickle Rick", account.displayName)
+    }
+
+    @Test
+    fun `update display name returns invalid display name failure for blank input`() {
+        val command =
+            AccountCommand.UpdateDisplayName(
+                accountId = UUID.fromString("00000000-0000-0000-0000-000000000111"),
+                displayName = "   ",
+            )
+
+        val result = accountService.updateDisplayName(command)
+
+        assertTrue(result is AccountResult.Failure.InvalidDisplayName)
+    }
+
+    @Test
+    fun `update display name returns account not found failure`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000222")
+        val command =
+            AccountCommand.UpdateDisplayName(
+                accountId = accountId,
+                displayName = "Summer",
+            )
+
+        `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(null)
+
+        val result = accountService.updateDisplayName(command)
+
+        assertTrue(result is AccountResult.Failure.AccountNotFound)
+    }
+
+    @Test
+    fun `update display name accepts input longer than 40 only when trimmed value is within range`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000333")
+        val account =
+            Account
+                .create(
+                    email = "user@psycho.pizza",
+                    passwordHash = "encoded-password",
+                    givenName = "Rick",
+                    familyName = "Sanchez",
+                ).also { it.id = accountId }
+        val validTrimmedDisplayName = "a".repeat(40)
+        val command =
+            AccountCommand.UpdateDisplayName(
+                accountId = accountId,
+                displayName = "  $validTrimmedDisplayName  ",
+            )
+
+        `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
+
+        val result = accountService.updateDisplayName(command)
+
+        assertEquals(
+            AccountResult.Updated.DisplayName(
+                displayName = validTrimmedDisplayName,
+            ),
+            result,
+        )
+    }
+
+    @Test
+    fun `update display name returns invalid display name failure when trimmed length exceeds 40`() {
+        val command =
+            AccountCommand.UpdateDisplayName(
+                accountId = UUID.fromString("00000000-0000-0000-0000-000000000444"),
+                displayName = "a".repeat(41),
+            )
+
+        val result = accountService.updateDisplayName(command)
+
+        assertTrue(result is AccountResult.Failure.InvalidDisplayName)
+    }
 }

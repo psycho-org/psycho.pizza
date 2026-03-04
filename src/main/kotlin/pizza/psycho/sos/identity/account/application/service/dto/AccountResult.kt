@@ -5,8 +5,18 @@ sealed interface AccountResult {
         val account: AccountSnapshot,
     ) : AccountResult
 
+    sealed interface Updated : AccountResult {
+        data class DisplayName(
+            val displayName: String,
+        ) : Updated
+    }
+
     sealed interface Failure : AccountResult {
         data object EmailAlreadyRegistered : Failure
+
+        data object InvalidDisplayName : Failure
+
+        data object AccountNotFound : Failure
     }
 }
 
