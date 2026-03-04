@@ -1,9 +1,9 @@
 -- accounts 테이블 생성
 create table if not exists public.accounts (
                                  id uuid primary key not null,
-                                 created_at timestamp(6) with time zone not null,
-                                 updated_at timestamp(6) with time zone,
-                                 deleted_at timestamp(6) with time zone,
+                                 created_at timestamp(6)  not null,
+                                 updated_at timestamp(6)  not null,
+                                 deleted_at timestamp(6) ,
                                  deleted_by uuid,
                                  display_name character varying(255) not null,
                                  email character varying(255) not null,
@@ -17,12 +17,12 @@ create unique index if not exists uk_accounts_email on accounts using btree (ema
 -- refresh_tokens 테이블 생성
 create table if not exists public.refresh_tokens (
                                        id uuid primary key not null,
-                                       created_at timestamp(6) with time zone not null,
-                                       updated_at timestamp(6) with time zone,
+                                       created_at timestamp(6)  not null,
+                                       updated_at timestamp(6)  not null,
                                        account_id uuid not null,
-                                       expires_at timestamp(6) with time zone not null,
+                                       expires_at timestamp(6)  not null,
                                        jti character varying(64) not null,
-                                       revoked_at timestamp(6) with time zone,
+                                       revoked_at timestamp(6) ,
                                        token_hash character varying(128) not null
 );
 -- refresh_tokens account_id 인덱스
@@ -38,9 +38,9 @@ create unique index if not exists uko2mlirhldriil2y7krapq4frt on refresh_tokens 
 -- workspaces 테이블 생성
 create table if not exists public.workspaces (
                                    id uuid primary key not null,
-                                   created_at timestamp(6) with time zone not null,
-                                   updated_at timestamp(6) with time zone,
-                                   deleted_at timestamp(6) with time zone,
+                                   created_at timestamp(6)  not null,
+                                   updated_at timestamp(6)  not null,
+                                   deleted_at timestamp(6) ,
                                    deleted_by uuid,
                                    description character varying(255),
                                    name character varying(255) not null
@@ -49,9 +49,9 @@ create table if not exists public.workspaces (
 -- memberships 테이블 생성
 create table if not exists public.memberships (
                                     id uuid primary key not null,
-                                    created_at timestamp(6) with time zone not null,
-                                    updated_at timestamp(6) with time zone,
-                                    deleted_at timestamp(6) with time zone,
+                                    created_at timestamp(6)  not null,
+                                    updated_at timestamp(6)  not null,
+                                    deleted_at timestamp(6) ,
                                     deleted_by uuid,
                                     account_id uuid not null,
                                     role character varying(50) not null,
@@ -66,13 +66,13 @@ create unique index if not exists uk_memberships_account_workspace_active on mem
 -- tasks 테이블 생성
 create table if not exists public.tasks (
                               id uuid primary key not null,
-                              created_at timestamp(6) with time zone not null,
-                              updated_at timestamp(6) with time zone,
-                              deleted_at timestamp(6) with time zone,
+                              created_at timestamp(6)  not null,
+                              updated_at timestamp(6)  not null,
+                              deleted_at timestamp(6) ,
                               deleted_by uuid,
                               assignee_id uuid,
                               description character varying(255) not null,
-                              due_date timestamp(6) with time zone,
+                              due_date timestamp(6) ,
                               status character varying(20) not null,
                               title character varying(512) not null,
                               workspace_id uuid not null
