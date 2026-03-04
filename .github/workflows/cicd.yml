@@ -6,8 +6,8 @@ on:
     branches: [ main, dev ]
 
 env:
-  DOCKER_IMAGE: dnya0/psycho
-  SERVICE_NAME: sos
+  SERVICE_NAME: psycho.pizza
+  DEPLOYMENT_GROUP_NAME: psycho-deployment-group
 
 jobs:
   build:
@@ -25,9 +25,6 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
-
-      - name: Debug profile
-        run: echo "Profile=$SPRING_PROFILES_ACTIVE"
 
       - name: Test
         env:
@@ -51,70 +48,44 @@ jobs:
             build/test-results/test/**
             build/reports/tests/test/**
 
-      - name: Build JAR
+      - name: Build JAR (verify only)
         run: ./gradlew bootJar
 
-      - name: Upload JAR
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-jar
-          path: build/libs/*.jar
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
-#  push:
-#    needs: build
-#    runs-on: ubuntu-latest
-#    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-#
-#    steps:
-#      - name: Checkout
-#        uses: actions/checkout@v4
-#
-#      - name: Download JAR
-#        uses: actions/download-artifact@v4
-#        with:
-#          name: app-jar
-#          path: build/libs
-#
-#      - name: Set up Docker Buildx
-#        uses: docker/setup-buildx-action@v3
-#
-#      - name: Login to Docker Hub
-#        uses: docker/login-action@v3
-#        with:
-#          username: ${{ secrets.DOCKERHUB_USERNAME }}
-#          password: ${{ secrets.DOCKERHUB_TOKEN }}
-#
-#      - name: Build and Push Docker Image
-#        uses: docker/build-push-action@v5
-#        with:
-#          context: .
-#          push: true
-#          tags: |
-#            ${{ env.DOCKER_IMAGE }}:${{ env.SERVICE_NAME }}-latest
-#            ${{ env.DOCKER_IMAGE }}:${{ env.SERVICE_NAME }}-${{ github.sha }}
-#          cache-from: type=gha
-#          cache-to: type=gha,mode=max
-#
-#  deploy:
-#    needs: push
-#    runs-on: ubuntu-latest
-#    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-#
-#    steps:
-#      - name: Checkout
-#        uses: actions/checkout@v4
-#
-#      - name: Configure AWS credentials
-#        uses: aws-actions/configure-aws-credentials@v4
-#        with:
-#          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#          aws-region: ap-northeast-2
-#
-#      - name: Create CodeDeploy deployment
-#        run: |
-#          aws deploy create-deployment \
-#            --application-name sos \
-#            --deployment-group-name sos-Deployment-group \
-#            --deployment-config-name CodeDeployDefault.AllAtOnce \
-#            --github-location repository=${{ github.repository }},commitId=${{ github.sha }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: Create CodeDeploy deployment
+        run: |
+          DEPLOYMENT_ID=$(aws deploy create-deployment \
+            --application-name ${{ env.SERVICE_NAME }} \
+            --deployment-group-name ${{ env.DEPLOYMENT_GROUP_NAME }} \
+            --deployment-config-name CodeDeployDefault.AllAtOnce \
+            --github-location repository=${{ github.repository }},commitId=${{ github.sha }} \
+            --description "Deploy ${{ github.sha }} from ${{ github.ref_name }}" \
+            --query 'deploymentId' \
+            --output text)
+          echo "Deployment ID: $DEPLOYMENT_ID"
+          echo "DEPLOYMENT_ID=$DEPLOYMENT_ID" >> $GITHUB_ENV
+
+      - name: Wait for deployment to complete
+        run: |
+          aws deploy wait deployment-successful \
+            --deployment-id $DEPLOYMENT_ID
+
+      - name: Get deployment result
+        if: always()
+        run: |
+          aws deploy get-deployment \
+            --deployment-id $DEPLOYMENT_ID \
+            --query 'deploymentInfo.{Status:status,Description:description}' \
+            --output table
