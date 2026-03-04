@@ -7,8 +7,5 @@ spring:
 management:
   endpoints:
     web:
-      base-path: /
-      path-mapping:
-        health: health
       exposure:
         include: health
