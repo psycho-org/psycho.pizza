@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-APP_DIR="/home/ubuntu/app"
+APP_DIR="/home/ec2-user/app"
 SERVICE_NAME="sos"
 JAR_NAME="${SERVICE_NAME}.jar"
-ENV_FILE="/home/ubuntu/env/.env"
+ENV_FILE="/home/ec2-user/env/.env"
 
 echo "========================================"
 echo " 배포 시작: $(date)"
