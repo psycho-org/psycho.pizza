@@ -26,5 +26,4 @@ interface MembershipJpaRepository :
         @Param("workspaceId") workspaceId: UUID,
         @Param("accountId") accountId: UUID,
     ): Role?
-
 }
