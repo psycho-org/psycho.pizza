@@ -9,7 +9,6 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
-
   jpa:
     hibernate:
       ddl-auto: none
@@ -27,3 +26,14 @@ security:
     refresh-cookie-same-site: ${JWT_REFRESH_COOKIE_SAME_SITE}
     refresh-cookie-secure: ${JWT_REFRESH_COOKIE_SECURE:true}
     secret: ${JWT_SECRET}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
