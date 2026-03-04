@@ -4,12 +4,14 @@ import jakarta.validation.Valid
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.common.response.ApiResponse
 import pizza.psycho.sos.common.response.responseOf
+import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.workspace.application.service.WorkspaceService
 import pizza.psycho.sos.workspace.domain.model.workspace.Workspace
 import pizza.psycho.sos.workspace.presentation.dto.WorkspaceRequest
@@ -24,12 +26,13 @@ class WorkspaceController(
     @PostMapping
     fun create(
         @Valid @RequestBody request: WorkspaceRequest.Create,
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
     ): ApiResponse<WorkspaceResponse.Detail> {
         val workspace =
             workspaceService.createWorkspace(
                 name = request.name,
                 description = request.description,
-                ownerAccountId = request.ownerAccountId,
+                ownerAccountId = principal.accountId,
             )
         return responseOf(data = workspace.toDetail())
     }
@@ -46,11 +49,12 @@ class WorkspaceController(
     fun transferOwner(
         @PathVariable workspaceId: UUID,
         @Valid @RequestBody request: WorkspaceRequest.TransferOwner,
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
     ): ApiResponse<WorkspaceResponse.Detail> {
         val workspace =
             workspaceService.transferOwnership(
                 workspaceId = workspaceId,
-                requesterAccountId = request.requesterAccountId,
+                requesterAccountId = principal.accountId,
                 newOwnerAccountId = request.newOwnerAccountId,
             )
         return responseOf(data = workspace.toDetail())
@@ -59,9 +63,9 @@ class WorkspaceController(
     @DeleteMapping("/{workspaceId}")
     fun delete(
         @PathVariable workspaceId: UUID,
-        @Valid @RequestBody request: WorkspaceRequest.Delete,
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
     ): ApiResponse<WorkspaceResponse.Deleted> {
-        workspaceService.deleteWorkspace(workspaceId, request.requesterAccountId)
+        workspaceService.deleteWorkspace(workspaceId, principal.accountId)
         return responseOf(
             data =
                 WorkspaceResponse.Deleted(
@@ -74,11 +78,12 @@ class WorkspaceController(
     fun addMember(
         @PathVariable workspaceId: UUID,
         @Valid @RequestBody request: WorkspaceRequest.AddMember,
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
     ): ApiResponse<WorkspaceResponse.Member> {
         val membership =
             workspaceService.addMember(
                 workspaceId = workspaceId,
-                requesterAccountId = request.requesterAccountId,
+                requesterAccountId = principal.accountId,
                 accountId = request.accountId,
                 role = request.role,
             )
@@ -95,10 +100,11 @@ class WorkspaceController(
     fun removeMember(
         @PathVariable workspaceId: UUID,
         @Valid @RequestBody request: WorkspaceRequest.RemoveMember,
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
     ): ApiResponse<WorkspaceResponse.Member> {
         workspaceService.removeMember(
             workspaceId = workspaceId,
-            requesterAccountId = request.requesterAccountId,
+            requesterAccountId = principal.accountId,
             targetAccountId = request.accountId,
         )
         return responseOf(

@@ -9,26 +9,18 @@ sealed interface WorkspaceRequest {
         @field:NotBlank
         val name: String,
         val description: String,
-        val ownerAccountId: UUID,
     )
 
     data class TransferOwner(
-        val requesterAccountId: UUID,
         val newOwnerAccountId: UUID,
     )
 
-    data class Delete(
-        val requesterAccountId: UUID,
-    )
-
     data class AddMember(
-        val requesterAccountId: UUID,
         val accountId: UUID,
         val role: Role = Role.CREW,
     )
 
     data class RemoveMember(
-        val requesterAccountId: UUID,
         val accountId: UUID,
     )
 }

@@ -8,7 +8,7 @@ import java.util.UUID
 @Entity
 @Table(name = "memberships")
 class Membership protected constructor(
-    @Column(name = "user_id", nullable = false, updatable = false)
+    @Column(name = "account_id", nullable = false, updatable = false)
     val accountId: UUID,
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)

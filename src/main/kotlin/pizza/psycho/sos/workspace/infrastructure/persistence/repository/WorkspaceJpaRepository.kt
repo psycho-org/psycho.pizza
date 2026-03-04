@@ -10,7 +10,7 @@ import java.util.UUID
 interface WorkspaceJpaRepository :
     WorkspaceRepository,
     JpaRepository<Workspace, UUID> {
-    override fun findByIdOrNull(id: UUID): Workspace? = findById(id).orElse(null)
+    override fun findByIdOrNull(id: UUID): Workspace? = findByIdOrNull(id)
 
     override fun findActiveByIdOrNull(id: UUID): Workspace? = findByIdAndDeletedAtIsNull(id)
 
