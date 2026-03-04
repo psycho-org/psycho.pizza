@@ -4,8 +4,6 @@ import jakarta.persistence.*
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import pizza.psycho.sos.analysis.domain.vo.AnalysisTargetType
-import pizza.psycho.sos.analysis.domain.vo.CategoryPenalty
-import pizza.psycho.sos.analysis.domain.vo.PenaltyDetail
 import pizza.psycho.sos.common.entity.BaseEntity
 import java.time.Instant
 import java.util.UUID
