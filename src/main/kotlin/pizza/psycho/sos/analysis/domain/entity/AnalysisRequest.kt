@@ -83,4 +83,18 @@ class AnalysisRequest(
         completedAt = Instant.now()
         errorMessage = reason
     }
+
+    companion object {
+        fun create(
+            workspaceId: UUID,
+            sprintId: UUID,
+            memberId: UUID,
+        ): AnalysisRequest =
+            AnalysisRequest(
+                workspaceId = workspaceId,
+                targetType = AnalysisTargetType.SPRINT,
+                targetId = sprintId,
+                requestedBy = memberId,
+            )
+    }
 }
