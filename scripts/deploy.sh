@@ -49,6 +49,8 @@ fi
 echo "  - JAR: $JAR_FILE"
 
 # ── 4. 애플리케이션 실행 ───────────────────
+sudo chown -R ubuntu:ubuntu ${APP_DIR}
+
 nohup java -jar \
   -Dspring.profiles.active=prod \
   "${JAR_FILE}" \
