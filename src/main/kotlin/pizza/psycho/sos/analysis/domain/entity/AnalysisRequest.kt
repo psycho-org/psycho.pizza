@@ -9,12 +9,11 @@ import pizza.psycho.sos.analysis.domain.vo.AnalysisRequestStatus
 import pizza.psycho.sos.analysis.domain.vo.AnalysisTargetType
 import pizza.psycho.sos.common.entity.BaseEntity
 import java.time.Instant
-import java.util.UUID // NOTE: 기본 타입은 Java 패키지를 그대로 import 하는 게 정상적인 방식
+import java.util.UUID
 
 @Entity
 @Table(name = "analysis_request")
 class AnalysisRequest(
-    // -- 생성자 --
     @Column(name = "workspace_id", nullable = false, updatable = false)
     val workspaceId: UUID,
     @Enumerated(EnumType.STRING)
