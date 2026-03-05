@@ -11,38 +11,28 @@ import java.util.UUID
 @Entity
 @Table(name = "analysis_report")
 class AnalysisReport(
-
     @Column(name = "analysis_request_id", nullable = false, updatable = false)
     val analysisRequestId: UUID,
-
     @Column(name = "workspace_id", nullable = false, updatable = false)
     val workspaceId: UUID,
-
     @Enumerated(EnumType.STRING)
     @Column(name = "target_type", nullable = false, length = 50, updatable = false)
     val targetType: AnalysisTargetType,
-
     @Column(name = "target_id", nullable = false, updatable = false)
     val targetId: UUID,
-
     @Column(name = "score_total", nullable = false, updatable = false)
     val scoreTotal: Int,
-
     @Column(name = "score_version", nullable = false, length = 50, updatable = false)
     val scoreVersion: String,
-
     // TODO: vo 지정 필요할 수도 있음
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "category_penalties", nullable = false, columnDefinition = "jsonb", updatable = false)
     val categoryPenalties: String,
-
     // TODO: vo 지정 필요할 수도 있음
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "penalty_details", nullable = false, columnDefinition = "jsonb", updatable = false)
     val penaltyDetails: String,
-
-    ) : BaseEntity() {
-
+) : BaseEntity() {
     @Column(name = "ai_insight", columnDefinition = "TEXT")
     var aiInsight: String? = null
         private set

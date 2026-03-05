@@ -6,4 +6,4 @@ import pizza.psycho.sos.analysis.domain.entity.AnalysisReport
 import java.util.UUID
 
 @Repository
-interface AnalysisReportRepository : JpaRepository<AnalysisReport, UUID> {}
+interface AnalysisReportRepository : JpaRepository<AnalysisReport, UUID>
