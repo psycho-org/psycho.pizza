@@ -4,7 +4,7 @@ import java.time.Instant
 import java.util.UUID
 
 sealed interface AnalysisResponse {
-    data class Create(
+    data class CreateAnalysisRequestResponse(
         val analysisRequestId: UUID,
         val status: String,
         val createdAt: Instant,
