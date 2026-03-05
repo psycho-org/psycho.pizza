@@ -43,7 +43,15 @@ class AnalysisReport(
     var aiInsight: String? = null
         private set
 
+    @Column(name = "run_id", length = 100)
+    var runId: String? = null
+        private set
+
     fun attachAiInsight(text: String) {
         this.aiInsight = text
+    }
+
+    fun attachRunId(runId: String) {
+        this.runId = runId
     }
 }
