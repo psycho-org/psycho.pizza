@@ -21,6 +21,7 @@ get_param() {
     --region $REGION
 }
 
+export SPRING_PROFILES_ACTIVE=prod
 export SPRING_DATASOURCE_URL=$(get_param db-url)
 export SPRING_DATASOURCE_USERNAME=$(get_param db-username)
 export SPRING_DATASOURCE_PASSWORD=$(get_param db-password)
