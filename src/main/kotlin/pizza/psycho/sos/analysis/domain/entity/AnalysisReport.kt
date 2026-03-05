@@ -1,6 +1,10 @@
 package pizza.psycho.sos.analysis.domain.entity
 
-import jakarta.persistence.*
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
+import jakarta.persistence.Table
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import pizza.psycho.sos.analysis.domain.vo.AnalysisTargetType
@@ -32,13 +36,12 @@ class AnalysisReport(
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "penalty_details", nullable = false, columnDefinition = "jsonb", updatable = false)
     val penaltyDetails: String,
+    @Column(name = "generated_at", nullable = false, updatable = false)
+    var generatedAt: Instant = Instant.now(),
 ) : BaseEntity() {
     @Column(name = "ai_insight", columnDefinition = "TEXT")
     var aiInsight: String? = null
         private set
-
-    @Column(name = "generated_at", nullable = false)
-    var generatedAt: Instant = Instant.now()
 
     fun attachAiInsight(text: String) {
         this.aiInsight = text
