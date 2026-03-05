@@ -1,13 +1,10 @@
-name: CI/CD.yml
+name: CI/CD
+
 on:
   push:
     branches: [ main, dev ]
   pull_request:
     branches: [ main, dev ]
-
-env:
-  SERVICE_NAME: psycho.pizza
-  DEPLOYMENT_GROUP_NAME: psycho-deployment-group
 
 permissions:
   id-token: write
@@ -52,8 +49,22 @@ jobs:
             build/test-results/test/**
             build/reports/tests/test/**
 
-      - name: Build JAR (verify only)
+      - name: Build JAR
         run: ./gradlew bootJar
+
+      - name: Prepare deployment bundle
+        run: |
+          mkdir -p deploy
+          cp build/libs/*.jar deploy/
+          cp appspec.yml deploy/
+          cp -r scripts deploy/
+          cd deploy && zip -r ../psycho-pizza-${{ github.sha }}.zip .
+
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-bundle
+          path: psycho-pizza-${{ github.sha }}.zip
 
   deploy:
     needs: build
@@ -61,18 +72,28 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
+      - name: Download bundle artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deploy-bundle
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
           aws-region: ap-northeast-2
 
+      - name: Upload to S3
+        run: |
+          aws s3 cp psycho-pizza-${{ github.sha }}.zip \
+            s3://psycho-deploy-artifacts-prod/psycho-pizza-${{ github.sha }}.zip
+
       - name: Create CodeDeploy deployment
         run: |
           DEPLOYMENT_ID=$(aws deploy create-deployment \
-            --application-name ${{ env.SERVICE_NAME }} \
-            --deployment-group-name ${{ env.DEPLOYMENT_GROUP_NAME }} \
-            --github-location repository=${{ github.repository }},commitId=${{ github.sha }} \
+            --application-name psycho-codedeploy-app-prod \
+            --deployment-group-name psycho-codedeploy-dg-prod \
+            --s3-location bucket=psycho-deploy-artifacts-prod,key=psycho-pizza-${{ github.sha }}.zip,bundleType=zip \
             --description "Deploy ${{ github.sha }} from ${{ github.ref_name }}" \
             --query 'deploymentId' \
             --output text)

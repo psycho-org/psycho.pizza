@@ -3,3 +3,9 @@ spring:
     import: optional:file:.env[.properties]
   profiles:
     default: ${SPRING_PROFILES_ACTIVE}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
