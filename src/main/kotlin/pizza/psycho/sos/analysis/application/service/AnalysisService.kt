@@ -13,6 +13,8 @@ class AnalysisService(
 ) {
     @Transactional
     fun createSprintAnalysisRequest(command: AnalysisCommand.Create): AnalysisResult.Created {
+        // TODO: sprint 유효성 검사
+
         val saved =
             analysisRequestRepository.save(
                 AnalysisRequest.create(
