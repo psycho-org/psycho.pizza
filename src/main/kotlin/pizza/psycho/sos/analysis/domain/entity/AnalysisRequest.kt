@@ -48,6 +48,7 @@ class AnalysisRequest(
      * - completedAt/errorMessage는 초기화
      */
     fun markAsRunning() {
+        // TODO: domain exception
         require(status == AnalysisRequestStatus.QUEUED) {
             "Only QUEUED request can transition to RUNNING (current=$status)"
         }
@@ -62,6 +63,7 @@ class AnalysisRequest(
      * - completedAt 기록
      */
     fun markAsDone() {
+        // TODO: domain exception
         require(status == AnalysisRequestStatus.RUNNING) {
             "Only RUNNING request can transition to DONE (current=$status)"
         }
@@ -74,6 +76,7 @@ class AnalysisRequest(
      * - completedAt 기록 + errorMessage 저장
      */
     fun markAsFailed(reason: String) {
+        // TODO: domain exception
         require(status == AnalysisRequestStatus.RUNNING) {
             "Only RUNNING request can transition to FAILED (current=$status)"
         }
@@ -87,6 +90,7 @@ class AnalysisRequest(
      * - RUNNING 상태에서 멈췄거나, FAILED 난 것을 다시 시도할 때 수동 복구
      */
     fun markAsQueued() {
+        // TODO: domain exception
         this.status = AnalysisRequestStatus.QUEUED
         this.startedAt = null
         this.completedAt = null
