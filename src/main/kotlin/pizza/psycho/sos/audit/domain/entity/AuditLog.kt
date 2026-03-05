@@ -1,6 +1,10 @@
 package pizza.psycho.sos.audit.domain.entity
 
-import jakarta.persistence.*
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
+import jakarta.persistence.Table
 import pizza.psycho.sos.audit.domain.vo.AuditEventType
 import pizza.psycho.sos.audit.domain.vo.AuditTargetType
 import pizza.psycho.sos.common.entity.BaseEntity
