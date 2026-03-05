@@ -8,7 +8,7 @@ import jakarta.persistence.Table
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import pizza.psycho.sos.analysis.domain.vo.AnalysisTargetType
-import pizza.psycho.sos.common.entity.BaseEntity
+import pizza.psycho.sos.common.entity.BaseDeletableEntity
 import java.time.Instant
 import java.util.UUID
 
@@ -38,7 +38,7 @@ class AnalysisReport(
     val penaltyDetails: String,
     @Column(name = "generated_at", nullable = false, updatable = false)
     var generatedAt: Instant = Instant.now(),
-) : BaseEntity() {
+) : BaseDeletableEntity() {
     @Column(name = "ai_insight", columnDefinition = "TEXT")
     var aiInsight: String? = null
         private set

@@ -26,7 +26,9 @@ CREATE TABLE if not exists analysis_report (
                                  generated_at timestamp(6) NOT NULL,
                                  ai_insight TEXT,
                                  created_at timestamp(6) NOT NULL,
-                                 updated_at timestamp(6) NOT NULL
+                                 updated_at timestamp(6) NOT NULL,
+                                 deleted_at timestamp(6) ,
+                                 deleted_by uuid,
 );
 
 CREATE TABLE if not exists audit_log (
