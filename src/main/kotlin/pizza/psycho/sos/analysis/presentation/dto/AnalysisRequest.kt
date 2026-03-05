@@ -1,4 +1,3 @@
 package pizza.psycho.sos.analysis.presentation.dto
 
-sealed interface AnalysisRequest {
-}
+sealed interface AnalysisRequest

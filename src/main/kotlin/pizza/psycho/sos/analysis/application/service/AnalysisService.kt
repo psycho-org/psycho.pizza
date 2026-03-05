@@ -5,5 +5,4 @@ import org.springframework.stereotype.Service
 
 @Service
 @Transactional
-class AnalysisService {
-}
+class AnalysisService

@@ -14,23 +14,17 @@ import java.util.UUID // NOTE: 기본 타입은 Java 패키지를 그대로 impo
 @Entity
 @Table(name = "analysis_request")
 class AnalysisRequest(
-
     // -- 생성자 --
     @Column(name = "workspace_id", nullable = false, updatable = false)
     val workspaceId: UUID,
-
     @Enumerated(EnumType.STRING)
     @Column(name = "target_type", nullable = false, length = 50, updatable = false)
     val targetType: AnalysisTargetType,
-
     @Column(name = "target_id", nullable = false, updatable = false)
     val targetId: UUID,
-
     @Column(name = "requested_by", nullable = true, updatable = false)
     val requestedBy: UUID? = null,
-
-    ) : BaseEntity() {
-
+) : BaseEntity() {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     var status: AnalysisRequestStatus = AnalysisRequestStatus.QUEUED
