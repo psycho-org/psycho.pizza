@@ -84,16 +84,4 @@ class AnalysisRequest(
         completedAt = Instant.now()
         errorMessage = reason
     }
-
-    /*
-     * RUNNING, FAILED -> QUEUED
-     * - RUNNING 상태에서 멈췄거나, FAILED 난 것을 다시 시도할 때 수동 복구
-     */
-    fun markAsQueued() {
-        // TODO: domain exception
-        this.status = AnalysisRequestStatus.QUEUED
-        this.startedAt = null
-        this.completedAt = null
-        this.errorMessage = null
-    }
 }
