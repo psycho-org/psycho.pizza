@@ -1,18 +1,44 @@
 package pizza.psycho.sos.analysis.application.event
 
+import org.springframework.boot.context.event.ApplicationReadyEvent
+import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
 import pizza.psycho.sos.analysis.application.service.AnalysisJobQueue
 import pizza.psycho.sos.analysis.domain.event.AnalysisRequestCreatedEvent
+import pizza.psycho.sos.analysis.domain.vo.AnalysisRequestStatus
+import pizza.psycho.sos.analysis.infrastructure.persistence.AnalysisRequestRepository
+import pizza.psycho.sos.common.support.log.loggerDelegate
 
 @Component
 class AnalysisRequestEventListener(
     private val queue: AnalysisJobQueue,
+    private val analysisRequestRepository: AnalysisRequestRepository,
 ) {
-    // NOTE: DB 트랜잭션이 성공적으로 COMMIT 된 직후에만 실행됩니다.
+    private val log by loggerDelegate()
+
+    /*
+     * DB 트랜잭션 COMMIT 된 직후 큐에 작업 추가
+     */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handleAnalysisRequestCreated(event: AnalysisRequestCreatedEvent) {
+        log.info("🍕 Analysis Request Created: ${event.jobId}")
         queue.enqueue(event.jobId)
+    }
+
+    /*
+     * 서버 재시작 시 DB 스캔해서 큐 복구
+     */
+    @EventListener(ApplicationReadyEvent::class)
+    fun requeuePendingJobs() {
+        val jobs =
+            analysisRequestRepository
+                .findAllByStatus(AnalysisRequestStatus.QUEUED)
+                .mapNotNull { it.id }
+
+        jobs.forEach(queue::enqueue)
+
+        log.info("🍕 Requeued ${jobs.size} pending jobs")
     }
 }
