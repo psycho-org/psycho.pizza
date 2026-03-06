@@ -53,7 +53,7 @@ echo "  - JAR: $JAR_FILE"
 sudo chown -R ubuntu:ubuntu ${APP_DIR}
 
 nohup java -jar \
-  -Dspring.profiles.active=prod \
+  -D spring.profiles.active=prod \
   "${JAR_FILE}" \
   > "${APP_DIR}/app.log" 2>&1 &
 
