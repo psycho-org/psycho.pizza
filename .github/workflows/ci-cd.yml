@@ -7,15 +7,14 @@ on:
     branches: [ main, dev ]
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
@@ -26,6 +25,9 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
+
+      - name: Check Kotlin formatting
+        run: ./gradlew ktlintCheck
 
       - name: Test
         env:
@@ -45,9 +47,32 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-reports
+          retention-days: 1
           path: |
-            build/test-results/test/**
+            build/test-results/test/*.xml
             build/reports/tests/test/**
+            build/reports/ktlint/**
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
       - name: Build JAR
         run: ./gradlew bootJar
@@ -59,23 +84,6 @@ jobs:
           cp appspec.yml deploy/
           cp -r scripts deploy/
           cd deploy && zip -r ../psycho-pizza-${{ github.sha }}.zip .
-
-      - name: Upload bundle artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: deploy-bundle
-          path: psycho-pizza-${{ github.sha }}.zip
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-      - name: Download bundle artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: deploy-bundle
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
