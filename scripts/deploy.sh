@@ -50,7 +50,7 @@ echo "  - JAR: $JAR_FILE"
 
 # ── 4. 애플리케이션 실행 ───────────────────
 nohup java -jar \
-  -Dspring.profiles.active=prod \
+  -D spring.profiles.active=prod \
   "${JAR_FILE}" \
   > "${APP_DIR}/app.log" 2>&1 &
 
