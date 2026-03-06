@@ -21,6 +21,7 @@ get_param() {
     --region $REGION
 }
 
+export SPRING_PROFILES_ACTIVE=prod
 export SPRING_DATASOURCE_URL=$(get_param db-url)
 export SPRING_DATASOURCE_USERNAME=$(get_param db-username)
 export SPRING_DATASOURCE_PASSWORD=$(get_param db-password)
@@ -49,6 +50,8 @@ fi
 echo "  - JAR: $JAR_FILE"
 
 # ── 4. 애플리케이션 실행 ───────────────────
+sudo chown -R ubuntu:ubuntu ${APP_DIR}
+
 nohup java -jar \
   -Dspring.profiles.active=prod \
   "${JAR_FILE}" \

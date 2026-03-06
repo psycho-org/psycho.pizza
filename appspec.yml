@@ -5,6 +5,14 @@ files:
   - source: /
     destination: /home/ubuntu/app
 
+permissions:
+  - object: /home/ubuntu/app
+    owner: ubuntu
+    group: ubuntu
+    type:
+      - directory
+      - file
+
 hooks:
   ApplicationStop:
     - location: scripts/stop.sh
