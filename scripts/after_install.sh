@@ -43,4 +43,12 @@ chmod 600 ${ENV_FILE}
 chown ubuntu:ubuntu ${ENV_FILE}
 
 echo "Environment file created: ${ENV_FILE}"
+
+# systemd 서비스 파일 배치
+cp ${APP_DIR}/sos-app.service /etc/systemd/system/sos-app.service
+chmod 644 /etc/systemd/system/sos-app.service
+systemctl daemon-reload
+systemctl enable sos-app
+
+echo "systemd service file installed."
 echo "AfterInstall completed."
