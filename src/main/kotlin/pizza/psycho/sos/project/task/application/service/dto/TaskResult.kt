@@ -1,7 +1,7 @@
 package pizza.psycho.sos.project.task.application.service.dto
 
 import org.springframework.data.domain.Page
-import pizza.psycho.sos.project.common.domain.model.vo.Status
+import pizza.psycho.sos.project.task.domain.model.vo.Status
 import java.time.Instant
 import java.util.UUID
 

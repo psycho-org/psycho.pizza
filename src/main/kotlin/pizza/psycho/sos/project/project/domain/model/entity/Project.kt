@@ -10,7 +10,6 @@ import jakarta.persistence.Table
 import pizza.psycho.sos.common.entity.BaseDeletableEntity
 import pizza.psycho.sos.common.event.AggregateRoot
 import pizza.psycho.sos.common.event.DomainEventDelegate
-import pizza.psycho.sos.project.common.domain.model.vo.Status
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import java.util.UUID
 
@@ -21,7 +20,6 @@ class Project(
     var name: String,
     @Embedded
     var workspaceId: WorkspaceId,
-    var status: Status,
 ) : BaseDeletableEntity(),
     AggregateRoot by DomainEventDelegate() {
     @OneToMany(mappedBy = "project", fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)
@@ -37,6 +35,10 @@ class Project(
         }
     }
 
+    fun addTasks(taskIds: Collection<UUID>) {
+        taskIds.forEach { addTask(it) }
+    }
+
     fun removeTask(taskId: UUID) {
         mappings.removeIf { it.taskId == taskId }
     }
@@ -45,7 +47,15 @@ class Project(
 
     fun taskIds(): List<UUID> = mappings.map { it.taskId }
 
-    fun changeStatus(status: Status) {
-        this.status = status
+    companion object {
+        fun create(
+            name: String,
+            workspaceId: WorkspaceId,
+            taskIds: Collection<UUID> = emptyList(),
+        ): Project =
+            Project(
+                name = name,
+                workspaceId = workspaceId,
+            ).apply { addTasks(taskIds) }
     }
 }

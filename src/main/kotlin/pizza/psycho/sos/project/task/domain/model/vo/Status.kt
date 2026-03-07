@@ -1,4 +1,4 @@
-package pizza.psycho.sos.project.common.domain.model.vo
+package pizza.psycho.sos.project.task.domain.model.vo
 
 enum class Status {
     TODO,
