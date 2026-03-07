@@ -82,7 +82,12 @@ jobs:
           mkdir -p deploy
           cp build/libs/*.jar deploy/
           cp appspec.yml deploy/
+          cp sos-app.service deploy/
           cp -r scripts deploy/
+          chmod +x deploy/scripts/*.sh
+          for script in deploy/scripts/*.sh; do
+            test -x "$script"
+          done
           cd deploy && zip -r ../psycho-pizza-${{ github.sha }}.zip .
 
       - name: Configure AWS credentials
@@ -120,3 +125,26 @@ jobs:
             --deployment-id $DEPLOYMENT_ID \
             --query 'deploymentInfo.{Status:status,Description:description}' \
             --output table
+
+      - name: Get deployment diagnostics
+        if: failure()
+        run: |
+          echo "=== CodeDeploy diagnostics for ${DEPLOYMENT_ID} ==="
+          INSTANCE_IDS=$(aws deploy list-deployment-instances \
+            --deployment-id "${DEPLOYMENT_ID}" \
+            --query 'instancesList' \
+            --output text || true)
+
+          if [ -z "${INSTANCE_IDS}" ] || [ "${INSTANCE_IDS}" = "None" ]; then
+            echo "No deployment instances found."
+            exit 0
+          fi
+
+          for id in ${INSTANCE_IDS}; do
+            echo "--- Instance: ${id} ---"
+            aws deploy get-deployment-instance \
+              --deployment-id "${DEPLOYMENT_ID}" \
+              --instance-id "${id}" \
+              --query 'instanceSummary.{Status:status,LastErrorCode:lastErrorCode,LastErrorMessage:lastErrorMessage}' \
+              --output table || true
+          done
