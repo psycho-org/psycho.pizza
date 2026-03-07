@@ -1,0 +1,29 @@
+[Unit]
+Description=SOS Psycho Pizza
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+
+WorkingDirectory=/home/ubuntu/app
+ExecStart=/usr/bin/java -jar /home/ubuntu/app/app.jar
+EnvironmentFile=/home/ubuntu/app/.env
+
+# Graceful shutdown
+KillMode=mixed
+TimeoutStopSec=60
+SuccessExitStatus=143
+
+# 재시작 정책 (CodeDeploy 관리이므로 on-failure만)
+Restart=on-failure
+RestartSec=10
+
+# 로그
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sos-app
+
+[Install]
+WantedBy=multi-user.target
