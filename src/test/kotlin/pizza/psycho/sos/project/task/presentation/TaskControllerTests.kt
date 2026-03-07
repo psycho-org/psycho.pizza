@@ -20,10 +20,10 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.common.config.PageableProperties
 import pizza.psycho.sos.common.support.pagination.PageInfoSupport
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
+import pizza.psycho.sos.project.common.domain.model.vo.Status
 import pizza.psycho.sos.project.task.application.service.TaskService
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult
-import pizza.psycho.sos.project.task.domain.model.vo.Status
 import java.util.UUID
 
 @WebMvcTest(

@@ -10,9 +10,9 @@ import jakarta.persistence.Table
 import pizza.psycho.sos.common.entity.BaseDeletableEntity
 import pizza.psycho.sos.common.event.AggregateRoot
 import pizza.psycho.sos.common.event.DomainEventDelegate
+import pizza.psycho.sos.project.common.domain.model.vo.Status
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.task.domain.model.vo.AssigneeId
-import pizza.psycho.sos.project.task.domain.model.vo.Status
 import pizza.psycho.sos.project.task.domain.model.vo.TaskDueDate
 import java.time.Instant
 import java.util.UUID
