@@ -6,15 +6,14 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
 import pizza.psycho.sos.analysis.application.service.AnalysisJobQueue
+import pizza.psycho.sos.analysis.application.service.AnalysisJobRecoveryService
 import pizza.psycho.sos.analysis.domain.event.AnalysisRequestCreatedEvent
-import pizza.psycho.sos.analysis.domain.vo.AnalysisRequestStatus
-import pizza.psycho.sos.analysis.infrastructure.persistence.AnalysisRequestRepository
 import pizza.psycho.sos.common.support.log.loggerDelegate
 
 @Component
 class AnalysisRequestEventListener(
     private val queue: AnalysisJobQueue,
-    private val analysisRequestRepository: AnalysisRequestRepository,
+    private val analysisRecoveryService: AnalysisJobRecoveryService,
 ) {
     private val log by loggerDelegate()
 
@@ -28,17 +27,14 @@ class AnalysisRequestEventListener(
     }
 
     /*
-     * 서버 재시작 시 DB 스캔해서 큐 복구
+     * 서버 재시작 시 큐 복구
      */
     @EventListener(ApplicationReadyEvent::class)
-    fun requeuePendingJobs() {
-        val jobs =
-            analysisRequestRepository
-                .findAllByStatus(AnalysisRequestStatus.QUEUED)
-                .mapNotNull { it.id }
+    fun requeueJobs() {
+        val jobIds = analysisRecoveryService.recoverJobs()
 
-        jobs.forEach(queue::enqueue)
+        jobIds.forEach(queue::enqueue)
 
-        log.info("🍕 Requeued ${jobs.size} pending jobs")
+        log.info("🍕 Requeued ${jobIds.size} jobs")
     }
 }
