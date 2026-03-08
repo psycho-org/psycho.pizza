@@ -7,15 +7,14 @@ on:
     branches: [ main, dev ]
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
@@ -27,10 +26,13 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Check Kotlin formatting
+        run: ./gradlew ktlintCheck
+
       - name: Test
         env:
           SPRING_PROFILES_ACTIVE: test
-        run: ./gradlew clean test
+        run: ./gradlew test
 
       - name: Print test failure details
         if: failure()
@@ -45,55 +47,102 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-reports
+          retention-days: 1
           path: |
-            build/test-results/test/**
+            build/test-results/test/*.xml
             build/reports/tests/test/**
+            build/reports/ktlint/**
+
+  build_publish:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+      ROLE_TO_ASSUME: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
+    outputs:
+      s3_key: ${{ steps.bundle.outputs.s3_key }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
       - name: Build JAR
         run: ./gradlew bootJar
 
       - name: Prepare deployment bundle
+        id: bundle
         run: |
+          OBJECT_KEY="psycho-pizza-${{ github.sha }}.zip"
           mkdir -p deploy
           cp build/libs/*.jar deploy/
           cp appspec.yml deploy/
+          cp sos-app.service deploy/
           cp -r scripts deploy/
-          cd deploy && zip -r ../psycho-pizza-${{ github.sha }}.zip .
-
-      - name: Upload bundle artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: deploy-bundle
-          path: psycho-pizza-${{ github.sha }}.zip
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-      - name: Download bundle artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: deploy-bundle
+          chmod +x deploy/scripts/*.sh
+          for script in deploy/scripts/*.sh; do
+            test -x "$script"
+          done
+          cd deploy && zip -r "../${OBJECT_KEY}" .
+          echo "s3_key=${OBJECT_KEY}" >> "$GITHUB_OUTPUT"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
-          aws-region: ap-northeast-2
+          role-to-assume: ${{ env.ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Upload to S3
+      - name: Publish artifact to S3
         run: |
-          aws s3 cp psycho-pizza-${{ github.sha }}.zip \
-            s3://psycho-deploy-artifacts-prod/psycho-pizza-${{ github.sha }}.zip
+          if aws s3api head-object \
+            --bucket "${{ env.S3_BUCKET }}" \
+            --key "${{ steps.bundle.outputs.s3_key }}" > /dev/null 2>&1; then
+            echo "Artifact already exists. Skipping upload: ${{ steps.bundle.outputs.s3_key }}"
+          else
+            aws s3 cp "${{ steps.bundle.outputs.s3_key }}" \
+              "s3://${{ env.S3_BUCKET }}/${{ steps.bundle.outputs.s3_key }}"
+          fi
+
+  deploy:
+    needs: build_publish
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+      CODEDEPLOY_APPLICATION: ${{ secrets.CODEDEPLOY_APPLICATION }}
+      CODEDEPLOY_DEPLOYMENT_GROUP: ${{ secrets.CODEDEPLOY_DEPLOYMENT_GROUP }}
+      ROLE_TO_ASSUME: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_ROLE_NAME }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Create CodeDeploy deployment
         run: |
           DEPLOYMENT_ID=$(aws deploy create-deployment \
-            --application-name psycho-codedeploy-app-prod \
-            --deployment-group-name psycho-codedeploy-dg-prod \
-            --s3-location bucket=psycho-deploy-artifacts-prod,key=psycho-pizza-${{ github.sha }}.zip,bundleType=zip \
+            --application-name "${{ env.CODEDEPLOY_APPLICATION }}" \
+            --deployment-group-name "${{ env.CODEDEPLOY_DEPLOYMENT_GROUP }}" \
+            --s3-location "bucket=${{ env.S3_BUCKET }},key=${{ needs.build_publish.outputs.s3_key }},bundleType=zip" \
             --description "Deploy ${{ github.sha }} from ${{ github.ref_name }}" \
             --query 'deploymentId' \
             --output text)
@@ -112,3 +161,39 @@ jobs:
             --deployment-id $DEPLOYMENT_ID \
             --query 'deploymentInfo.{Status:status,Description:description}' \
             --output table
+
+      - name: Get deployment diagnostics
+        if: failure()
+        run: |
+          echo "=== CodeDeploy diagnostics for ${DEPLOYMENT_ID} ==="
+          DEPLOYMENT_STATUS=$(aws deploy get-deployment \
+            --deployment-id "${DEPLOYMENT_ID}" \
+            --query 'deploymentInfo.status' \
+            --output text || echo "UNKNOWN")
+
+          echo "Deployment status: ${DEPLOYMENT_STATUS}"
+          if [ "${DEPLOYMENT_STATUS}" = "FAILED" ]; then
+            aws deploy get-deployment \
+              --deployment-id "${DEPLOYMENT_ID}" \
+              --query 'deploymentInfo.{Status:status,ErrorCode:errorInformation.code,ErrorMessage:errorInformation.message,Overview:deploymentOverview}' \
+              --output table || true
+          fi
+
+          INSTANCE_IDS=$(aws deploy list-deployment-instances \
+            --deployment-id "${DEPLOYMENT_ID}" \
+            --query 'instancesList' \
+            --output text || true)
+
+          if [ -z "${INSTANCE_IDS}" ] || [ "${INSTANCE_IDS}" = "None" ]; then
+            echo "No deployment instances found."
+            exit 0
+          fi
+
+          for id in ${INSTANCE_IDS}; do
+            echo "--- Instance: ${id} ---"
+            aws deploy get-deployment-instance \
+              --deployment-id "${DEPLOYMENT_ID}" \
+              --instance-id "${id}" \
+              --query 'instanceSummary.{Status:status,LastErrorCode:lastErrorCode,LastErrorMessage:lastErrorMessage}' \
+              --output table || true
+          done

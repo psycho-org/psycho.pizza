@@ -4,13 +4,38 @@ os: linux
 files:
   - source: /
     destination: /home/ubuntu/app
+    overwrite: yes
+
+permissions:
+  - object: /home/ubuntu/app
+    owner: ubuntu
+    group: ubuntu
+    type:
+      - directory
+      - file
 
 hooks:
   ApplicationStop:
-    - location: scripts/stop.sh
+    - location: scripts/application_stop.sh
       timeout: 60
-      runas: ubuntu
+      runas: root
+
+  BeforeInstall:
+    - location: scripts/before_install.sh
+      timeout: 30
+      runas: root
+
   AfterInstall:
-    - location: scripts/deploy.sh
-      timeout: 600
+    - location: scripts/after_install.sh
+      timeout: 60
+      runas: root
+
+  ApplicationStart:
+    - location: scripts/application_start.sh
+      timeout: 30
+      runas: root
+
+  ValidateService:
+    - location: scripts/validate.sh
+      timeout: 200
       runas: ubuntu
