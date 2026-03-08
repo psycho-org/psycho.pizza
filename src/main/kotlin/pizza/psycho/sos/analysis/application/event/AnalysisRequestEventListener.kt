@@ -5,14 +5,14 @@ import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
-import pizza.psycho.sos.analysis.application.service.AnalysisJobQueue
+import pizza.psycho.sos.analysis.application.service.AnalysisJobQueueProducer
 import pizza.psycho.sos.analysis.application.service.AnalysisJobRecoveryService
 import pizza.psycho.sos.analysis.domain.event.AnalysisRequestCreatedEvent
 import pizza.psycho.sos.common.support.log.loggerDelegate
 
 @Component
 class AnalysisRequestEventListener(
-    private val queue: AnalysisJobQueue,
+    private val jobProducer: AnalysisJobQueueProducer,
     private val analysisRecoveryService: AnalysisJobRecoveryService,
 ) {
     private val log by loggerDelegate()
@@ -23,7 +23,7 @@ class AnalysisRequestEventListener(
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handleAnalysisRequestCreated(event: AnalysisRequestCreatedEvent) {
         log.info("🍕 Analysis Request Created: ${event.jobId}")
-        queue.enqueue(event.jobId)
+        jobProducer.enqueue(event.jobId)
     }
 
     /*
@@ -33,7 +33,7 @@ class AnalysisRequestEventListener(
     fun requeueJobs() {
         val jobIds = analysisRecoveryService.recoverJobs()
 
-        jobIds.forEach(queue::enqueue)
+        jobIds.forEach(jobProducer::enqueue)
 
         log.info("🍕 Requeued ${jobIds.size} jobs")
     }
