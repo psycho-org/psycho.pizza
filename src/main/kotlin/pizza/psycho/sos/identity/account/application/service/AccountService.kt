@@ -4,10 +4,11 @@ import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
-import pizza.psycho.sos.identity.account.application.service.dto.AccountResult
-import pizza.psycho.sos.identity.account.application.service.dto.AccountSnapshot
 import pizza.psycho.sos.identity.account.domain.Account
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
+import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
+import pizza.psycho.sos.identity.account.application.service.dto.UpdateAccountResult as Update
+import pizza.psycho.sos.identity.account.application.service.dto.WithdrawAccountResult as Withdraw
 
 @Service
 @Transactional
@@ -15,10 +16,10 @@ class AccountService(
     private val accountRepository: AccountRepository,
     private val passwordEncoder: PasswordEncoder,
 ) {
-    fun register(command: AccountCommand.Register): AccountResult {
+    fun register(command: AccountCommand.Register): Register {
         val email = command.email.trim().lowercase()
         if (accountRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(email)) {
-            return AccountResult.Failure.EmailAlreadyRegistered
+            return Register.Failure.EmailAlreadyRegistered
         }
 
         val account =
@@ -30,35 +31,46 @@ class AccountService(
             )
 
         val saved = accountRepository.save(account)
-        return AccountResult.Registered(
-            account =
-                AccountSnapshot(
-                    id = saved.id.toString(),
-                    email = saved.email.orEmpty(),
-                    firstName = saved.givenName.orEmpty(),
-                    lastName = saved.familyName.orEmpty(),
-                ),
+
+        return Register.Success(
+            email = saved.email!!,
+            displayName = saved.displayName!!,
         )
     }
 
-    fun updateDisplayName(command: AccountCommand.Update.DisplayName): AccountResult {
+    fun updateDisplayName(command: AccountCommand.Update.DisplayName): Update {
         val normalizedDisplayName = command.displayName.trim()
         if (normalizedDisplayName.length !in DISPLAY_NAME_LENGTH_RANGE) {
-            return AccountResult.Failure.InvalidDisplayName
+            return Update.Failure.InvalidDisplayName
         }
 
         val account =
             accountRepository.findByIdAndDeletedAtIsNull(command.accountId)
-                ?: return AccountResult.Failure.AccountNotFound
+                ?: return Update.Failure.AccountNotFound
 
         account.updateDisplayName(normalizedDisplayName)
-        return AccountResult.Updated.DisplayName(
+        return Update.Success.DisplayName(
             displayName = normalizedDisplayName,
         )
     }
 
-    fun withdraw(command: AccountCommand.Withdraw): AccountResult {
-        // TODO
+    fun withdraw(command: AccountCommand.Withdraw): Withdraw {
+        val account =
+            accountRepository.findByIdAndDeletedAtIsNull(command.accountId)
+                ?: return Withdraw.Failure.AccountNotFound
+
+        if (!passwordEncoder.matches(command.password, account.passwordHash)) {
+            return Withdraw.Failure.InvalidCredentials
+        }
+
+//        TODO
+//        if (membershipService.existsActiveOwnerMembershipByAccountId(command.accountId)) {
+//           return Withdraw.Failure.OwnerWorkspaceExists
+//        }
+
+        account.delete(command.accountId)
+        accountRepository.save(account)
+        return Withdraw.Success
     }
 
     companion object {
