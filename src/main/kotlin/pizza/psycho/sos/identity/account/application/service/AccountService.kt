@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
 import pizza.psycho.sos.identity.account.domain.Account
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
+import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
 import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
 import pizza.psycho.sos.identity.account.application.service.dto.UpdateAccountResult as Update
 import pizza.psycho.sos.identity.account.application.service.dto.WithdrawAccountResult as Withdraw
@@ -15,6 +16,7 @@ import pizza.psycho.sos.identity.account.application.service.dto.WithdrawAccount
 class AccountService(
     private val accountRepository: AccountRepository,
     private val passwordEncoder: PasswordEncoder,
+    private val refreshTokenService: RefreshTokenService,
 ) {
     fun register(command: AccountCommand.Register): Register {
         val email = command.email.trim().lowercase()
@@ -70,6 +72,7 @@ class AccountService(
 
         account.delete(command.accountId)
         accountRepository.save(account)
+        refreshTokenService.revokeAllByAccountId(command.accountId)
         return Withdraw.Success
     }
 
