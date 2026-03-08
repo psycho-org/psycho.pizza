@@ -10,6 +10,7 @@ import jakarta.persistence.Table
 import pizza.psycho.sos.common.entity.BaseDeletableEntity
 import pizza.psycho.sos.common.event.AggregateRoot
 import pizza.psycho.sos.common.event.DomainEventDelegate
+import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import java.util.UUID
 
@@ -24,6 +25,9 @@ class Project(
     AggregateRoot by DomainEventDelegate() {
     @OneToMany(mappedBy = "project", fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)
     private val mappings: MutableSet<ProjectTaskMapping> = mutableSetOf()
+
+    val projectId: UUID
+        get() = id ?: throw DomainException("Project ID is null")
 
     init {
         require(name.isNotBlank()) { "name cannot be blank" }
@@ -51,11 +55,10 @@ class Project(
         fun create(
             name: String,
             workspaceId: WorkspaceId,
-            taskIds: Collection<UUID> = emptyList(),
         ): Project =
             Project(
                 name = name,
                 workspaceId = workspaceId,
-            ).apply { addTasks(taskIds) }
+            )
     }
 }

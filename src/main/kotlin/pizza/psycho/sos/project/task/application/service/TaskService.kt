@@ -49,7 +49,7 @@ class TaskService(
     private fun Page<Task>.toResult(): Page<TaskResult.TaskListInfo> =
         map {
             TaskResult.TaskListInfo(
-                id = requireNotNull(it.id),
+                id = it.taskId,
                 title = it.title,
                 assignee =
                     it.assigneeId.value?.let { id ->
@@ -64,26 +64,22 @@ class TaskService(
         }
 
     private fun Task.toResult(): TaskResult =
-        if (id == null) {
-            TaskResult.Failure.IdNotFound
-        } else {
-            TaskInformation(
-                id = requireNotNull(id),
-                title = title,
-                description = description,
-                status = status,
-                assignee =
-                    assigneeId.value?.let { id ->
-                        Assignee(
-                            id = id,
-                            name = "",
-                            email = "",
-                        )
-                    },
-                dueDate = dueDate.value,
-                workspaceId = workspaceId.value,
-            )
-        }
+        TaskInformation(
+            id = taskId,
+            title = title,
+            description = description,
+            status = status,
+            assignee =
+                assigneeId.value?.let { id ->
+                    Assignee(
+                        id = id,
+                        name = "",
+                        email = "",
+                    )
+                },
+            dueDate = dueDate.value,
+            workspaceId = workspaceId.value,
+        )
 
     private fun TaskCommand.AddTask.toDomain(): Task =
         Task.create(
