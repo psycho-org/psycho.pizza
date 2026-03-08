@@ -5,6 +5,7 @@ import jakarta.annotation.PreDestroy
 import org.springframework.stereotype.Component
 import pizza.psycho.sos.analysis.application.service.AnalysisJobQueue
 import pizza.psycho.sos.analysis.application.service.AnalysisWorkerService
+import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import java.util.UUID
 import java.util.concurrent.BlockingQueue
@@ -21,15 +22,19 @@ class InMemoryAnalysisJobQueue(
     private val queue: BlockingQueue<UUID> = LinkedBlockingQueue(1000)
 
     // AtomicBoolean: 모든 스레드가 같은 값을 보도록 보장함
+    private val workerCount = 4
     private val running = AtomicBoolean(false)
-    private val executor = Executors.newFixedThreadPool(4)
+    private val executor = Executors.newFixedThreadPool(workerCount)
 
     /*
      * 큐에 작업 추가
      */
     override fun enqueue(jobId: UUID) {
         log.info("1️⃣ Enqueue analysis job: $jobId")
-        queue.offer(jobId)
+
+        if (!queue.offer(jobId)) {
+            throw DomainException("Analysis queue is full")
+        }
     }
 
     /*
@@ -40,7 +45,7 @@ class InMemoryAnalysisJobQueue(
     fun startWorker() {
         if (!running.compareAndSet(false, true)) return
 
-        repeat(4) { idx ->
+        repeat(workerCount) { idx ->
             executor.submit {
                 log.info("🚀 Analysis worker-$idx started")
 
