@@ -49,7 +49,7 @@ class AnalysisWorkerService(
             log.error("❌ Analysis job failed: $jobId, step=$step", e)
 
             analysisExecutionService.fail(
-                jobId = jobId,
+                id = jobId,
                 errorMessage = "FAILED_AT=$step message=${e.message ?: "Unknown error"}",
             )
 

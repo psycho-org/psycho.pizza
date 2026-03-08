@@ -29,10 +29,10 @@ class AnalysisExecutionService(
 
     @Transactional
     fun complete(
-        jobId: UUID,
+        id: UUID,
         result: ParsedAnalysisResult,
     ) {
-        val analysisRequest = getAnalysisRequestEntity(jobId)
+        val analysisRequest = getAnalysisRequestEntity(id)
 
         analysisReportService.createReport(
             request = analysisRequest,
@@ -44,10 +44,10 @@ class AnalysisExecutionService(
 
     @Transactional
     fun fail(
-        jobId: UUID,
+        id: UUID,
         errorMessage: String,
     ) {
-        val analysisRequest = getAnalysisRequestEntity(jobId)
+        val analysisRequest = getAnalysisRequestEntity(id)
         analysisRequest.markAsFailed(errorMessage)
     }
 
