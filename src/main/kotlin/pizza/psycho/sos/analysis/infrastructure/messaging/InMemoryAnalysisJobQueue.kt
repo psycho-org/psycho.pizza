@@ -57,6 +57,7 @@ class InMemoryAnalysisJobQueue(
                         }
                         Thread.currentThread().interrupt()
                     } catch (e: Exception) {
+                        // TODO: retry 정책 필요
                         log.error("❌ Analysis worker-$idx job processing failed", e)
                     }
                 }
