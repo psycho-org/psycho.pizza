@@ -19,7 +19,7 @@ class Project(
     @Column(name = "name", nullable = false)
     var name: String,
     @Embedded
-    var workspaceId: WorkspaceId,
+    val workspaceId: WorkspaceId,
 ) : BaseDeletableEntity(),
     AggregateRoot by DomainEventDelegate() {
     @OneToMany(mappedBy = "project", fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)
@@ -31,7 +31,7 @@ class Project(
 
     fun addTask(taskId: UUID) {
         if (mappings.none { it.taskId == taskId }) {
-            mappings.add(ProjectTaskMapping(project = this, taskId = taskId))
+            mappings.add(ProjectTaskMapping(project = this, taskId = taskId, workspaceId = this.workspaceId))
         }
     }
 

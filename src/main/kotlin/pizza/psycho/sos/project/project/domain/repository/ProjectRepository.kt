@@ -9,4 +9,6 @@ interface ProjectRepository {
         projectId: UUID,
         workspaceId: WorkspaceId,
     ): Project?
+
+    fun save(project: Project): Project
 }
