@@ -3,6 +3,10 @@ package pizza.psycho.sos.analysis.application.service
 import org.springframework.stereotype.Component
 import pizza.psycho.sos.analysis.application.service.dto.AnalysisTargetData
 
+/*
+ * AnalysisPromptFactory
+ * - prompt 생성
+ */
 @Component
 class AnalysisPromptFactory {
     fun create(targetData: AnalysisTargetData): String =

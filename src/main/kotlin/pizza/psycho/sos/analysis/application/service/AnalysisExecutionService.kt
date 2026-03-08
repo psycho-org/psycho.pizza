@@ -7,6 +7,10 @@ import pizza.psycho.sos.analysis.infrastructure.persistence.AnalysisRequestRepos
 import pizza.psycho.sos.common.handler.DomainException
 import java.util.UUID
 
+/*
+ * AnalysisExecutionService
+ * - 상태 전이 / persistence
+ */
 @Service
 class AnalysisExecutionService(
     private val analysisRequestRepository: AnalysisRequestRepository,
