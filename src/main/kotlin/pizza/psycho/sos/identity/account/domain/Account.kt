@@ -15,19 +15,19 @@ class Account protected constructor() : BaseDeletableEntity() {
         protected set
 
     @Column(name = "password_hash", nullable = false)
-    var passwordHash: String? = null
+    var passwordHash: String = ""
         protected set
 
     @Column(name = "given_name", nullable = false)
-    var givenName: String? = null
+    var givenName: String = ""
         protected set
 
     @Column(name = "family_name", nullable = false)
-    var familyName: String? = null
+    var familyName: String = ""
         protected set
 
     @Column(name = "display_name", nullable = false)
-    var displayName: String? = null
+    var displayName: String = ""
         protected set
 
     companion object {

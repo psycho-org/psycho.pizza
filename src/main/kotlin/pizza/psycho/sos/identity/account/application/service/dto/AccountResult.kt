@@ -40,10 +40,3 @@ sealed interface WithdrawAccountResult {
         data object OwnerWorkspaceExists : Failure
     }
 }
-
-data class AccountSnapshot(
-    val id: String,
-    val email: String,
-    val firstName: String,
-    val lastName: String,
-)

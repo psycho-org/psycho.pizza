@@ -78,6 +78,6 @@ class AccountService(
     }
 
     companion object {
-        private val DISPLAY_NAME_LENGTH_RANGE = 1..40
+        private val DISPLAY_NAME_LENGTH_RANGE = 1..64
     }
 }
