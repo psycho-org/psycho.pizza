@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.analysis.application.service.AnalysisService
 import pizza.psycho.sos.analysis.application.service.dto.AnalysisCommand
@@ -31,6 +32,7 @@ class AnalysisController(
         description = "특정 워크스페이스 내의 스프린트에 대한 AI 분석 요청을 생성합니다. 분석은 백그라운드에서 진행됩니다.",
     )
     @PostMapping("/request")
+    @ResponseStatus(HttpStatus.CREATED)
     fun createAnalysisRequest(
         @Parameter(description = "워크스페이스 ID", example = "123e4567-e89b-12d3-a456-426614174000")
         @PathVariable workspaceId: UUID,
