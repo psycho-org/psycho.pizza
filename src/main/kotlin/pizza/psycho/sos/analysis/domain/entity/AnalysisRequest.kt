@@ -83,4 +83,30 @@ class AnalysisRequest(
         completedAt = Instant.now()
         errorMessage = reason
     }
+
+    /*
+     * RUNNING -> QUEUED
+     * - 작업 진행 중 서버 종료된 경우 QUEUED로 복구
+     * - startedAt 초기화
+     */
+    fun markAsQueuedForRetry() {
+        require(status == AnalysisRequestStatus.RUNNING)
+
+        status = AnalysisRequestStatus.QUEUED
+        startedAt = null
+    }
+
+    companion object {
+        fun create(
+            workspaceId: UUID,
+            sprintId: UUID,
+            memberId: UUID,
+        ): AnalysisRequest =
+            AnalysisRequest(
+                workspaceId = workspaceId,
+                targetType = AnalysisTargetType.SPRINT,
+                targetId = sprintId,
+                requestedBy = memberId,
+            )
+    }
 }
