@@ -41,7 +41,7 @@ class AccountService(
         )
     }
 
-    fun updateDisplayName(command: AccountCommand.UpdateDisplayName): AccountResult {
+    fun updateDisplayName(command: AccountCommand.Update.DisplayName): AccountResult {
         val normalizedDisplayName = command.displayName.trim()
         if (normalizedDisplayName.length !in DISPLAY_NAME_LENGTH_RANGE) {
             return AccountResult.Failure.InvalidDisplayName
@@ -55,6 +55,10 @@ class AccountService(
         return AccountResult.Updated.DisplayName(
             displayName = normalizedDisplayName,
         )
+    }
+
+    fun withdraw(command: AccountCommand.Withdraw): AccountResult {
+        // TODO
     }
 
     companion object {

@@ -13,18 +13,31 @@ sealed interface AccountRequest {
         @field:Size(min = 8, max = 36)
         val password: String,
         @field:NotBlank
-        val firstName: String,
+        val givenName: String,
         @field:NotBlank
-        val lastName: String,
+        val familyName: String,
     )
 
-    data class UpdateDisplayName(
-        @field:NotBlank
-        val displayName: String,
-    )
+    sealed interface Update : AccountRequest {
+        data class DisplayName(
+            @field:NotBlank
+            val displayName: String,
+        ) : Update
+
+        data class Password(
+            @field:NotBlank
+            val password: String,
+        ) : Update
+
+        data class Name(
+            @field:NotBlank
+            val givenName: String,
+            val familyName: String,
+        ) : Update
+    }
 
     data class Withdraw(
-        // TODO
-        val example: Nothing,
+        @field:NotBlank
+        val password: String,
     )
 }

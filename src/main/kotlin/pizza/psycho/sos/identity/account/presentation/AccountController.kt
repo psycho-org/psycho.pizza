@@ -2,7 +2,7 @@ package pizza.psycho.sos.identity.account.presentation
 
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
-import org.springframework.security.core.Authentication
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -32,28 +32,23 @@ class AccountController(
                 AccountCommand.Register(
                     email = request.email,
                     password = request.password,
-                    firstName = request.firstName,
-                    lastName = request.lastName,
+                    firstName = request.givenName,
+                    lastName = request.familyName,
                 ),
             ).toRegisterApiResponse()
 
     @PatchMapping("/me/display-name")
     fun updateDisplayName(
-        authentication: Authentication,
-        @Valid @RequestBody request: AccountRequest.UpdateDisplayName,
-    ): ApiResponse<AccountResponse.UpdateDisplayName> {
-        val principal =
-            authentication.principal as? AuthenticatedAccountPrincipal
-                ?: throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized")
-
-        return accountService
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
+        @Valid @RequestBody request: AccountRequest.Update.DisplayName,
+    ): ApiResponse<AccountResponse.UpdateDisplayName> =
+        accountService
             .updateDisplayName(
-                AccountCommand.UpdateDisplayName(
+                AccountCommand.Update.DisplayName(
                     accountId = principal.accountId,
                     displayName = request.displayName,
                 ),
             ).toUpdateDisplayNameApiResponse()
-    }
 
     private fun AccountResult.toRegisterApiResponse(): ApiResponse<AccountResponse.Register> =
         when (this) {
