@@ -167,11 +167,11 @@ class AccountServiceTests {
     }
 
     @Test
-    fun `update display name returns invalid display name failure when trimmed length exceeds 40`() {
+    fun `update display name returns invalid display name failure when trimmed length exceeds 64`() {
         val command =
             AccountCommand.Update.DisplayName(
                 accountId = UUID.fromString("00000000-0000-0000-0000-000000000444"),
-                displayName = "a".repeat(41),
+                displayName = "a".repeat(65),
             )
 
         val result = accountService.updateDisplayName(command)
