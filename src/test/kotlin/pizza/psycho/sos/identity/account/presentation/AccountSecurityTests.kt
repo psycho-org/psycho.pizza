@@ -15,11 +15,10 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.identity.account.application.service.AccountService
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
-import pizza.psycho.sos.identity.account.application.service.dto.AccountResult
-import pizza.psycho.sos.identity.account.application.service.dto.AccountSnapshot
 import pizza.psycho.sos.identity.security.config.SecurityConfig
 import pizza.psycho.sos.identity.security.filter.JwtAuthenticationFilter
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
+import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
 
 @WebMvcTest(AccountController::class)
 @AutoConfigureMockMvc
@@ -39,7 +38,7 @@ class AccountSecurityTests {
     fun `update display name requires authentication`() {
         mockMvc
             .perform(
-                patch("/api/v1/accounts/me/display-name")
+                patch("/api/v1/accounts/me/update/display-name")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"displayName":"Summer"}"""),
             ).andExpect(status().isUnauthorized)
@@ -57,14 +56,9 @@ class AccountSecurityTests {
                 ),
             ),
         ).thenReturn(
-            AccountResult.Registered(
-                account =
-                    AccountSnapshot(
-                        id = "00000000-0000-0000-0000-000000000111",
-                        email = "user@psycho.pizza",
-                        firstName = "Rick",
-                        lastName = "Sanchez",
-                    ),
+            Register.Success(
+                email = "user@psycho.pizza",
+                displayName = "Rick Sanchez",
             ),
         )
 
@@ -77,11 +71,21 @@ class AccountSecurityTests {
                         {
                           "email":"user@psycho.pizza",
                           "password":"Password123!",
-                          "firstName":"Rick",
-                          "lastName":"Sanchez"
+                          "givenName":"Rick",
+                          "familyName":"Sanchez"
                         }
                         """.trimIndent(),
                     ),
             ).andExpect(status().isOk)
+    }
+
+    @Test
+    fun `withdraw requires authentication`() {
+        mockMvc
+            .perform(
+                post("/api/v1/accounts/me/withdraw")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"password":"Password123!"}"""),
+            ).andExpect(status().isUnauthorized)
     }
 }

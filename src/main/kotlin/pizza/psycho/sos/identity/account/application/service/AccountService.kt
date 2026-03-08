@@ -65,7 +65,7 @@ class AccountService(
             return Withdraw.Failure.InvalidCredentials
         }
 
-//        TODO
+//        TODO - membership service required
 //        if (membershipService.existsActiveOwnerMembershipByAccountId(command.accountId)) {
 //           return Withdraw.Failure.OwnerWorkspaceExists
 //        }
