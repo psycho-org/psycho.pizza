@@ -18,7 +18,7 @@ class InMemoryAnalysisJobQueue(
     private val analysisWorkerService: AnalysisWorkerService,
 ) : AnalysisJobQueue {
     private val log by loggerDelegate()
-    private val queue: BlockingQueue<UUID> = LinkedBlockingQueue()
+    private val queue: BlockingQueue<UUID> = LinkedBlockingQueue(1000)
 
     // AtomicBoolean: 모든 스레드가 같은 값을 보도록 보장함
     private val running = AtomicBoolean(false)
