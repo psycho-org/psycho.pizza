@@ -13,6 +13,7 @@ import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.identity.account.application.service.AccountService
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
 import pizza.psycho.sos.identity.account.domain.Account
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
 import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
 import java.util.UUID
@@ -37,7 +38,7 @@ class AccountServiceTests {
                 lastName = "Last",
             )
 
-        `when`(accountRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull("already@psycho.pizza")).thenReturn(true)
+        `when`(accountRepository.existsByEmailValueIgnoreCaseAndDeletedAtIsNull("already@psycho.pizza")).thenReturn(true)
 
         val result = accountService.register(command)
         assertTrue(result is Register.Failure.EmailAlreadyRegistered)
@@ -53,7 +54,7 @@ class AccountServiceTests {
                 lastName = " Sanchez ",
             )
 
-        `when`(accountRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull("newuser@psycho.pizza")).thenReturn(false)
+        `when`(accountRepository.existsByEmailValueIgnoreCaseAndDeletedAtIsNull("newuser@psycho.pizza")).thenReturn(false)
         `when`(passwordEncoder.encode("Password123!")).thenReturn("encoded-password")
         `when`(accountRepository.save(org.mockito.ArgumentMatchers.any(Account::class.java))).thenAnswer { invocation ->
             val saved = invocation.getArgument<Account>(0)
@@ -67,7 +68,7 @@ class AccountServiceTests {
         val captor = ArgumentCaptor.forClass(Account::class.java)
         verify(accountRepository).save(captor.capture())
         val saved = captor.value
-        assertEquals("newuser@psycho.pizza", saved.email)
+        assertEquals("newuser@psycho.pizza", saved.email.value)
         assertEquals("encoded-password", saved.passwordHash)
         assertEquals("Rick", saved.givenName)
         assertEquals("Sanchez", saved.familyName)
@@ -82,7 +83,7 @@ class AccountServiceTests {
         val account =
             Account
                 .create(
-                    email = "user@psycho.pizza",
+                    email = Email.of("user@psycho.pizza"),
                     passwordHash = "encoded-password",
                     givenName = "Rick",
                     familyName = "Sanchez",
@@ -141,7 +142,7 @@ class AccountServiceTests {
         val account =
             Account
                 .create(
-                    email = "user@psycho.pizza",
+                    email = Email.of("user@psycho.pizza"),
                     passwordHash = "encoded-password",
                     givenName = "Rick",
                     familyName = "Sanchez",
@@ -206,7 +207,7 @@ class AccountServiceTests {
         val account =
             Account
                 .create(
-                    email = "user@psycho.pizza",
+                    email = Email.of("user@psycho.pizza"),
                     passwordHash = "encoded-password",
                     givenName = "Rick",
                     familyName = "Sanchez",
@@ -234,7 +235,7 @@ class AccountServiceTests {
         val account =
             Account
                 .create(
-                    email = "user@psycho.pizza",
+                    email = Email.of("user@psycho.pizza"),
                     passwordHash = "encoded-password",
                     givenName = "Rick",
                     familyName = "Sanchez",
