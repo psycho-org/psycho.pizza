@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.identity.account.domain.Account
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.security.config.JwtProperties
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import java.nio.charset.StandardCharsets
@@ -28,7 +29,7 @@ class AccessTokenProviderTests {
         val account =
             Account.Companion
                 .create(
-                    email = "user@psycho.pizza",
+                    email = Email.of("user@psycho.pizza"),
                     passwordHash = "encoded-password",
                     givenName = "Rick",
                     familyName = "Sanchez",

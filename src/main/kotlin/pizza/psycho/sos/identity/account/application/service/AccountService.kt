@@ -5,6 +5,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
 import pizza.psycho.sos.identity.account.domain.Account
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
 import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
 import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
@@ -19,8 +20,8 @@ class AccountService(
     private val refreshTokenService: RefreshTokenService,
 ) {
     fun register(command: AccountCommand.Register): Register {
-        val email = command.email.trim().lowercase()
-        if (accountRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(email)) {
+        val email = Email.of(command.email)
+        if (accountRepository.existsByEmailValueIgnoreCaseAndDeletedAtIsNull(email.value)) {
             return Register.Failure.EmailAlreadyRegistered
         }
 
@@ -35,7 +36,7 @@ class AccountService(
         val saved = accountRepository.save(account)
 
         return Register.Success(
-            email = saved.email!!,
+            email = saved.email.value,
             displayName = saved.displayName!!,
         )
     }
