@@ -2,6 +2,7 @@ package pizza.psycho.sos.analysis.application.service
 
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import pizza.psycho.sos.analysis.application.service.dto.ParsedAnalysisResult
 import pizza.psycho.sos.analysis.domain.entity.AnalysisRequest
 import pizza.psycho.sos.analysis.infrastructure.persistence.AnalysisRequestRepository
 import pizza.psycho.sos.common.handler.DomainException
@@ -14,8 +15,11 @@ import java.util.UUID
 @Service
 class AnalysisExecutionService(
     private val analysisRequestRepository: AnalysisRequestRepository,
-//    private val analysisReportService: AnalysisReportService,
+    private val analysisReportService: AnalysisReportService,
 ) {
+    @Transactional(readOnly = true)
+    fun getAnalysisRequest(id: UUID): AnalysisRequest = getAnalysisRequestEntity(id)
+
     @Transactional
     fun markRunning(id: UUID) {
         val analysisRequest = getAnalysisRequestEntity(id)
@@ -23,22 +27,21 @@ class AnalysisExecutionService(
         analysisRequest.markAsRunning()
     }
 
-    @Transactional(readOnly = true)
-    fun getAnalysisRequest(id: UUID): AnalysisRequest = getAnalysisRequestEntity(id)
-
-/*
     @Transactional
-    fun complete(jobId: UUID, result: ParsedAnalysisResult) {
-        val request = getRequestEntity(jobId)
+    fun complete(
+        jobId: UUID,
+        result: ParsedAnalysisResult,
+    ) {
+        val analysisRequest = getAnalysisRequestEntity(jobId)
 
         analysisReportService.createReport(
-            request = request,
+            request = analysisRequest,
             result = result,
         )
 
-        request.markAsDone()
+        analysisRequest.markAsDone()
     }
-*/
+
     @Transactional
     fun fail(
         jobId: UUID,
