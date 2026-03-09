@@ -21,11 +21,11 @@ class RefreshToken protected constructor() : BaseEntity() {
         protected set
 
     @Column(name = "token_hash", nullable = false, unique = true, length = 128)
-    var tokenHash: String? = null
+    var tokenHash: String = ""
         protected set
 
     @Column(name = "jti", nullable = false, unique = true, length = 64)
-    var jti: String? = null
+    var jti: String = ""
         protected set
 
     @Column(name = "expires_at", nullable = false)

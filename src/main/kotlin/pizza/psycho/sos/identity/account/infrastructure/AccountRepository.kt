@@ -5,9 +5,9 @@ import pizza.psycho.sos.identity.account.domain.Account
 import java.util.UUID
 
 interface AccountRepository : JpaRepository<Account, UUID> {
-    fun existsByEmailIgnoreCaseAndDeletedAtIsNull(email: String): Boolean
+    fun existsByEmailValueIgnoreCaseAndDeletedAtIsNull(email: String): Boolean
 
-    fun findByEmailIgnoreCaseAndDeletedAtIsNull(email: String): Account?
+    fun findByEmailValueIgnoreCaseAndDeletedAtIsNull(email: String): Account?
 
     fun findByIdAndDeletedAtIsNull(id: UUID): Account?
 }
