@@ -9,23 +9,22 @@ import pizza.psycho.sos.common.handler.DomainException
 import java.util.UUID
 
 /*
- * AnalysisExecutionService
+ * AnalysisLifecycleService
  * - 상태 전이 / persistence
  */
 @Service
-class AnalysisExecutionService(
+class AnalysisLifecycleService(
     private val analysisRequestRepository: AnalysisRequestRepository,
     private val analysisReportService: AnalysisReportService,
 ) {
-    @Transactional(readOnly = true)
-    fun getAnalysisRequest(id: UUID): AnalysisRequest = getAnalysisRequestEntity(id)
-
     @Transactional
     fun markRunning(id: UUID) {
         val analysisRequest = getAnalysisRequestEntity(id)
-
         analysisRequest.markAsRunning()
     }
+
+    @Transactional(readOnly = true)
+    fun getAnalysisRequest(id: UUID): AnalysisRequest = getAnalysisRequestEntity(id)
 
     @Transactional
     fun complete(
