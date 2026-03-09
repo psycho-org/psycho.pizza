@@ -2,6 +2,7 @@ package pizza.psycho.sos.analysis.application.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.stereotype.Service
+import pizza.psycho.sos.analysis.application.port.LlmClient
 import pizza.psycho.sos.analysis.application.service.dto.AnalysisTarget
 import pizza.psycho.sos.analysis.application.service.dto.ParsedAnalysisResult
 import pizza.psycho.sos.analysis.domain.entity.AnalysisRequest

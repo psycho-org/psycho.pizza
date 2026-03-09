@@ -5,7 +5,7 @@ import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
-import pizza.psycho.sos.analysis.application.service.AnalysisJobQueueProducer
+import pizza.psycho.sos.analysis.application.port.AnalysisJobQueueProducer
 import pizza.psycho.sos.analysis.application.service.AnalysisJobRecoveryService
 import pizza.psycho.sos.analysis.domain.event.AnalysisRequestCreatedEvent
 import pizza.psycho.sos.common.support.log.loggerDelegate

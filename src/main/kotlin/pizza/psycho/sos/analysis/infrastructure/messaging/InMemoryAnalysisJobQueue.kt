@@ -1,8 +1,8 @@
 package pizza.psycho.sos.analysis.infrastructure.messaging
 
 import org.springframework.stereotype.Component
-import pizza.psycho.sos.analysis.application.service.AnalysisJobQueueConsumer
-import pizza.psycho.sos.analysis.application.service.AnalysisJobQueueProducer
+import pizza.psycho.sos.analysis.application.port.AnalysisJobQueueConsumer
+import pizza.psycho.sos.analysis.application.port.AnalysisJobQueueProducer
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import java.util.UUID

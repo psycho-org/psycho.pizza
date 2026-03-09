@@ -1,4 +1,4 @@
-package pizza.psycho.sos.analysis.application.service
+package pizza.psycho.sos.analysis.application.port
 
 /*
  * LlmClient

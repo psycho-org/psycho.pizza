@@ -1,7 +1,7 @@
 package pizza.psycho.sos.analysis.infrastructure.llm
 
 import org.springframework.stereotype.Component
-import pizza.psycho.sos.analysis.application.service.LlmClient
+import pizza.psycho.sos.analysis.application.port.LlmClient
 
 @Component
 class DummyLlmClient : LlmClient {

@@ -3,7 +3,7 @@ package pizza.psycho.sos.analysis.infrastructure.messaging
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
 import org.springframework.stereotype.Component
-import pizza.psycho.sos.analysis.application.service.AnalysisJobQueueConsumer
+import pizza.psycho.sos.analysis.application.port.AnalysisJobQueueConsumer
 import pizza.psycho.sos.analysis.application.service.AnalysisWorkerService
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import java.util.concurrent.Executors
