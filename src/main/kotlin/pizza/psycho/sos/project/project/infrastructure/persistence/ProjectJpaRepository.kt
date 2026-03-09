@@ -28,6 +28,11 @@ interface ProjectJpaRepository :
         workspaceId: WorkspaceId,
     ): List<ProjectProgress> = findProgressesByProjectId(projectIds, workspaceId.value)
 
+    override fun findActiveProjectsByIdIn(
+        projectIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<Project> = findAllByIdInAndWorkspaceIdValueAndDeletedAtIsNull(projectIds, workspaceId.value)
+
     override fun deleteById(
         projectId: UUID,
         deletedBy: UUID,
@@ -83,4 +88,9 @@ interface ProjectJpaRepository :
         id: UUID,
         workspaceId: UUID,
     ): Project?
+
+    fun findAllByIdInAndWorkspaceIdValueAndDeletedAtIsNull(
+        ids: Collection<UUID>,
+        workspaceId: UUID,
+    ): List<Project>
 }

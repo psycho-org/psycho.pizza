@@ -21,6 +21,11 @@ interface ProjectRepository {
         workspaceId: WorkspaceId,
     ): List<ProjectProgress>
 
+    fun findActiveProjectsByIdIn(
+        projectIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<Project>
+
     fun deleteById(
         projectId: UUID,
         deletedBy: UUID,
