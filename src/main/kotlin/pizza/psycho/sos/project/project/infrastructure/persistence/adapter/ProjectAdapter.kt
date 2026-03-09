@@ -12,6 +12,11 @@ import java.util.UUID
 class ProjectAdapter(
     private val projectFacade: ProjectFacade,
 ) : ProjectPort {
+    override fun createProject(
+        workspaceId: WorkspaceId,
+        name: String,
+    ): ProjectSnapshot = projectFacade.createProject(workspaceId, name)
+
     override fun findByIdIn(
         projectIds: Collection<UUID>,
         workspaceId: WorkspaceId,

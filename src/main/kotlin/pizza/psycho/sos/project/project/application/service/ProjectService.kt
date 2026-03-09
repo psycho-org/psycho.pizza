@@ -19,28 +19,6 @@ class ProjectService(
 ) {
     private val log by loggerDelegate()
 
-    fun createTask(command: ProjectCommand.CreateTask): ProjectResult =
-        Tx.writable {
-            val project =
-                projectRepository.findActiveProjectByIdOrNull(command.projectId, command.workspaceId)
-                    ?: run {
-                        log.warn("createTask: project not found. projectId=${command.projectId}")
-                        return@writable ProjectResult.Failure.IdNotFound
-                    }
-
-            val task =
-                taskPort.createTask(
-                    workspaceId = command.workspaceId.value,
-                    title = command.title,
-                    description = command.description,
-                    assigneeId = command.assigneeId,
-                    dueDate = command.dueDate,
-                )
-            project.addTask(task.id)
-            log.info("createTask success: projectId=${command.projectId}, taskId=${task.id}")
-            task.toResult()
-        }
-
     fun getProject(command: ProjectCommand.Get): ProjectResult =
         Tx.readable {
             log.debug("getProject: projectId={}, workspaceId={}", command.projectId, command.workspaceId)
@@ -83,15 +61,31 @@ class ProjectService(
 
     fun create(command: ProjectCommand.Create): ProjectResult =
         Tx.writable {
-            val project =
-                Project.create(
-                    workspaceId = command.workspaceId,
-                    name = command.name,
-                )
+            val project = Project.create(workspaceId = command.workspaceId, name = command.name)
             val saved = projectRepository.save(project)
-            saved
-                .toResult()
-                .also { log.info("create success: projectId=${saved.projectId}") }
+            saved.toResult().also { log.info("create success: projectId=${saved.projectId}") }
+        }
+
+    fun createTask(command: ProjectCommand.CreateTask): ProjectResult =
+        Tx.writable {
+            val project =
+                projectRepository.findActiveProjectByIdOrNull(command.projectId, command.workspaceId)
+                    ?: run {
+                        log.warn("createTask: project not found. projectId={}", command.projectId)
+                        return@writable ProjectResult.Failure.IdNotFound
+                    }
+
+            val task =
+                taskPort.createTask(
+                    workspaceId = command.workspaceId.value,
+                    title = command.title,
+                    description = command.description,
+                    assigneeId = command.assigneeId,
+                    dueDate = command.dueDate,
+                )
+            project.addTask(task.id)
+            log.info("createTask success: projectId=${command.projectId}, taskId=${task.id}")
+            task.toResult()
         }
 
     fun remove(command: ProjectCommand.Remove): ProjectResult =
@@ -119,7 +113,11 @@ class ProjectService(
                     taskPort
                         .deleteByIdIn(taskIds, command.deletedBy, command.workspaceId)
                         .also {
-                            log.info("removeWithTasks: tasks soft-deleted. count={}, projectId={}", it, command.projectId)
+                            log.info(
+                                "removeWithTasks: tasks soft-deleted. count={}, projectId={}",
+                                it,
+                                command.projectId,
+                            )
                         }
                 }
 

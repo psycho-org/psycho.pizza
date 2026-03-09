@@ -6,6 +6,11 @@ import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgre
 import java.util.UUID
 
 interface ProjectFacade {
+    fun createProject(
+        workspaceId: WorkspaceId,
+        name: String,
+    ): ProjectSnapshot
+
     fun findProjectsByIdIn(
         projectIds: Collection<UUID>,
         workspaceId: WorkspaceId,

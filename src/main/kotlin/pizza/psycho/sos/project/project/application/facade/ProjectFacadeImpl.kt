@@ -1,6 +1,7 @@
 package pizza.psycho.sos.project.project.application.facade
 
 import org.springframework.stereotype.Service
+import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
@@ -12,6 +13,15 @@ import java.util.UUID
 class ProjectFacadeImpl(
     private val projectRepository: ProjectRepository,
 ) : ProjectFacade {
+    override fun createProject(
+        workspaceId: WorkspaceId,
+        name: String,
+    ): ProjectSnapshot =
+        Tx.writable {
+            val project = Project.create(workspaceId = workspaceId, name = name)
+            projectRepository.save(project).toSnapshot()
+        }
+
     override fun findProjectsByIdIn(
         projectIds: Collection<UUID>,
         workspaceId: WorkspaceId,
