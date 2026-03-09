@@ -10,6 +10,7 @@ import jakarta.persistence.Table
 import pizza.psycho.sos.common.entity.BaseDeletableEntity
 import pizza.psycho.sos.common.event.AggregateRoot
 import pizza.psycho.sos.common.event.DomainEventDelegate
+import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.task.domain.model.vo.AssigneeId
 import pizza.psycho.sos.project.task.domain.model.vo.Status
@@ -35,12 +36,34 @@ class Task protected constructor(
     var dueDate: TaskDueDate = TaskDueDate(),
 ) : BaseDeletableEntity(),
     AggregateRoot by DomainEventDelegate() {
+    val taskId: UUID
+        get() = id ?: throw DomainException("Task ID is null")
+
+    init {
+        changeTitle(title)
+        changeDescription(description)
+    }
+
     fun modify(
         title: String? = null,
         description: String? = null,
     ) {
-        this.title = title ?: this.title
-        this.description = description ?: this.description
+        title?.let { changeTitle(it) }
+        description?.let { changeDescription(it) }
+    }
+
+    private fun changeTitle(title: String) {
+        if (title.isBlank()) {
+            throw DomainException("Title cannot be blank")
+        }
+        this.title = title
+    }
+
+    private fun changeDescription(description: String) {
+        if (description.isBlank()) {
+            throw DomainException("Description cannot be blank")
+        }
+        this.description = description
     }
 
     fun assign(assigneeId: UUID) {
@@ -65,8 +88,10 @@ class Task protected constructor(
 
     @PostLoad
     private fun ensureNonNullFields() {
-        if (assigneeId == null) assigneeId = AssigneeId.empty()
-        if (dueDate == null) dueDate = TaskDueDate()
+        // @Embedded 필드는 모든 컬럼이 null이면 Hibernate가 객체 자체를 null로 세팅함
+        // Kotlin non-null 타입과 충돌하므로 @PostLoad에서 방어적으로 초기화
+        assigneeId = assigneeId ?: AssigneeId.empty()
+        dueDate = dueDate ?: TaskDueDate()
     }
 
     companion object {
