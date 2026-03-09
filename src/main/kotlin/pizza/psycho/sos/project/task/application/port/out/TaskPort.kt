@@ -32,4 +32,10 @@ interface TaskPort {
         deletedBy: UUID,
         workspaceId: WorkspaceId,
     ): Int
+
+    fun deleteByIdIn(
+        ids: Collection<UUID>,
+        deletedBy: UUID,
+        workspaceId: WorkspaceId,
+    ): Int
 }

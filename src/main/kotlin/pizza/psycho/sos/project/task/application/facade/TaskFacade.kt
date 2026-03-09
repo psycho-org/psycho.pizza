@@ -32,4 +32,10 @@ interface TaskFacade {
         deletedBy: UUID,
         workspaceId: WorkspaceId,
     ): Int
+
+    fun deleteTasksByIdIn(
+        ids: Collection<UUID>,
+        deletedBy: UUID,
+        workspaceId: WorkspaceId,
+    ): Int
 }

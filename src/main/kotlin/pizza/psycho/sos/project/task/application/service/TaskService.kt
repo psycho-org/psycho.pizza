@@ -64,6 +64,12 @@ class TaskService(
         workspaceId: WorkspaceId,
     ): Int = taskRepository.deleteById(id, deletedBy, workspaceId)
 
+    fun deleteTasksByIdIn(
+        ids: Collection<UUID>,
+        deletedBy: UUID,
+        workspaceId: WorkspaceId,
+    ): Int = taskRepository.deleteByIdIn(ids, deletedBy, workspaceId)
+
     // -----------------------------------------------------------------------------
 
     // todo 유저 로직 추가 시 수정

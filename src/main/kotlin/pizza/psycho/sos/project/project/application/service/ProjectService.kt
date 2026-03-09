@@ -112,13 +112,16 @@ class ProjectService(
                     }
 
             val taskIds = project.taskIds()
-            var deletedTaskCount = 0
-            if (taskIds.isNotEmpty()) {
-                taskIds.forEach { taskId ->
-                    deletedTaskCount += taskPort.deleteById(taskId, command.deletedBy, command.workspaceId)
+            val deletedTaskCount =
+                if (taskIds.isEmpty()) {
+                    0
+                } else {
+                    taskPort
+                        .deleteByIdIn(taskIds, command.deletedBy, command.workspaceId)
+                        .also {
+                            log.info("removeWithTasks: tasks soft-deleted. count={}, projectId={}", it, command.projectId)
+                        }
                 }
-                log.info("removeWithTasks: tasks soft-deleted. count=$deletedTaskCount, projectId=${command.projectId}")
-            }
 
             project.delete(command.deletedBy)
             log.info("removeWithTasks success: projectId=${command.projectId}, deletedTasks=$deletedTaskCount")

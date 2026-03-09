@@ -50,6 +50,12 @@ class TaskFacadeImpl(
         workspaceId: WorkspaceId,
     ): Int = taskService.deleteTaskById(id, deletedBy, workspaceId)
 
+    override fun deleteTasksByIdIn(
+        ids: Collection<UUID>,
+        deletedBy: UUID,
+        workspaceId: WorkspaceId,
+    ): Int = taskService.deleteTasksByIdIn(ids, deletedBy, workspaceId)
+
     private fun Task.toSnapshot(): TaskSnapshot =
         TaskSnapshot(
             id = taskId,

@@ -45,4 +45,10 @@ class TaskAdapter(
         deletedBy: UUID,
         workspaceId: WorkspaceId,
     ): Int = taskFacade.deleteTaskById(id, deletedBy, workspaceId)
+
+    override fun deleteByIdIn(
+        ids: Collection<UUID>,
+        deletedBy: UUID,
+        workspaceId: WorkspaceId,
+    ): Int = taskFacade.deleteTasksByIdIn(ids, deletedBy, workspaceId)
 }
