@@ -43,6 +43,20 @@ interface ProjectJpaRepository :
             ?.let { 1 }
             ?: 0
 
+    override fun deleteByIdIn(
+        projectIds: Collection<UUID>,
+        deletedBy: UUID,
+        workspaceId: WorkspaceId,
+    ): Int {
+        if (projectIds.isEmpty()) {
+            return 0
+        }
+
+        return findAllByIdInAndWorkspaceIdValueAndDeletedAtIsNull(projectIds, workspaceId.value)
+            .onEach { it.delete(deletedBy) }
+            .size
+    }
+
     @Query(
         """
     SELECT new pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress(
