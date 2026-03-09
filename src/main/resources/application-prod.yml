@@ -27,3 +27,9 @@ security:
     refresh-cookie-same-site: ${JWT_REFRESH_COOKIE_SAME_SITE}
     refresh-cookie-secure: ${JWT_REFRESH_COOKIE_SECURE:true}
     secret: ${JWT_SECRET}
+
+mail:
+  token:
+    verify-base-url: ${MAIL_TOKEN_VERIFY_BASE_URL}
+    verify-success-url: ${MAIL_TOKEN_VERIFY_SUCCESS_URL}
+    verify-failure-url: ${MAIL_TOKEN_VERIFY_FAILURE_URL}

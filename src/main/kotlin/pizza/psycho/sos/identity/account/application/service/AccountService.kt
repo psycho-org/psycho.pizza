@@ -8,6 +8,7 @@ import pizza.psycho.sos.identity.account.application.service.dto.AccountResult
 import pizza.psycho.sos.identity.account.application.service.dto.AccountSnapshot
 import pizza.psycho.sos.identity.account.domain.Account
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
+import java.util.UUID
 
 @Service
 @Transactional
@@ -15,6 +16,11 @@ class AccountService(
     private val accountRepository: AccountRepository,
     private val passwordEncoder: PasswordEncoder,
 ) {
+    fun findActiveAccountIdByEmailOrNull(email: String): UUID? =
+        accountRepository
+            .findByEmailIgnoreCaseAndDeletedAtIsNull(email.trim().lowercase())
+            ?.id
+
     fun register(command: AccountCommand.Register): AccountResult {
         val email = command.email.trim().lowercase()
         if (accountRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(email)) {
