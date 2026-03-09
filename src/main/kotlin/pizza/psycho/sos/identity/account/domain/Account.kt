@@ -49,4 +49,16 @@ class Account protected constructor() : BaseDeletableEntity() {
     fun updateDisplayName(displayName: String) {
         this.displayName = displayName
     }
+
+    fun updateName(
+        givenName: String,
+        familyName: String,
+    ) {
+        this.givenName = givenName
+        this.familyName = familyName
+    }
+
+    fun updatePasswordHash(passwordHash: String) {
+        this.passwordHash = passwordHash
+    }
 }
