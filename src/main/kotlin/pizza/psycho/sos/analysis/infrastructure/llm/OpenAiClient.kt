@@ -56,6 +56,8 @@ class OpenAiClient(
                     throw AnalysisGenerationFailedException("OpenAI 서버에 일시적인 장애가 발생했습니다. 잠시 후 다시 시도해주세요.")
                 }.body(OpenAiChatResponse::class.java)
 
+        println(response)
+
         return response
             ?.choices
             ?.firstOrNull()
