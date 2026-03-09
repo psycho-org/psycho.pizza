@@ -11,7 +11,7 @@ import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.handler.DomainException
 
 @Service
-class AnalysisService(
+class AnalysisRequestService(
     private val analysisRequestRepository: AnalysisRequestRepository,
     private val domainEventPublisher: DomainEventPublisher,
 ) {
