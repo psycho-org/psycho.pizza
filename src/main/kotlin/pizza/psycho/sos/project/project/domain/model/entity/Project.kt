@@ -30,7 +30,14 @@ class Project(
         get() = id ?: throw DomainException("Project ID is null")
 
     init {
-        require(name.isNotBlank()) { "name cannot be blank" }
+        modify(name)
+    }
+
+    fun modify(name: String) {
+        if (name.isBlank()) {
+            throw DomainException("Project name is blank")
+        }
+        this.name = name
     }
 
     fun addTask(taskId: UUID) {

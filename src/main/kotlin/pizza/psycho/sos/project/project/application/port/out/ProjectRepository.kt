@@ -16,5 +16,10 @@ interface ProjectRepository {
         workspaceId: WorkspaceId,
     ): ProjectProgress?
 
+    fun findProgressesByProjectId(
+        projectIds: List<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<ProjectProgress>
+
     fun save(project: Project): Project
 }

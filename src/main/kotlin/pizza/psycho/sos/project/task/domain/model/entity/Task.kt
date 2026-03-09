@@ -40,8 +40,8 @@ class Task protected constructor(
         get() = id ?: throw DomainException("Task ID is null")
 
     init {
-        require(title.isNotBlank()) { "title cannot be blank" }
-        require(description.isNotBlank()) { "description cannot be blank" }
+        changeTitle(title)
+        changeDescription(description)
     }
 
     fun modify(
@@ -53,12 +53,16 @@ class Task protected constructor(
     }
 
     private fun changeTitle(title: String) {
-        require(title.isNotBlank()) { "title cannot be blank" }
+        if (title.isBlank()) {
+            throw DomainException("Title cannot be blank")
+        }
         this.title = title
     }
 
     private fun changeDescription(description: String) {
-        require(description.isNotBlank()) { "description cannot be blank" }
+        if (description.isBlank()) {
+            throw DomainException("Description cannot be blank")
+        }
         this.description = description
     }
 
