@@ -1,6 +1,7 @@
 package pizza.psycho.sos.analysis.application.service
 
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import pizza.psycho.sos.analysis.application.service.dto.ParsedAnalysisResult
 import pizza.psycho.sos.analysis.domain.entity.AnalysisRequest
@@ -41,7 +42,7 @@ class AnalysisLifecycleService(
         analysisRequest.markAsDone()
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW) // NOTE: 기존 롤백과 무관하게 무조건 커밋됨
     fun fail(
         id: UUID,
         errorMessage: String,
