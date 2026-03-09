@@ -10,8 +10,26 @@ sealed interface AccountCommand {
         val lastName: String,
     ) : AccountCommand
 
-    data class UpdateDisplayName(
+    sealed interface Update {
+        data class DisplayName(
+            val accountId: UUID,
+            val displayName: String,
+        ) : Update
+
+        data class Password(
+            val accountId: UUID,
+            val password: String,
+        ) : Update
+
+        data class Name(
+            val accountId: UUID,
+            val givenName: String,
+            val familyName: String,
+        ) : Update
+    }
+
+    data class Withdraw(
         val accountId: UUID,
-        val displayName: String,
+        val password: String,
     ) : AccountCommand
 }

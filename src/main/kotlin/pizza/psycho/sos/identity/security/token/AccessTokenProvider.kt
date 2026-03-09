@@ -20,7 +20,7 @@ class AccessTokenProvider(
 ) {
     fun issueAccessToken(account: Account): String {
         val accountId = requireNotNull(account.id) { "Account id is required for access token issuance" }
-        val email = requireNotNull(account.email) { "Account email is required for access token issuance" }
+        val email = account.email.value
         val now = Instant.now()
         val expiresAt = now.plusSeconds(properties.accessTokenValiditySeconds)
 

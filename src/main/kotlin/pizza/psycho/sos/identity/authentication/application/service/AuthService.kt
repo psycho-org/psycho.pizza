@@ -4,6 +4,7 @@ import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.identity.account.domain.Account
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthQuery
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthResult
@@ -18,9 +19,9 @@ class AuthService(
     private val refreshTokenService: RefreshTokenService,
 ) {
     fun login(query: AuthQuery.Login): AuthResult.Login {
-        val email = query.email.trim().lowercase()
+        val email = Email.of(query.email)
         val account =
-            accountRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(email)
+            accountRepository.findByEmailValueIgnoreCaseAndDeletedAtIsNull(email.value)
                 ?: return AuthResult.Login.Failure.InvalidCredentials
 
         if (!passwordEncoder.matches(query.password, account.passwordHash)) {
@@ -58,7 +59,7 @@ class AuthService(
             user =
                 AuthResult.User(
                     id = account.id.toString(),
-                    email = account.email.orEmpty(),
+                    email = account.email.value,
                     firstName = account.givenName.orEmpty(),
                     lastName = account.familyName.orEmpty(),
                 ),
@@ -74,7 +75,7 @@ class AuthService(
             user =
                 AuthResult.User(
                     id = account.id.toString(),
-                    email = account.email.orEmpty(),
+                    email = account.email.value,
                     firstName = account.givenName.orEmpty(),
                     lastName = account.familyName.orEmpty(),
                 ),

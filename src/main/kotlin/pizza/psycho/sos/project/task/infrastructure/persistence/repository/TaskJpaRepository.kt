@@ -4,13 +4,11 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Component
-import org.springframework.stereotype.Repository
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.task.domain.model.entity.Task
 import pizza.psycho.sos.project.task.domain.repository.TaskRepository
 import java.util.UUID
 
-@Repository
 @Component
 interface TaskJpaRepository :
     TaskRepository,
@@ -34,6 +32,11 @@ interface TaskJpaRepository :
         workspaceId: WorkspaceId,
         pageable: Pageable,
     ): Page<Task> = findAllByWorkspaceIdValueAndDeletedAtIsNull(workspaceId.value, pageable)
+
+    override fun findAllByIdIn(
+        ids: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<Task> = findAllByIdInAndWorkspaceIdValue(ids, workspaceId.value)
 
     override fun deleteById(
         id: UUID,
@@ -64,4 +67,9 @@ interface TaskJpaRepository :
         workspaceId: UUID,
         pageable: Pageable,
     ): Page<Task>
+
+    fun findAllByIdInAndWorkspaceIdValue(
+        ids: Collection<UUID>,
+        workspaceId: UUID,
+    ): List<Task>
 }

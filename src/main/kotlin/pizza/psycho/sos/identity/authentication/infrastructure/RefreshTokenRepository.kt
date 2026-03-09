@@ -31,4 +31,19 @@ interface RefreshTokenRepository : JpaRepository<RefreshToken, UUID> {
         @Param("id") id: UUID?,
         @Param("now") now: Instant?,
     ): Int
+
+    @Modifying
+    @Query(
+        """
+        update RefreshToken token
+           set token.revokedAt = :now
+         where token.accountId = :accountId
+           and token.revokedAt is null
+           and token.expiresAt > :now
+        """,
+    )
+    fun revokeAllActiveByAccountId(
+        @Param("accountId") accountId: UUID,
+        @Param("now") now: Instant,
+    ): Int
 }
