@@ -59,6 +59,7 @@ class TaskService(
                             email = "",
                         )
                     },
+                status = it.status,
                 dueDate = it.dueDate.value,
             )
         }

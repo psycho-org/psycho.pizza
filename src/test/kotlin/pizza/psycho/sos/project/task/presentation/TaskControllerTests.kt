@@ -83,7 +83,7 @@ class TaskControllerTests {
 
         mockMvc
             .perform(
-                post("/api/v1/$workspaceId/tasks")
+                post("/api/v1/workspaces/$workspaceId/tasks")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
@@ -112,6 +112,7 @@ class TaskControllerTests {
             TaskResult.TaskListInfo(
                 id = taskId1,
                 title = "태스크 1",
+                status = Status.TODO,
                 assignee = null,
                 dueDate = null,
             )
@@ -120,6 +121,7 @@ class TaskControllerTests {
             TaskResult.TaskListInfo(
                 id = taskId2,
                 title = "태스크 2",
+                status = Status.TODO,
                 assignee = null,
                 dueDate = null,
             )
@@ -134,7 +136,7 @@ class TaskControllerTests {
 
         mockMvc
             .perform(
-                get("/api/v1/$workspaceId/tasks")
+                get("/api/v1/workspaces/$workspaceId/tasks")
                     .param("page", "0")
                     .param("size", "10"),
             ).andExpect(status().isOk)
@@ -167,7 +169,7 @@ class TaskControllerTests {
 
         mockMvc
             .perform(
-                get("/api/v1/$workspaceId/tasks/$taskId"),
+                get("/api/v1/workspaces/$workspaceId/tasks/$taskId"),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.id").value(taskId.toString()))
             .andExpect(jsonPath("$.data.title").value("조회할 태스크"))
@@ -187,7 +189,7 @@ class TaskControllerTests {
 
         mockMvc
             .perform(
-                get("/api/v1/$workspaceId/tasks/$taskId"),
+                get("/api/v1/workspaces/$workspaceId/tasks/$taskId"),
             ).andExpect(status().is4xxClientError)
     }
 
@@ -220,7 +222,7 @@ class TaskControllerTests {
 
         mockMvc
             .perform(
-                post("/api/v1/$workspaceId/tasks")
+                post("/api/v1/workspaces/$workspaceId/tasks")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """

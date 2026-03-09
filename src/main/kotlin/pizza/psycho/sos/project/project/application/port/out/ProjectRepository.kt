@@ -21,5 +21,11 @@ interface ProjectRepository {
         workspaceId: WorkspaceId,
     ): List<ProjectProgress>
 
+    fun deleteById(
+        projectId: UUID,
+        deletedBy: UUID,
+        workspaceId: WorkspaceId,
+    ): Int
+
     fun save(project: Project): Project
 }

@@ -32,6 +32,12 @@ interface TaskRepository {
         workspaceId: WorkspaceId,
     ): List<Task>
 
+    fun findAllByIdIn(
+        ids: Collection<UUID>,
+        workspaceId: WorkspaceId,
+        pageable: Pageable,
+    ): Page<Task>
+
     fun deleteById(
         id: UUID,
         deletedBy: UUID,
