@@ -2,6 +2,7 @@ package pizza.psycho.sos.project.project.application.service.dto
 
 import org.springframework.data.domain.Pageable
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import java.time.Instant
 import java.util.UUID
 
 sealed interface ProjectCommand {
@@ -39,5 +40,14 @@ sealed interface ProjectCommand {
         val workspaceId: WorkspaceId,
         val projectId: UUID,
         val deletedBy: UUID,
+    )
+
+    data class CreateTask(
+        val workspaceId: WorkspaceId,
+        val projectId: UUID,
+        val title: String,
+        val description: String,
+        val assigneeId: UUID? = null,
+        val dueDate: Instant? = null,
     )
 }

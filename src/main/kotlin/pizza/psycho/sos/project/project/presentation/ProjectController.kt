@@ -47,6 +47,16 @@ class ProjectController(
             projectService.getProject(ProjectCommand.Get(WorkspaceId(workspaceId), projectId))
         }
 
+    @PostMapping("/{projectId}/tasks")
+    fun createTaskInProject(
+        @PathVariable workspaceId: UUID,
+        @PathVariable projectId: UUID,
+        @Valid @RequestBody request: ProjectRequest.CreateTask,
+    ): ApiResponse<*> =
+        handleResult {
+            projectService.createTask(request.toCommand(workspaceId, projectId))
+        }
+
     @GetMapping("/{projectId}/tasks")
     fun findTasksInProject(
         @PathVariable workspaceId: UUID,
@@ -92,6 +102,7 @@ class ProjectController(
     private fun handleResult(function: () -> ProjectResult): ApiResponse<*> =
         when (val result: ProjectResult = function()) {
             is ProjectResult.ProjectInfo -> responseOf(data = result.toResponse())
+            is ProjectResult.Task -> responseOf(data = result.toResponse())
             is ProjectResult.TaskList -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
             is ProjectResult.Remove ->
                 responseOf(
@@ -116,6 +127,18 @@ class ProjectController(
             workspaceId = WorkspaceId(workspaceId),
             name = name,
         )
+
+    private fun ProjectRequest.CreateTask.toCommand(
+        workspaceId: UUID,
+        projectId: UUID,
+    ) = ProjectCommand.CreateTask(
+        workspaceId = WorkspaceId(workspaceId),
+        projectId = projectId,
+        title = title,
+        description = description,
+        assigneeId = assigneeId,
+        dueDate = dueDate,
+    )
 
     private fun ProjectRequest.Update.toCommand(
         workspaceId: UUID,

@@ -9,16 +9,37 @@ import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgre
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.model.entity.Project
-import pizza.psycho.sos.project.task.application.service.dto.TaskResult.Assignee
-import pizza.psycho.sos.project.task.domain.model.entity.Task
-import pizza.psycho.sos.project.task.domain.repository.TaskRepository
+import pizza.psycho.sos.project.task.application.port.out.TaskPort
+import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 
 @Service
 class ProjectService(
     private val projectRepository: ProjectRepository,
-    private val taskRepository: TaskRepository,
+    private val taskPort: TaskPort,
 ) {
     private val log by loggerDelegate()
+
+    fun createTask(command: ProjectCommand.CreateTask): ProjectResult =
+        Tx.writable {
+            val project =
+                projectRepository.findActiveProjectByIdOrNull(command.projectId, command.workspaceId)
+                    ?: run {
+                        log.warn("createTask: project not found. projectId=${command.projectId}")
+                        return@writable ProjectResult.Failure.IdNotFound
+                    }
+
+            val task =
+                taskPort.createTask(
+                    workspaceId = command.workspaceId.value,
+                    title = command.title,
+                    description = command.description,
+                    assigneeId = command.assigneeId,
+                    dueDate = command.dueDate,
+                )
+            project.addTask(task.id)
+            log.info("createTask success: projectId=${command.projectId}, taskId=${task.id}")
+            task.toResult()
+        }
 
     fun getProject(command: ProjectCommand.Get): ProjectResult =
         Tx.readable {
@@ -51,8 +72,8 @@ class ProjectService(
                         return@readable ProjectResult.Failure.IdNotFound
                     }
 
-            taskRepository
-                .findAllByIdIn(
+            taskPort
+                .findByIdIn(
                     ids = project.taskIds(),
                     workspaceId = command.workspaceId,
                     pageable = command.pageable,
@@ -94,7 +115,7 @@ class ProjectService(
             var deletedTaskCount = 0
             if (taskIds.isNotEmpty()) {
                 taskIds.forEach { taskId ->
-                    deletedTaskCount += taskRepository.deleteById(taskId, command.deletedBy, command.workspaceId)
+                    deletedTaskCount += taskPort.deleteById(taskId, command.deletedBy, command.workspaceId)
                 }
                 log.info("removeWithTasks: tasks soft-deleted. count=$deletedTaskCount, projectId=${command.projectId}")
             }
@@ -126,7 +147,7 @@ class ProjectService(
             }
 
             if (addTaskIds.isNotEmpty()) {
-                val existingTasks = taskRepository.findAllByIdIn(addTaskIds, workspaceId)
+                val existingTasks = taskPort.findByIdIn(addTaskIds, workspaceId)
                 if (existingTasks.size != addTaskIds.size) {
                     log.warn("update: some taskIds not found. addTaskIds={}", addTaskIds)
                     return@with ProjectResult.Failure.TaskNotFound
@@ -155,18 +176,18 @@ class ProjectService(
 
     // ----------------------------------------------------------------------------------------------
 
-    private fun Page<Task>.toResult(): Page<ProjectResult.Task> = map { it.toResult() }
+    private fun Page<TaskSnapshot>.toResult(): Page<ProjectResult.Task> = map { it.toResult() }
 
-    private fun Task.toResult(): ProjectResult.Task =
+    private fun TaskSnapshot.toResult(): ProjectResult.Task =
         ProjectResult.Task(
-            id = taskId,
+            id = id,
             title = title,
             status = status,
             assignee =
-                assigneeId.value?.let { id ->
-                    Assignee(id = id, name = "", email = "")
+                assigneeId?.let { id ->
+                    ProjectResult.Assignee(id = id, name = "", email = "")
                 },
-            dueDate = dueDate.value,
+            dueDate = dueDate,
         )
 
     private fun Project.toResult(progress: ProjectProgress = ProjectProgress(projectId, 0L, 0L)): ProjectResult =

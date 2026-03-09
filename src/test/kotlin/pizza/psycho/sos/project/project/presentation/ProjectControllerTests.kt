@@ -26,7 +26,6 @@ import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.service.ProjectService
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
-import pizza.psycho.sos.project.task.application.service.dto.TaskResult.Assignee
 import pizza.psycho.sos.project.task.domain.model.vo.Status
 import java.time.Instant
 import java.util.UUID
@@ -169,7 +168,7 @@ class ProjectControllerTests {
                 id = taskId2,
                 title = "태스크 2",
                 status = Status.DONE,
-                assignee = Assignee(id = UUID.randomUUID(), name = "홍길동", email = "hong@example.com"),
+                assignee = ProjectResult.Assignee(id = UUID.randomUUID(), name = "홍길동", email = "hong@example.com"),
                 dueDate = Instant.parse("2026-12-31T00:00:00Z"),
             )
 

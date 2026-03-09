@@ -2,7 +2,6 @@ package pizza.psycho.sos.project.project.application.service.dto
 
 import org.springframework.data.domain.Page
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
-import pizza.psycho.sos.project.task.application.service.dto.TaskResult.Assignee
 import pizza.psycho.sos.project.task.domain.model.vo.Status
 import java.time.Instant
 import java.util.UUID
@@ -28,7 +27,7 @@ sealed interface ProjectResult {
         val status: Status,
         val assignee: Assignee? = null,
         val dueDate: Instant? = null,
-    )
+    ) : ProjectResult
 
     data class TaskList(
         val page: Page<Task>,
@@ -50,6 +49,12 @@ sealed interface ProjectResult {
     ) : ProjectResult
 
     data object Success : ProjectResult
+
+    data class Assignee(
+        val id: UUID,
+        val name: String,
+        val email: String,
+    )
 
     sealed interface Failure : ProjectResult {
         data object IdNotFound : Failure
