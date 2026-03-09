@@ -34,7 +34,7 @@ class AnalysisLifecycleService(
         val analysisRequest = getAnalysisRequestEntity(id)
 
         analysisReportService.createReport(
-            request = analysisRequest,
+            analysisRequest = analysisRequest,
             result = result,
         )
 

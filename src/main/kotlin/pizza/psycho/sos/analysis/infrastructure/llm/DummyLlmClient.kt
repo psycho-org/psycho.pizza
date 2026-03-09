@@ -3,6 +3,8 @@ package pizza.psycho.sos.analysis.infrastructure.llm
 import org.springframework.stereotype.Component
 import pizza.psycho.sos.analysis.application.port.LlmClient
 
+// FIXME: 전체 동작을 확인하기 위한 코드입니다.
+// 추후에 진짜 구현체는 OpenAiClient에 작성하고 이 클래스는 삭제 예정입니다.
 @Component
 class DummyLlmClient : LlmClient {
     override fun analyze(prompt: String): String =
