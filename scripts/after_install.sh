@@ -36,6 +36,11 @@ JWT_REFRESH_COOKIE_PATH=$(get_param jwt-refresh-cookie-path)
 JWT_REFRESH_COOKIE_SAME_SITE=$(get_param jwt-refresh-cookie-same-site)
 JWT_REFRESH_COOKIE_SECURE=$(get_param jwt-refresh-cookie-secure)
 JWT_SECRET=$(get_param jwt-secret)
+OTP_LENGTH=$(get_param otp-length)
+OTP_TTL_SECONDS=$(get_param otp-ttl-seconds)
+OTP_MAX_ATTEMPTS=$(get_param otp-max-attempts)
+OTP_REQUEST_COOLDOWN=$(get_param cooldown-seconds)
+CONFIRMATION_TOKEN_TTL_SECONDS=$(get_param confirmation-token-ttl-seconds)
 EOF
 
 # 보안: .env 파일 권한 제한
