@@ -8,10 +8,10 @@ import pizza.psycho.sos.identity.account.domain.Account
 import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
 import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
+import java.util.UUID
 import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
 import pizza.psycho.sos.identity.account.application.service.dto.UpdateAccountResult as Update
 import pizza.psycho.sos.identity.account.application.service.dto.WithdrawAccountResult as Withdraw
-import java.util.UUID
 
 @Service
 @Transactional
@@ -22,7 +22,7 @@ class AccountService(
 ) {
     fun findActiveAccountIdByEmailOrNull(email: String): UUID? =
         accountRepository
-            .findByEmailIgnoreCaseAndDeletedAtIsNull(Email.of(email))
+            .findByEmailValueIgnoreCaseAndDeletedAtIsNull(Email.of(email).value)
             ?.id
 
     fun register(command: AccountCommand.Register): Register {
