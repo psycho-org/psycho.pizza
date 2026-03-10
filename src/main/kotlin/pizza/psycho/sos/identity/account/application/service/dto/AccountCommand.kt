@@ -5,7 +5,6 @@ import java.util.UUID
 sealed interface AccountCommand {
     data class Register(
         val confirmationTokenId: UUID,
-        val email: String,
         val password: String,
         val firstName: String,
         val lastName: String,

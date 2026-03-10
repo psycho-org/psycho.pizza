@@ -21,7 +21,7 @@ import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import java.util.UUID
-import pizza.psycho.sos.identity.account.application.service.dto.UpdateAccountResult as Update
+import pizza.psycho.sos.identity.account.application.service.dto.UpdateDisplayNameAccountResult as UpdateDisplayName
 import pizza.psycho.sos.identity.account.application.service.dto.WithdrawAccountResult as Withdraw
 
 @WebMvcTest(AccountController::class)
@@ -53,7 +53,7 @@ class AccountControllerTests {
                 ),
             ),
         ).thenReturn(
-            Update.Success.DisplayName(
+            UpdateDisplayName.Success(
                 displayName = "Pickle Rick",
             ),
         )
@@ -84,7 +84,7 @@ class AccountControllerTests {
                     displayName = "invalid",
                 ),
             ),
-        ).thenReturn(Update.Failure.InvalidDisplayName)
+        ).thenReturn(UpdateDisplayName.Failure.InvalidDisplayName)
 
         mockMvc
             .perform(
@@ -111,7 +111,7 @@ class AccountControllerTests {
                     displayName = "Summer",
                 ),
             ),
-        ).thenReturn(Update.Failure.AccountNotFound)
+        ).thenReturn(UpdateDisplayName.Failure.AccountNotFound)
 
         mockMvc
             .perform(
@@ -135,6 +135,7 @@ class AccountControllerTests {
             accountService.withdraw(
                 AccountCommand.Withdraw(
                     accountId = principal.accountId,
+                    confirmationTokenId = UUID.fromString("00000000-0000-0000-0000-ffffffffffff"),
                     password = "Password123!",
                 ),
             ),
@@ -146,7 +147,7 @@ class AccountControllerTests {
                     .with(authentication(authentication))
                     .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"password":"Password123!"}"""),
+                    .content("""{"confirmationTokenId":"00000000-0000-0000-0000-ffffffffffff","password":"Password123!"}"""),
             ).andExpect(status().isOk)
     }
 
@@ -162,6 +163,7 @@ class AccountControllerTests {
             accountService.withdraw(
                 AccountCommand.Withdraw(
                     accountId = principal.accountId,
+                    confirmationTokenId = UUID.fromString("00000000-0000-0000-0000-ffffffffffff"),
                     password = "wrong-password",
                 ),
             ),
@@ -173,7 +175,7 @@ class AccountControllerTests {
                     .with(authentication(authentication))
                     .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"password":"wrong-password"}"""),
+                    .content("""{"confirmationTokenId":"00000000-0000-0000-0000-ffffffffffff","password":"wrong-password"}"""),
             ).andExpect(status().isUnauthorized)
     }
 
@@ -189,6 +191,7 @@ class AccountControllerTests {
             accountService.withdraw(
                 AccountCommand.Withdraw(
                     accountId = principal.accountId,
+                    confirmationTokenId = UUID.fromString("00000000-0000-0000-0000-ffffffffffff"),
                     password = "Password123!",
                 ),
             ),
@@ -200,7 +203,7 @@ class AccountControllerTests {
                     .with(authentication(authentication))
                     .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"password":"Password123!"}"""),
+                    .content("""{"confirmationTokenId":"00000000-0000-0000-0000-ffffffffffff","password":"Password123!"}"""),
             ).andExpect(status().isConflict)
     }
 }

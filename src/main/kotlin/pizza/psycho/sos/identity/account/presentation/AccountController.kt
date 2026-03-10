@@ -35,7 +35,6 @@ class AccountController(
             .register(
                 AccountCommand.Register(
                     confirmationTokenId = request.confirmationTokenId,
-                    email = request.email,
                     password = request.password,
                     firstName = request.givenName,
                     lastName = request.familyName,

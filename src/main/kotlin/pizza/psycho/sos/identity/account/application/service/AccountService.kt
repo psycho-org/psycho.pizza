@@ -30,12 +30,10 @@ class AccountService(
         val tokenResult =
             challengeService.consumeToken(
                 ChallengeCommand.ConsumeToken(command.confirmationTokenId, OperationType.REGISTER),
-            )
-        if (tokenResult !is ConsumeTokenResult.Success) {
-            return Register.Failure.InvalidConfirmationToken
-        }
+            ) as? ConsumeTokenResult.Success
+                ?: return Register.Failure.InvalidConfirmationToken
 
-        val email = Email.of(command.email)
+        val email = Email.of(tokenResult.targetEmail)
         if (accountRepository.existsByEmailValueIgnoreCaseAndDeletedAtIsNull(email.value)) {
             return Register.Failure.EmailAlreadyRegistered
         }
@@ -52,7 +50,7 @@ class AccountService(
 
         return Register.Success(
             email = saved.email.value,
-            displayName = saved.displayName!!,
+            displayName = saved.displayName,
         )
     }
 
@@ -93,14 +91,16 @@ class AccountService(
         val tokenResult =
             challengeService.consumeToken(
                 ChallengeCommand.ConsumeToken(command.confirmationTokenId, OperationType.CHANGE_PASSWORD),
-            )
-        if (tokenResult !is ConsumeTokenResult.Success) {
-            return UpdatePassword.Failure.InvalidConfirmationToken
-        }
+            ) as? ConsumeTokenResult.Success
+                ?: return UpdatePassword.Failure.InvalidConfirmationToken
 
         val account =
             accountRepository.findByIdAndDeletedAtIsNull(command.accountId)
                 ?: return UpdatePassword.Failure.AccountNotFound
+
+        if (account.email != Email.of(tokenResult.targetEmail)) {
+            return UpdatePassword.Failure.InvalidConfirmationToken
+        }
 
         if (!passwordEncoder.matches(command.currentPassword, account.passwordHash)) {
             return UpdatePassword.Failure.InvalidCredentials
@@ -114,14 +114,16 @@ class AccountService(
         val tokenResult =
             challengeService.consumeToken(
                 ChallengeCommand.ConsumeToken(command.confirmationTokenId, OperationType.WITHDRAW),
-            )
-        if (tokenResult !is ConsumeTokenResult.Success) {
-            return Withdraw.Failure.InvalidConfirmationToken
-        }
+            ) as? ConsumeTokenResult.Success
+                ?: return Withdraw.Failure.InvalidConfirmationToken
 
         val account =
             accountRepository.findByIdAndDeletedAtIsNull(command.accountId)
                 ?: return Withdraw.Failure.AccountNotFound
+
+        if (account.email != Email.of(tokenResult.targetEmail)) {
+            return Withdraw.Failure.InvalidConfirmationToken
+        }
 
         if (!passwordEncoder.matches(command.password, account.passwordHash)) {
             return Withdraw.Failure.InvalidCredentials
