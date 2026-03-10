@@ -15,6 +15,7 @@ import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import org.testcontainers.junit.jupiter.Testcontainers
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.domain.Challenge
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import pizza.psycho.sos.identity.challenge.support.PostgresTestContainerSupport
@@ -79,7 +80,7 @@ class ChallengeRepositoryPostgresTests : PostgresTestContainerSupport() {
     ): Challenge =
         Challenge.create(
             operationType = operationType,
-            targetEmail = email,
+            targetEmail = Email.of(email),
             otpHash = "otp-hash",
             expiresAt = Instant.now().plusSeconds(300),
             maxAttempts = 5,

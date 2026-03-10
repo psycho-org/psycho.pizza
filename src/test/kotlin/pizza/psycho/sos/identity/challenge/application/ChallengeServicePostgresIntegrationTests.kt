@@ -11,6 +11,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
 import org.testcontainers.junit.jupiter.Testcontainers
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
 import pizza.psycho.sos.identity.challenge.application.service.dto.RequestChallengeResult
@@ -44,7 +45,7 @@ class ChallengeServicePostgresIntegrationTests : PostgresTestContainerSupport() 
             challengeRepository.saveAndFlush(
                 Challenge.create(
                     operationType = OperationType.REGISTER,
-                    targetEmail = "user@psycho.pizza",
+                    targetEmail = Email.of("user@psycho.pizza"),
                     otpHash = "old-hash",
                     expiresAt = Instant.now().plusSeconds(300),
                     maxAttempts = 3,
@@ -71,7 +72,7 @@ class ChallengeServicePostgresIntegrationTests : PostgresTestContainerSupport() 
         assertEquals(ChallengeStatus.EXPIRED, reloadedExisting.status)
 
         val pending =
-            challengeRepository.findByTargetEmailIgnoreCaseAndOperationTypeAndStatus(
+            challengeRepository.findByTargetEmailValueIgnoreCaseAndOperationTypeAndStatus(
                 "user@psycho.pizza",
                 OperationType.REGISTER,
                 ChallengeStatus.PENDING,
