@@ -30,6 +30,8 @@ class AuditLog(
     val fromValue: String?,
     @Column(name = "to_value", columnDefinition = "TEXT", updatable = false)
     val toValue: String?,
+    @Column(name = "event_id", nullable = false, updatable = false)
+    val eventId: UUID, // 동일한 요청/트랜잭션에서 발생한 로그들을 묶어주는 ID
     @Column(name = "occurred_at", nullable = false, updatable = false)
     val occurredAt: Instant,
 ) : BaseEntity()

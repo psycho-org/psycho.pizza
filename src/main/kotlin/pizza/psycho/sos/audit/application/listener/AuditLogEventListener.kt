@@ -25,56 +25,60 @@ class AuditLogEventListener(
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handle(event: SprintGoalChangedEvent) {
         auditLogService.createAuditLog(
-            event.workspaceId,
-            event.actorId,
-            AuditTargetType.SPRINT,
-            event.sprintId,
-            AuditEventType.SPRINT_GOAL_CHANGED,
-            event.fromGoal,
-            event.toGoal,
-            event.occurredAt,
+            workspaceId = event.workspaceId,
+            actorId = event.actorId,
+            targetType = AuditTargetType.SPRINT,
+            targetId = event.sprintId,
+            auditEventType = AuditEventType.SPRINT_GOAL_CHANGED,
+            fromValue = event.fromGoal,
+            toValue = event.toGoal,
+            eventId = event.eventId,
+            occurredAt = event.occurredAt,
         )
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handle(event: SprintPeriodChangedEvent) {
         auditLogService.createAuditLog(
-            event.workspaceId,
-            event.actorId,
-            AuditTargetType.SPRINT,
-            event.sprintId,
-            AuditEventType.SPRINT_PERIOD_CHANGED,
-            event.fromPeriod,
-            event.toPeriod,
-            event.occurredAt,
+            workspaceId = event.workspaceId,
+            actorId = event.actorId,
+            targetType = AuditTargetType.SPRINT,
+            targetId = event.sprintId,
+            auditEventType = AuditEventType.SPRINT_PERIOD_CHANGED,
+            fromValue = event.fromPeriod,
+            toValue = event.toPeriod,
+            eventId = event.eventId,
+            occurredAt = event.occurredAt,
         )
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handle(event: TaskAddedToSprintEvent) {
         auditLogService.createAuditLog(
-            event.workspaceId,
-            event.actorId,
-            AuditTargetType.SPRINT,
-            event.sprintId,
-            AuditEventType.TASK_ADDED_TO_SPRINT,
-            null,
-            event.taskId.toString(),
-            event.occurredAt,
+            workspaceId = event.workspaceId,
+            actorId = event.actorId,
+            targetType = AuditTargetType.SPRINT,
+            targetId = event.sprintId,
+            auditEventType = AuditEventType.TASK_ADDED_TO_SPRINT,
+            fromValue = null,
+            toValue = event.taskId.toString(),
+            eventId = event.eventId,
+            occurredAt = event.occurredAt,
         )
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handle(event: TaskRemovedFromSprintEvent) {
         auditLogService.createAuditLog(
-            event.workspaceId,
-            event.actorId,
-            AuditTargetType.SPRINT,
-            event.sprintId,
-            AuditEventType.TASK_REMOVED_FROM_SPRINT,
-            event.taskId.toString(),
-            null,
-            event.occurredAt,
+            workspaceId = event.workspaceId,
+            actorId = event.actorId,
+            targetType = AuditTargetType.SPRINT,
+            targetId = event.sprintId,
+            auditEventType = AuditEventType.TASK_REMOVED_FROM_SPRINT,
+            fromValue = event.taskId.toString(),
+            toValue = null,
+            eventId = event.eventId,
+            occurredAt = event.occurredAt,
         )
     }
 
@@ -90,6 +94,7 @@ class AuditLogEventListener(
             auditEventType = AuditEventType.TASK_STATUS_CHANGED,
             fromValue = event.fromStatus,
             toValue = event.toStatus,
+            eventId = event.eventId,
             occurredAt = event.occurredAt,
         )
     }
@@ -97,56 +102,60 @@ class AuditLogEventListener(
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handle(event: TaskAssigneeChangedEvent) {
         auditLogService.createAuditLog(
-            event.workspaceId,
-            event.actorId,
-            AuditTargetType.TASK,
-            event.taskId,
-            AuditEventType.TASK_ASSIGNEE_CHANGED,
-            event.fromAssigneeId,
-            event.toAssigneeId,
-            event.occurredAt,
+            workspaceId = event.workspaceId,
+            actorId = event.actorId,
+            targetType = AuditTargetType.TASK,
+            targetId = event.taskId,
+            auditEventType = AuditEventType.TASK_ASSIGNEE_CHANGED,
+            fromValue = event.fromAssigneeId,
+            toValue = event.toAssigneeId,
+            eventId = event.eventId,
+            occurredAt = event.occurredAt,
         )
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handle(event: TaskDueDateChangedEvent) {
         auditLogService.createAuditLog(
-            event.workspaceId,
-            event.actorId,
-            AuditTargetType.TASK,
-            event.taskId,
-            AuditEventType.TASK_DUE_DATE_CHANGED,
-            event.fromDueDate?.toString(),
-            event.toDueDate?.toString(),
-            event.occurredAt,
+            workspaceId = event.workspaceId,
+            actorId = event.actorId,
+            targetType = AuditTargetType.TASK,
+            targetId = event.taskId,
+            auditEventType = AuditEventType.TASK_DUE_DATE_CHANGED,
+            fromValue = event.fromDueDate?.toString(),
+            toValue = event.toDueDate?.toString(),
+            eventId = event.eventId,
+            occurredAt = event.occurredAt,
         )
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handle(event: TaskProjectChangedEvent) {
         auditLogService.createAuditLog(
-            event.workspaceId,
-            event.actorId,
-            AuditTargetType.TASK,
-            event.taskId,
-            AuditEventType.TASK_PROJECT_CHANGED,
-            event.fromProjectId.toString(),
-            event.toProjectId.toString(),
-            event.occurredAt,
+            workspaceId = event.workspaceId,
+            actorId = event.actorId,
+            targetType = AuditTargetType.TASK,
+            targetId = event.taskId,
+            auditEventType = AuditEventType.TASK_PROJECT_CHANGED,
+            fromValue = event.fromProjectId.toString(),
+            toValue = event.toProjectId.toString(),
+            eventId = event.eventId,
+            occurredAt = event.occurredAt,
         )
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handle(event: TaskDeletedEvent) {
         auditLogService.createAuditLog(
-            event.workspaceId,
-            event.actorId,
-            AuditTargetType.TASK,
-            event.taskId,
-            AuditEventType.TASK_DELETED,
-            event.taskTitle,
-            null,
-            event.occurredAt,
+            workspaceId = event.workspaceId,
+            actorId = event.actorId,
+            targetType = AuditTargetType.TASK,
+            targetId = event.taskId,
+            auditEventType = AuditEventType.TASK_DELETED,
+            fromValue = event.taskTitle,
+            toValue = null,
+            eventId = event.eventId,
+            occurredAt = event.occurredAt,
         )
     }
 }

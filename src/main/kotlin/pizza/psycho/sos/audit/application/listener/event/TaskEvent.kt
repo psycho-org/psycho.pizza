@@ -11,6 +11,7 @@ data class TaskStatusChangedEvent(
     val taskId: UUID,
     val fromStatus: String,
     val toStatus: String,
+    val eventId: UUID,
     override val occurredAt: Instant = Instant.now(),
 ) : DomainEvent
 
@@ -21,6 +22,7 @@ data class TaskAssigneeChangedEvent(
     val taskId: UUID,
     val fromAssigneeId: String?,
     val toAssigneeId: String?,
+    val eventId: UUID,
     override val occurredAt: Instant = Instant.now(),
 ) : DomainEvent
 
@@ -31,6 +33,7 @@ data class TaskDueDateChangedEvent(
     val taskId: UUID,
     val fromDueDate: Instant?,
     val toDueDate: Instant?,
+    val eventId: UUID,
     override val occurredAt: Instant = Instant.now(),
 ) : DomainEvent
 
@@ -41,6 +44,7 @@ data class TaskProjectChangedEvent(
     val actorId: UUID?,
     val fromProjectId: UUID,
     val toProjectId: UUID,
+    val eventId: UUID,
     override val occurredAt: Instant = Instant.now(),
 ) : DomainEvent
 
@@ -50,5 +54,6 @@ data class TaskDeletedEvent(
     val taskId: UUID,
     val actorId: UUID?,
     val taskTitle: String, // 삭제 시 기록용
+    val eventId: UUID,
     override val occurredAt: Instant = Instant.now(),
 ) : DomainEvent

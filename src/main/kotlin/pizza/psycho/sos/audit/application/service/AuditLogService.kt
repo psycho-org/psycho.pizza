@@ -25,6 +25,7 @@ class AuditLogService(
         auditEventType: AuditEventType,
         fromValue: String?,
         toValue: String?,
+        eventId: UUID,
         occurredAt: Instant,
     ) {
         val auditLog =
@@ -36,6 +37,7 @@ class AuditLogService(
                 auditEventType = auditEventType,
                 fromValue = fromValue,
                 toValue = toValue,
+                eventId = eventId,
                 occurredAt = occurredAt,
             )
         auditLogRepository.save(auditLog)
