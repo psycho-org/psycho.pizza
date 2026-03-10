@@ -7,21 +7,25 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.http.MediaType
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.identity.account.application.service.AccountService
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
-import pizza.psycho.sos.identity.account.application.service.dto.AccountResult
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import java.util.UUID
+import pizza.psycho.sos.identity.account.application.service.dto.UpdateAccountResult as Update
+import pizza.psycho.sos.identity.account.application.service.dto.WithdrawAccountResult as Withdraw
 
 @WebMvcTest(AccountController::class)
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 @ActiveProfiles("test")
 class AccountControllerTests {
     @Autowired
@@ -43,21 +47,22 @@ class AccountControllerTests {
         val authentication = UsernamePasswordAuthenticationToken(principal, null, emptyList())
         `when`(
             accountService.updateDisplayName(
-                AccountCommand.UpdateDisplayName(
+                AccountCommand.Update.DisplayName(
                     accountId = principal.accountId,
                     displayName = "  Pickle Rick  ",
                 ),
             ),
         ).thenReturn(
-            AccountResult.Updated.DisplayName(
+            Update.Success.DisplayName(
                 displayName = "Pickle Rick",
             ),
         )
 
         mockMvc
             .perform(
-                patch("/api/v1/accounts/me/display-name")
-                    .principal(authentication)
+                patch("/api/v1/accounts/me/update/display-name")
+                    .with(authentication(authentication))
+                    .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"displayName":"  Pickle Rick  "}"""),
             ).andExpect(status().isOk)
@@ -74,17 +79,18 @@ class AccountControllerTests {
         val authentication = UsernamePasswordAuthenticationToken(principal, null, emptyList())
         `when`(
             accountService.updateDisplayName(
-                AccountCommand.UpdateDisplayName(
+                AccountCommand.Update.DisplayName(
                     accountId = principal.accountId,
                     displayName = "invalid",
                 ),
             ),
-        ).thenReturn(AccountResult.Failure.InvalidDisplayName)
+        ).thenReturn(Update.Failure.InvalidDisplayName)
 
         mockMvc
             .perform(
-                patch("/api/v1/accounts/me/display-name")
-                    .principal(authentication)
+                patch("/api/v1/accounts/me/update/display-name")
+                    .with(authentication(authentication))
+                    .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"displayName":"invalid"}"""),
             ).andExpect(status().isBadRequest)
@@ -100,19 +106,101 @@ class AccountControllerTests {
         val authentication = UsernamePasswordAuthenticationToken(principal, null, emptyList())
         `when`(
             accountService.updateDisplayName(
-                AccountCommand.UpdateDisplayName(
+                AccountCommand.Update.DisplayName(
                     accountId = principal.accountId,
                     displayName = "Summer",
                 ),
             ),
-        ).thenReturn(AccountResult.Failure.AccountNotFound)
+        ).thenReturn(Update.Failure.AccountNotFound)
 
         mockMvc
             .perform(
-                patch("/api/v1/accounts/me/display-name")
-                    .principal(authentication)
+                patch("/api/v1/accounts/me/update/display-name")
+                    .with(authentication(authentication))
+                    .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"displayName":"Summer"}"""),
             ).andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `withdraw returns success when service returns success`() {
+        val principal =
+            AuthenticatedAccountPrincipal(
+                accountId = UUID.fromString("00000000-0000-0000-0000-000000000811"),
+                email = "user@psycho.pizza",
+            )
+        val authentication = UsernamePasswordAuthenticationToken(principal, null, emptyList())
+        `when`(
+            accountService.withdraw(
+                AccountCommand.Withdraw(
+                    accountId = principal.accountId,
+                    password = "Password123!",
+                ),
+            ),
+        ).thenReturn(Withdraw.Success)
+
+        mockMvc
+            .perform(
+                post("/api/v1/accounts/me/withdraw")
+                    .with(authentication(authentication))
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"password":"Password123!"}"""),
+            ).andExpect(status().isOk)
+    }
+
+    @Test
+    fun `withdraw returns unauthorized when credentials are invalid`() {
+        val principal =
+            AuthenticatedAccountPrincipal(
+                accountId = UUID.fromString("00000000-0000-0000-0000-000000000822"),
+                email = "user@psycho.pizza",
+            )
+        val authentication = UsernamePasswordAuthenticationToken(principal, null, emptyList())
+        `when`(
+            accountService.withdraw(
+                AccountCommand.Withdraw(
+                    accountId = principal.accountId,
+                    password = "wrong-password",
+                ),
+            ),
+        ).thenReturn(Withdraw.Failure.InvalidCredentials)
+
+        mockMvc
+            .perform(
+                post("/api/v1/accounts/me/withdraw")
+                    .with(authentication(authentication))
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"password":"wrong-password"}"""),
+            ).andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `withdraw returns conflict when owner workspace exists`() {
+        val principal =
+            AuthenticatedAccountPrincipal(
+                accountId = UUID.fromString("00000000-0000-0000-0000-000000000833"),
+                email = "user@psycho.pizza",
+            )
+        val authentication = UsernamePasswordAuthenticationToken(principal, null, emptyList())
+        `when`(
+            accountService.withdraw(
+                AccountCommand.Withdraw(
+                    accountId = principal.accountId,
+                    password = "Password123!",
+                ),
+            ),
+        ).thenReturn(Withdraw.Failure.OwnerWorkspaceExists)
+
+        mockMvc
+            .perform(
+                post("/api/v1/accounts/me/withdraw")
+                    .with(authentication(authentication))
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"password":"Password123!"}"""),
+            ).andExpect(status().isConflict)
     }
 }

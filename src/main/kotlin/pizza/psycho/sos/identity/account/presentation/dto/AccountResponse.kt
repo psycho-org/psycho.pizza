@@ -1,19 +1,20 @@
 package pizza.psycho.sos.identity.account.presentation.dto
 
 sealed interface AccountResponse {
-    data class Register(
-        val id: String,
+    data class Registered(
         val email: String,
-        val firstName: String,
-        val lastName: String,
-    )
-
-    data class UpdateDisplayName(
         val displayName: String,
-    )
+    ) : AccountResponse
 
-    data class Withdraw(
-        // TODO
-        val example: Nothing,
-    )
+    sealed interface Updated {
+        data class DisplayName(
+            val displayName: String,
+        ) : Updated
+
+        data object Name : Updated
+
+        data object UpdatedPassword : Updated
+    }
+
+    data object Withdrawn : AccountResponse
 }

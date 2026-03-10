@@ -1,0 +1,84 @@
+package pizza.psycho.sos.project.sprint.domain.model
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import pizza.psycho.sos.common.handler.DomainException
+import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
+import java.time.Instant
+import java.util.UUID
+
+class SprintTests {
+    private val workspaceId = WorkspaceId(UUID.randomUUID())
+    private val startDate = Instant.parse("2026-01-01T00:00:00Z")
+    private val endDate = Instant.parse("2026-01-15T00:00:00Z")
+
+    @Test
+    fun `스프린트 생성 시 필드가 정상적으로 설정된다`() {
+        val sprint = Sprint.create("스프린트 A", workspaceId, startDate, endDate)
+
+        assertEquals("스프린트 A", sprint.name)
+        assertEquals(workspaceId, sprint.workspaceId)
+        assertEquals(startDate, sprint.period.startDate)
+        assertEquals(endDate, sprint.period.endDate)
+    }
+
+    @Test
+    fun `modify 호출 시 이름이 변경된다`() {
+        val sprint = Sprint.create("스프린트 A", workspaceId, startDate, endDate)
+
+        sprint.modify("스프린트 B")
+
+        assertEquals("스프린트 B", sprint.name)
+    }
+
+    @Test
+    fun `빈 문자열로 modify 호출 시 DomainException이 발생한다`() {
+        val sprint = Sprint.create("스프린트 A", workspaceId, startDate, endDate)
+
+        assertThrows(DomainException::class.java) {
+            sprint.modify("")
+        }
+    }
+
+    @Test
+    fun `addProject는 동일한 프로젝트를 중복으로 추가하지 않는다`() {
+        val sprint = Sprint.create("스프린트 A", workspaceId, startDate, endDate)
+        val projectId = UUID.randomUUID()
+
+        sprint.addProject(projectId)
+        sprint.addProject(projectId)
+
+        assertEquals(1, sprint.projectIds().size)
+        assertTrue(sprint.hasProject(projectId))
+    }
+
+    @Test
+    fun `removeProject 호출 시 해당 프로젝트 연결이 제거된다`() {
+        val sprint = Sprint.create("스프린트 A", workspaceId, startDate, endDate)
+        val projectId1 = UUID.randomUUID()
+        val projectId2 = UUID.randomUUID()
+
+        sprint.addProjects(listOf(projectId1, projectId2))
+
+        sprint.removeProject(projectId1)
+
+        assertFalse(sprint.hasProject(projectId1))
+        assertTrue(sprint.hasProject(projectId2))
+    }
+
+    @Test
+    fun `changePeriod 호출 시 기간이 업데이트된다`() {
+        val sprint = Sprint.create("스프린트 A", workspaceId, startDate, endDate)
+        val newStart = Instant.parse("2026-01-05T00:00:00Z")
+        val newEnd = Instant.parse("2026-01-20T00:00:00Z")
+
+        sprint.changePeriod(startDate = newStart, endDate = newEnd)
+
+        assertEquals(newStart, sprint.period.startDate)
+        assertEquals(newEnd, sprint.period.endDate)
+    }
+}

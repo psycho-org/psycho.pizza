@@ -15,9 +15,9 @@ abstract class BaseDeletableEntity protected constructor(
     val isDeleted: Boolean
         get() = deletedAt != null
 
-    fun delete(id: UUID) {
+    fun delete(by: UUID) {
         this.deletedAt = Instant.now()
-        this.deletedBy = id
+        this.deletedBy = by
     }
 
     fun restore() {
