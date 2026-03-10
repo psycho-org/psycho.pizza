@@ -11,7 +11,7 @@ import pizza.psycho.sos.common.message.domain.MessageChannel
 @Component
 class GmailMailSender(
     private val mailSender: JavaMailSender,
-    @Value("\${spring.mail.username:}") private val defaultFrom: String,
+    @param:Value("\${spring.mail.username:}") private val defaultFrom: String,
 ) : MailSender {
     override val channel: MessageChannel = MessageChannel.EMAIL
 
