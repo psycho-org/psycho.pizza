@@ -8,24 +8,45 @@ sealed interface RegisterAccountResult {
 
     sealed interface Failure : RegisterAccountResult {
         data object EmailAlreadyRegistered : Failure
+
+        data object InvalidConfirmationToken : Failure
     }
 }
 
-sealed interface UpdateAccountResult {
-    sealed interface Success : UpdateAccountResult {
-        data class DisplayName(
-            val displayName: String,
-        ) : Success
+sealed interface UpdateDisplayNameAccountResult {
+    data class Success(
+        val displayName: String,
+    ) : UpdateDisplayNameAccountResult
 
-        data object Password : Success
-
-        data object Name : Success
-    }
-
-    sealed interface Failure : UpdateAccountResult {
+    sealed interface Failure : UpdateDisplayNameAccountResult {
         data object AccountNotFound : Failure
 
         data object InvalidDisplayName : Failure
+    }
+}
+
+sealed interface UpdateNameAccountResult {
+    data class Success(
+        val givenName: String,
+        val familyName: String,
+    ) : UpdateNameAccountResult
+
+    sealed interface Failure : UpdateNameAccountResult {
+        data object AccountNotFound : Failure
+
+        data object InvalidDisplayName : Failure
+    }
+}
+
+sealed interface UpdatePasswordAccountResult {
+    data object Success : UpdatePasswordAccountResult
+
+    sealed interface Failure : UpdatePasswordAccountResult {
+        data object AccountNotFound : Failure
+
+        data object InvalidCredentials : Failure
+
+        data object InvalidConfirmationToken : Failure
     }
 }
 
@@ -38,5 +59,7 @@ sealed interface WithdrawAccountResult {
         data object InvalidCredentials : Failure
 
         data object OwnerWorkspaceExists : Failure
+
+        data object InvalidConfirmationToken : Failure
     }
 }

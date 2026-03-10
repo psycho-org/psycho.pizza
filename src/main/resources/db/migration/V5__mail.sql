@@ -32,15 +32,28 @@ create table if not exists public.message_auth_tokens (
     action_processed_at timestamp(6)
 );
 
-create unique index if not exists uk_message_auth_tokens_token
-    on message_auth_tokens using btree (token);
+create unique index if not exists
+uk_message_auth_tokens_token
+on message_auth_tokens using btree (
+    token
+);
 
-create index if not exists idx_message_auth_tokens_target
-    on message_auth_tokens using btree (mail_type, lower(target_email), coalesce(context_key, ''));
+create index if not exists
+idx_message_auth_tokens_target
+on message_auth_tokens using btree (
+    mail_type,
+    lower(target_email),
+    coalesce(context_key, '')
+);
 
-create unique index if not exists ux_message_auth_tokens_pending
-    on message_auth_tokens (mail_type, lower(target_email), coalesce(context_key, ''))
-    where (verified_at is null and failure_reason is null);
+create unique index if not exists
+ux_message_auth_tokens_pending
+on message_auth_tokens (
+    mail_type,
+    lower(target_email),
+    coalesce(context_key, '')
+)
+where (verified_at is null and failure_reason is null);
 
 create table if not exists public.message_auth_token_params (
     id uuid primary key not null,
@@ -49,8 +62,13 @@ create table if not exists public.message_auth_token_params (
     message_auth_token_id uuid not null,
     name character varying(100) not null,
     value character varying(2048) not null,
-    foreign key (message_auth_token_id) references public.message_auth_tokens (id) on delete cascade
+    foreign key (message_auth_token_id) references public.message_auth_tokens (
+        id
+    ) on delete cascade
 );
 
-create unique index if not exists uk_message_auth_token_params_token_name
-    on message_auth_token_params (message_auth_token_id, name);
+create unique index if not exists
+uk_message_auth_token_params_token_name
+on message_auth_token_params (
+    message_auth_token_id, name
+);

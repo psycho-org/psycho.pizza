@@ -54,8 +54,9 @@ select
 where not exists (
     select 1
     from mail_templates
-    where mail_type = 'WORKSPACE_INVITE'
-      and deleted_at is null
+    where
+        mail_type = 'WORKSPACE_INVITE'
+        and deleted_at is null
 );
 
 -- OTP 템플릿 시드 데이터
@@ -109,6 +110,7 @@ select
 where not exists (
     select 1
     from mail_templates
-    where mail_type = 'OTP'
-      and deleted_at is null
+    where
+        mail_type = 'OTP'
+        and deleted_at is null
 );

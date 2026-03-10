@@ -17,7 +17,9 @@ import pizza.psycho.sos.identity.account.presentation.dto.AccountRequest
 import pizza.psycho.sos.identity.account.presentation.dto.AccountResponse
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
-import pizza.psycho.sos.identity.account.application.service.dto.UpdateAccountResult as Update
+import pizza.psycho.sos.identity.account.application.service.dto.UpdateDisplayNameAccountResult as DisplayName
+import pizza.psycho.sos.identity.account.application.service.dto.UpdateNameAccountResult as Name
+import pizza.psycho.sos.identity.account.application.service.dto.UpdatePasswordAccountResult as Password
 import pizza.psycho.sos.identity.account.application.service.dto.WithdrawAccountResult as Withdraw
 
 @RestController
@@ -32,7 +34,7 @@ class AccountController(
         accountService
             .register(
                 AccountCommand.Register(
-                    email = request.email,
+                    confirmationTokenId = request.confirmationTokenId,
                     password = request.password,
                     firstName = request.givenName,
                     lastName = request.familyName,
@@ -52,6 +54,35 @@ class AccountController(
                 ),
             ).toApiResponse()
 
+    @PostMapping("/me/update/name")
+    fun updateName(
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
+        @Valid @RequestBody request: AccountRequest.Update.Name,
+    ): ApiResponse<AccountResponse.Updated> =
+        accountService
+            .updateName(
+                AccountCommand.Update.Name(
+                    accountId = principal.accountId,
+                    givenName = request.givenName,
+                    familyName = request.familyName,
+                ),
+            ).toApiResponse()
+
+    @PostMapping("/me/password")
+    fun updatePassword(
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
+        @Valid @RequestBody request: AccountRequest.Update.Password,
+    ): ApiResponse<AccountResponse.Updated.Password> =
+        accountService
+            .updatePassword(
+                AccountCommand.Update.Password(
+                    accountId = principal.accountId,
+                    confirmationTokenId = request.confirmationTokenId,
+                    currentPassword = request.currentPassword,
+                    newPassword = request.newPassword,
+                ),
+            ).toApiResponse()
+
     @PostMapping("/me/withdraw")
     fun withdraw(
         @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
@@ -61,6 +92,7 @@ class AccountController(
             .withdraw(
                 AccountCommand.Withdraw(
                     accountId = principal.accountId,
+                    confirmationTokenId = request.confirmationTokenId,
                     password = request.password,
                 ),
             ).toApiResponse()
@@ -80,11 +112,16 @@ class AccountController(
                 HttpStatus.CONFLICT,
                 "Email already registered",
             )
+
+            Register.Failure.InvalidConfirmationToken -> throw ResponseStatusException(
+                HttpStatus.UNAUTHORIZED,
+                "Invalid or expired confirmation token",
+            )
         }
 
-    private fun Update.toApiResponse(): ApiResponse<AccountResponse.Updated> =
+    private fun DisplayName.toApiResponse(): ApiResponse<AccountResponse.Updated.DisplayName> =
         when (this) {
-            is Update.Success.DisplayName ->
+            is DisplayName.Success ->
                 responseOf(
                     data =
                         AccountResponse.Updated.DisplayName(
@@ -92,22 +129,53 @@ class AccountController(
                         ),
                 )
 
-            Update.Success.Password ->
-                responseOf(AccountResponse.Updated.UpdatedPassword)
-
-            Update.Success.Name ->
-                responseOf(AccountResponse.Updated.Name)
-
-            Update.Failure.AccountNotFound -> throw ResponseStatusException(
+            DisplayName.Failure.AccountNotFound -> throw ResponseStatusException(
                 HttpStatus.NOT_FOUND,
                 "Account not found",
             )
 
-            Update.Failure.InvalidDisplayName -> throw ResponseStatusException(
+            DisplayName.Failure.InvalidDisplayName -> throw ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
                 "Invalid display name",
             )
         }
+
+    private fun Name.toApiResponse(): ApiResponse<AccountResponse.Updated.Name> {
+        when (this) {
+            is Name.Success -> return responseOf(AccountResponse.Updated.Name)
+
+            Name.Failure.AccountNotFound -> throw ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Account not found",
+            )
+
+            Name.Failure.InvalidDisplayName -> throw ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Invalid display name",
+            )
+        }
+    }
+
+    private fun Password.toApiResponse(): ApiResponse<AccountResponse.Updated.Password> {
+        when (this) {
+            is Password.Success -> return responseOf(AccountResponse.Updated.Password)
+
+            Password.Failure.AccountNotFound -> throw ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Account not found",
+            )
+
+            Password.Failure.InvalidCredentials -> throw ResponseStatusException(
+                HttpStatus.UNAUTHORIZED,
+                "Invalid credentials",
+            )
+
+            Password.Failure.InvalidConfirmationToken -> throw ResponseStatusException(
+                HttpStatus.UNAUTHORIZED,
+                "Invalid or expired confirmation token",
+            )
+        }
+    }
 
     private fun Withdraw.toApiResponse(): ApiResponse<AccountResponse.Withdrawn> =
         when (this) {
@@ -127,6 +195,11 @@ class AccountController(
             Withdraw.Failure.OwnerWorkspaceExists -> throw ResponseStatusException(
                 HttpStatus.CONFLICT,
                 "Transfer ownership or delete owned workspaces before withdrawing",
+            )
+
+            Withdraw.Failure.InvalidConfirmationToken -> throw ResponseStatusException(
+                HttpStatus.UNAUTHORIZED,
+                "Invalid or expired confirmation token",
             )
         }
 }
