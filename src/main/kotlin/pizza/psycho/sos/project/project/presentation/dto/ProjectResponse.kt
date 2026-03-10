@@ -1,27 +1,30 @@
-package pizza.psycho.sos.project.task.presentation.dto
+package pizza.psycho.sos.project.project.presentation.dto
 
 import pizza.psycho.sos.project.task.domain.model.vo.Status
 import java.time.Instant
 import java.util.UUID
 
-sealed interface TaskResponse {
+sealed interface ProjectResponse {
     data class Information(
-        val id: UUID,
-        val title: String,
-        val description: String,
-        val status: Status,
-        val assignee: Assignee? = null,
         val workspaceId: UUID,
-        val dueDate: Instant?,
-    ) : TaskResponse
+        val projectId: UUID,
+        val name: String,
+        val progress: Progress,
+    ) : ProjectResponse
 
-    data class List(
+    data class Progress(
+        val totalCount: Int,
+        val completedCount: Int,
+        val progress: Double,
+    )
+
+    data class Task(
         val id: UUID,
         val title: String,
         val status: Status,
         val assignee: Assignee? = null,
         val dueDate: Instant? = null,
-    ) : TaskResponse
+    ) : ProjectResponse
 
     data class Assignee(
         val id: UUID,
@@ -31,5 +34,10 @@ sealed interface TaskResponse {
 
     data class Remove(
         val count: Int,
+    )
+
+    data class RemoveWithTasks(
+        val projectCount: Int,
+        val taskCount: Int,
     )
 }

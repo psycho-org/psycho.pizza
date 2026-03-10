@@ -36,7 +36,13 @@ interface TaskJpaRepository :
     override fun findAllByIdIn(
         ids: Collection<UUID>,
         workspaceId: WorkspaceId,
-    ): List<Task> = findAllByIdInAndWorkspaceIdValue(ids, workspaceId.value)
+    ): List<Task> = findAllByIdInAndWorkspaceIdValueAndDeletedAtIsNull(ids, workspaceId.value)
+
+    override fun findAllByIdIn(
+        ids: Collection<UUID>,
+        workspaceId: WorkspaceId,
+        pageable: Pageable,
+    ): Page<Task> = findAllByIdInAndWorkspaceIdValueAndDeletedAtIsNull(ids, workspaceId.value, pageable)
 
     override fun deleteById(
         id: UUID,
@@ -47,6 +53,20 @@ interface TaskJpaRepository :
             ?.also { it.delete(deletedBy) }
             ?.let { 1 }
             ?: 0
+
+    override fun deleteByIdIn(
+        ids: Collection<UUID>,
+        deletedBy: UUID,
+        workspaceId: WorkspaceId,
+    ): Int {
+        if (ids.isEmpty()) {
+            return 0
+        }
+
+        return findAllByIdInAndWorkspaceIdValueAndDeletedAtIsNull(ids, workspaceId.value)
+            .onEach { it.delete(deletedBy) }
+            .size
+    }
 
     fun findByIdAndWorkspaceIdValue(
         id: UUID,
@@ -68,8 +88,14 @@ interface TaskJpaRepository :
         pageable: Pageable,
     ): Page<Task>
 
-    fun findAllByIdInAndWorkspaceIdValue(
+    fun findAllByIdInAndWorkspaceIdValueAndDeletedAtIsNull(
         ids: Collection<UUID>,
         workspaceId: UUID,
     ): List<Task>
+
+    fun findAllByIdInAndWorkspaceIdValueAndDeletedAtIsNull(
+        ids: Collection<UUID>,
+        workspaceId: UUID,
+        pageable: Pageable,
+    ): Page<Task>
 }
