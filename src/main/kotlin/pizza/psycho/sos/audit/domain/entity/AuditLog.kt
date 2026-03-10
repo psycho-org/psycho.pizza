@@ -25,7 +25,7 @@ class AuditLog(
     val targetId: UUID,
     @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false, length = 100, updatable = false)
-    val eventType: AuditEventType,
+    val auditEventType: AuditEventType,
     @Column(name = "from_value", columnDefinition = "TEXT", updatable = false)
     val fromValue: String?,
     @Column(name = "to_value", columnDefinition = "TEXT", updatable = false)
