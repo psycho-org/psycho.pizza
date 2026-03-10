@@ -16,10 +16,12 @@ import pizza.psycho.sos.common.message.channel.mail.send.presentation.dto.MailSe
 import pizza.psycho.sos.common.message.channel.mail.send.presentation.dto.MailSendResponse
 import pizza.psycho.sos.common.message.channel.mail.send.presentation.dto.MailSendStatus
 import pizza.psycho.sos.common.message.channel.mail.template.application.service.MailTemplateService
+import pizza.psycho.sos.common.message.channel.mail.template.domain.data.OtpTemplateData
 import pizza.psycho.sos.common.message.channel.mail.template.domain.data.WorkspaceInviteTemplateData
 import pizza.psycho.sos.common.message.channel.mail.template.domain.model.entity.MailTemplate
 import pizza.psycho.sos.common.message.channel.mail.template.domain.spec.MailTemplateSpecRegistry
 import pizza.psycho.sos.common.message.channel.mail.template.presentation.dto.MailTemplateResponse
+import pizza.psycho.sos.common.message.domain.MessageType
 import pizza.psycho.sos.common.response.ApiResponse
 import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
@@ -39,37 +41,31 @@ class MailSendController(
                     .map { it.toSummary() },
         )
 
-    @PostMapping("/send")
-    fun send(
+    @PostMapping("/send/workspaceinvite")
+    fun sendWorkspaceInvite(
         @Valid @RequestBody request: MailSendRequest.WorkspaceInvite,
         @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
-    ): ApiResponse<MailSendResponse.Sent> {
-        val command = request.toCommand(principal)
-        return try {
-            val status =
-                mailSendService.send(
-                    command,
-                )
-            responseOf(
-                data =
-                    MailSendResponse.Sent(
-                        status = status,
-                    ),
-            )
-        } catch (ex: DomainException) {
-            throw ex
-        } catch (ex: Exception) {
-            logger.warn("Failed to send mail. mailType={} to={} reason={}", command.mailType, request.to, ex.message)
-            responseOf(
-                data =
-                    MailSendResponse.Sent(
-                        status = MailSendStatus.FAILED,
-                    ),
-                status = HttpStatus.INTERNAL_SERVER_ERROR,
-                message = "Mail send failed",
-            )
-        }
-    }
+    ): ApiResponse<MailSendResponse.Sent> = sendCommand(request.toCommand(principal), request.to)
+
+    @PostMapping("/send/general")
+    fun sendGeneral(
+        @Valid @RequestBody request: MailSendRequest.General,
+    ): ApiResponse<MailSendResponse.Sent> = sendCommand(request.toCommand(), request.to)
+
+    @PostMapping("/send/otp")
+    fun sendOtp(
+        @Valid @RequestBody request: MailSendRequest.Otp,
+    ): ApiResponse<MailSendResponse.Sent> = sendCommand(request.toCommand(), request.to)
+
+    @PostMapping("/send")
+    fun send(
+        @Valid @RequestBody request: MailSendRequest.Send,
+    ): ApiResponse<MailSendResponse.Sent> =
+        sendByType(
+            mailType = request.toMailType(),
+            to = request.to,
+            params = request.params,
+        )
 
     private fun MailTemplate.toSummary(): MailTemplateResponse.Summary =
         MailTemplateResponse.Summary(
@@ -105,6 +101,85 @@ class MailSendController(
             workspaceId = workspaceId,
             requesterAccountId = principal.accountId,
         )
+
+    private fun MailSendRequest.General.toCommand(): MailSendCommand =
+        MailSendCommand.General(
+            to = to,
+            subject = subject,
+            htmlContent = htmlContent,
+            from = from,
+        )
+
+    private fun MailSendRequest.Otp.toCommand(): MailSendCommand =
+        MailSendCommand.Otp(
+            to = to,
+            templateData =
+                OtpTemplateData(
+                    otpCode = otpCode.trim(),
+                    expiresInMinutes = expiresInMinutes,
+                    otpPurpose = otpPurpose?.trim()?.takeIf { it.isNotEmpty() },
+                ),
+        )
+
+    private fun MailSendRequest.Send.toMailType(): MessageType =
+        try {
+            MessageType.valueOf(mailType.trim().uppercase())
+        } catch (ex: IllegalArgumentException) {
+            throw DomainException("unsupported mailType=$mailType")
+        }
+
+    private fun sendCommand(
+        command: MailSendCommand,
+        to: String,
+    ): ApiResponse<MailSendResponse.Sent> =
+        try {
+            val status = mailSendService.send(command)
+            responseOf(
+                data =
+                    MailSendResponse.Sent(
+                        status = status,
+                    ),
+            )
+        } catch (ex: DomainException) {
+            throw ex
+        } catch (ex: Exception) {
+            logger.warn("Failed to send mail. commandType={} to={} reason={}", command::class.simpleName, to, ex.message)
+            responseOf(
+                data =
+                    MailSendResponse.Sent(
+                        status = MailSendStatus.FAILED,
+                    ),
+                status = HttpStatus.INTERNAL_SERVER_ERROR,
+                message = "Mail send failed",
+            )
+        }
+
+    private fun sendByType(
+        mailType: MessageType,
+        to: String,
+        params: Map<String, String?>,
+    ): ApiResponse<MailSendResponse.Sent> =
+        try {
+            val status = mailSendService.send(mailType = mailType, to = to, params = params)
+            responseOf(
+                data =
+                    MailSendResponse.Sent(
+                        status = status,
+                    ),
+            )
+        } catch (ex: DomainException) {
+            throw ex
+        } catch (ex: Exception) {
+            logger.warn("Failed to send mail. mailType={} to={} reason={}", mailType, to, ex.message)
+            responseOf(
+                data =
+                    MailSendResponse.Sent(
+                        status = MailSendStatus.FAILED,
+                    ),
+                status = HttpStatus.INTERNAL_SERVER_ERROR,
+                message = "Mail send failed",
+            )
+        }
 
     companion object {
         private val logger = LoggerFactory.getLogger(MailSendController::class.java)

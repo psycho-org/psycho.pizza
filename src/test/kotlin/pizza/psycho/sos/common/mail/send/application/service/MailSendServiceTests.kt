@@ -8,11 +8,13 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.common.message.action.domain.MailActionType
+import pizza.psycho.sos.common.message.channel.mail.send.application.command.MailSendCommand
 import pizza.psycho.sos.common.message.channel.mail.send.application.model.MailSendRequest
 import pizza.psycho.sos.common.message.channel.mail.send.application.port.MailSender
 import pizza.psycho.sos.common.message.channel.mail.send.presentation.dto.MailSendStatus
 import pizza.psycho.sos.common.message.channel.mail.template.application.service.MailTemplateService
 import pizza.psycho.sos.common.message.channel.mail.template.domain.data.MailTemplateData
+import pizza.psycho.sos.common.message.channel.mail.template.domain.data.OtpTemplateData
 import pizza.psycho.sos.common.message.channel.mail.template.domain.data.WorkspaceInviteTemplateData
 import pizza.psycho.sos.common.message.channel.mail.template.domain.model.entity.MailTemplate
 import pizza.psycho.sos.common.message.channel.mail.template.domain.model.vo.RenderedMailTemplate
@@ -36,6 +38,102 @@ class MailSendServiceTests {
             mailTokenProperties,
             mailSender,
         )
+
+    @Test
+    fun `일반 메일 전송은 템플릿과 토큰 발급 없이 바로 발송한다`() {
+        val requestSlot = slot<MailSendRequest>()
+        every { mailSender.send(capture(requestSlot)) } returns Unit
+
+        val status =
+            mailSendService.send(
+                MailSendCommand.General(
+                    to = "USER@PSYCHO.PIZZA",
+                    subject = "  hello subject  ",
+                    htmlContent = "  <p>hello</p>  ",
+                    from = "  noreply@psycho.pizza  ",
+                ),
+            )
+
+        assertEquals(MailSendStatus.SUCCESS, status)
+        assertEquals("user@psycho.pizza", requestSlot.captured.to)
+        assertEquals("hello subject", requestSlot.captured.subject)
+        assertEquals("<p>hello</p>", requestSlot.captured.htmlContent)
+        assertEquals("noreply@psycho.pizza", requestSlot.captured.from)
+        verify(exactly = 1) { mailSender.send(any()) }
+        verify(exactly = 0) { mailTemplateService.getActiveTemplate(any()) }
+        verify(exactly = 0) { mailTemplateService.render(any()) }
+        verify(exactly = 0) {
+            mailAuthTokenService.issue(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
+    }
+
+    @Test
+    fun `OTP 메일 전송은 템플릿을 렌더링해 발송하고 토큰은 발급하지 않는다`() {
+        val template =
+            MailTemplate(
+                mailType = MessageType.OTP,
+                title = "[psycho] 인증번호 안내",
+                description = "otp",
+                actionType = null,
+                tokenAuthEnabled = false,
+                tokenExpireHours = null,
+                htmlContent = "<p>\${otpCode}</p>",
+            )
+        val rendered =
+            RenderedMailTemplate(
+                title = "인증번호 안내",
+                htmlContent = "<p>123456</p>",
+            )
+
+        every { mailTemplateService.getActiveTemplate(MessageType.OTP) } returns template
+        val dataSlot = slot<MailTemplateData>()
+        every { mailTemplateService.render(capture(dataSlot)) } returns rendered
+        val requestSlot = slot<MailSendRequest>()
+        every { mailSender.send(capture(requestSlot)) } returns Unit
+
+        val status =
+            mailSendService.send(
+                mailType = MessageType.OTP,
+                to = "USER@PSYCHO.PIZZA",
+                params =
+                    mapOf(
+                        "otpCode" to "123456",
+                        "otpPurpose" to "login",
+                        "expiresInMinutes" to "5",
+                    ),
+            )
+
+        assertEquals(MailSendStatus.SUCCESS, status)
+        val capturedData = dataSlot.captured as OtpTemplateData
+        assertEquals("123456", capturedData.otpCode)
+        assertEquals("login", capturedData.otpPurpose)
+        assertEquals(5L, capturedData.expiresInMinutes)
+        assertEquals("user@psycho.pizza", requestSlot.captured.to)
+        assertEquals("인증번호 안내", requestSlot.captured.subject)
+        assertEquals("<p>123456</p>", requestSlot.captured.htmlContent)
+        verify(exactly = 1) { mailTemplateService.getActiveTemplate(MessageType.OTP) }
+        verify(exactly = 1) { mailTemplateService.render(any()) }
+        verify(exactly = 1) { mailSender.send(any()) }
+        verify(exactly = 0) {
+            mailAuthTokenService.issue(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
+    }
 
     @Test
     fun `메일 전송 시 템플릿을 렌더링하고 발송 요청을 전달한다`() {

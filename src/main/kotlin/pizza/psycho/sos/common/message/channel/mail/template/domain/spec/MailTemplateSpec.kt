@@ -16,6 +16,28 @@ data class MailTemplateSpec(
 object MailTemplateSpecRegistry {
     private val specs: Map<MessageType, MailTemplateSpec> =
         mapOf(
+            MessageType.OTP to
+                MailTemplateSpec(
+                    mailType = MessageType.OTP,
+                    variables =
+                        listOf(
+                            MailTemplateVariableSpec(
+                                name = "otpCode",
+                                required = true,
+                                description = "인증번호",
+                            ),
+                            MailTemplateVariableSpec(
+                                name = "expiresInMinutes",
+                                required = true,
+                                description = "인증번호 만료 시간(분)",
+                            ),
+                            MailTemplateVariableSpec(
+                                name = "otpPurpose",
+                                required = false,
+                                description = "OTP 사용 목적",
+                            ),
+                        ),
+                ),
             MessageType.WORKSPACE_INVITE to
                 MailTemplateSpec(
                     mailType = MessageType.WORKSPACE_INVITE,
