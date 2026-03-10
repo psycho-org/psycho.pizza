@@ -1,5 +1,6 @@
 package pizza.psycho.sos.identity.security.config
 
+import org.springframework.boot.autoconfigure.security.servlet.PathRequest
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpStatus
@@ -32,9 +33,13 @@ class SecurityConfig(
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
             .authorizeHttpRequests {
                 it
+                    .requestMatchers(PathRequest.toStaticResources().atCommonLocations())
+                    .permitAll()
                     .requestMatchers(
                         "/api/v1/auth/**",
                         "/api/v1/accounts/register",
+                        "/api/v1/mails/verify",
+                        "/mail/**",
                         "/actuator/**",
                         "/v3/api-docs/**",
                         "/swagger-ui/**",

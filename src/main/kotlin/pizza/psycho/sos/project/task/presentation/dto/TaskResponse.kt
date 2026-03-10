@@ -18,6 +18,7 @@ sealed interface TaskResponse {
     data class List(
         val id: UUID,
         val title: String,
+        val status: Status,
         val assignee: Assignee? = null,
         val dueDate: Instant? = null,
     ) : TaskResponse

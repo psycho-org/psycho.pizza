@@ -9,6 +9,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: test@psycho.pizza
+    password: test-password
 
 security:
   jwt:

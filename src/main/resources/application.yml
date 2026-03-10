@@ -3,6 +3,8 @@ spring:
     import: optional:file:.env[.properties]
   profiles:
     default: ${SPRING_PROFILES_ACTIVE}
+  flyway:
+    placeholder-replacement: false
 
 management:
   endpoints:

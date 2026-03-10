@@ -22,7 +22,7 @@ import pizza.psycho.sos.project.task.presentation.dto.TaskResponse
 import java.util.UUID
 
 @RestController
-@RequestMapping("/api/v1/{workspaceId}/tasks")
+@RequestMapping("/api/v1/workspaces/{workspaceId}/tasks")
 class TaskController(
     private val taskService: TaskService,
     private val pageInfoSupport: PageInfoSupport,
@@ -88,6 +88,7 @@ class TaskController(
         TaskResponse.List(
             id = id,
             title = title,
+            status = status,
             assignee = assignee?.let { TaskResponse.Assignee(it.id, it.name, it.email) },
             dueDate = dueDate,
         )
