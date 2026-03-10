@@ -57,6 +57,8 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("io.mockk:mockk:1.13.13")
     testImplementation("com.ninja-squad:springmockk:4.0.2")
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -67,8 +69,20 @@ kotlin {
     }
 }
 
-tasks.withType<Test> {
-    useJUnitPlatform()
+tasks.test {
+    useJUnitPlatform {
+        excludeTags("tc")
+    }
+}
+
+tasks.register<Test>("testTc") {
+    group = "verification"
+    description = "Runs Postgres-backed Testcontainers tests"
+    maxParallelForks = 1
+    useJUnitPlatform {
+        includeTags("tc")
+    }
+    systemProperty("spring.profiles.active", "test-tc")
 }
 
 tasks.jar {
