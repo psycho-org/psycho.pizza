@@ -35,6 +35,8 @@ class SecurityConfig(
                     .requestMatchers(
                         "/api/v1/auth/**",
                         "/api/v1/accounts/register",
+                        "/api/v1/accounts/register/requests",
+                        "/api/v1/accounts/register/confirmations",
                         "/actuator/**",
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
