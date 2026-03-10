@@ -56,6 +56,10 @@ class RefreshTokenService(
         refreshTokenRepository.save(token)
     }
 
+    fun revokeAllByAccountId(accountId: UUID) {
+        refreshTokenRepository.revokeAllActiveByAccountId(accountId, Instant.now())
+    }
+
     private fun findValidToken(rawToken: String): RefreshToken? =
         hashOrNull(rawToken)
             ?.let(refreshTokenRepository::findByTokenHash)

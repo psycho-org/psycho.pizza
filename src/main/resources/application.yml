@@ -3,9 +3,15 @@ spring:
     import: optional:file:.env[.properties]
   profiles:
     default: ${SPRING_PROFILES_ACTIVE}
+  flyway:
+    placeholder-replacement: false
 
 management:
   endpoints:
     web:
       exposure:
         include: health
+
+openai:
+  api-key: ${OPENAI_API_KEY}
+  model: gpt-4.1-mini

@@ -10,6 +10,7 @@ import org.mockito.Mockito.`when`
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.identity.account.domain.Account
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
 import pizza.psycho.sos.identity.authentication.application.service.AuthService
 import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
@@ -33,7 +34,7 @@ class AuthServiceTests {
                 email = "missing@psycho.pizza",
                 password = "Password123!",
             )
-        `when`(accountRepository.findByEmailIgnoreCaseAndDeletedAtIsNull("missing@psycho.pizza")).thenReturn(null)
+        `when`(accountRepository.findByEmailValueIgnoreCaseAndDeletedAtIsNull("missing@psycho.pizza")).thenReturn(null)
 
         val result = authService.login(query)
         assertTrue(result is AuthResult.Login.Failure.InvalidCredentials)
@@ -48,14 +49,14 @@ class AuthServiceTests {
             )
         val account =
             Account.create(
-                email = "user@psycho.pizza",
+                email = Email.of("user@psycho.pizza"),
                 passwordHash = "encoded-password",
                 givenName = "Rick",
                 familyName = "Sanchez",
             )
         account.id = UUID.fromString("00000000-0000-0000-0000-000000000222")
 
-        `when`(accountRepository.findByEmailIgnoreCaseAndDeletedAtIsNull("user@psycho.pizza")).thenReturn(account)
+        `when`(accountRepository.findByEmailValueIgnoreCaseAndDeletedAtIsNull("user@psycho.pizza")).thenReturn(account)
         `when`(passwordEncoder.matches("WrongPassword!", "encoded-password")).thenReturn(false)
 
         val result = authService.login(query)
@@ -71,14 +72,14 @@ class AuthServiceTests {
             )
         val account =
             Account.create(
-                email = "user@psycho.pizza",
+                email = Email.of("user@psycho.pizza"),
                 passwordHash = "encoded-password",
                 givenName = "Rick",
                 familyName = "Sanchez",
             )
         account.id = UUID.fromString("00000000-0000-0000-0000-000000000333")
 
-        `when`(accountRepository.findByEmailIgnoreCaseAndDeletedAtIsNull("user@psycho.pizza")).thenReturn(account)
+        `when`(accountRepository.findByEmailValueIgnoreCaseAndDeletedAtIsNull("user@psycho.pizza")).thenReturn(account)
         `when`(passwordEncoder.matches("Password123!", "encoded-password")).thenReturn(true)
         `when`(accessTokenProvider.issueAccessToken(account)).thenReturn("mock-access-token")
         `when`(refreshTokenService.issue(UUID.fromString("00000000-0000-0000-0000-000000000333"))).thenReturn(
@@ -102,7 +103,7 @@ class AuthServiceTests {
         val account =
             Account
                 .create(
-                    email = "refresh@psycho.pizza",
+                    email = Email.of("refresh@psycho.pizza"),
                     passwordHash = "encoded-password",
                     givenName = "Beth",
                     familyName = "Smith",

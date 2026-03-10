@@ -80,4 +80,7 @@ Temporary Items
 AGENTS.md
 CLAUDE.md
 GEMINI.md
+
+# Env
 /.env
+/docs/*

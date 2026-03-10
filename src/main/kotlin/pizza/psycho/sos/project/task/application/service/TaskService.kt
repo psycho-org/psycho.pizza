@@ -1,6 +1,7 @@
 package pizza.psycho.sos.project.task.application.service
 
 import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
@@ -10,6 +11,7 @@ import pizza.psycho.sos.project.task.application.service.dto.TaskResult.Assignee
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult.TaskInformation
 import pizza.psycho.sos.project.task.domain.model.entity.Task
 import pizza.psycho.sos.project.task.domain.repository.TaskRepository
+import java.util.UUID
 
 @Service
 class TaskService(
@@ -17,7 +19,7 @@ class TaskService(
 ) {
     fun create(command: TaskCommand.AddTask): TaskResult =
         Tx.writable {
-            taskRepository.save(command.toDomain()).toResult()
+            saveTask(command).toResult()
         }
 
     fun getAll(command: TaskCommand.FindTasks): TaskResult.TaskList =
@@ -43,13 +45,38 @@ class TaskService(
             }
         }
 
+    fun saveTask(command: TaskCommand.AddTask): Task = taskRepository.save(command.toDomain())
+
+    fun findTasksByIdIn(
+        ids: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<Task> = taskRepository.findAllByIdIn(ids, workspaceId)
+
+    fun findTasksByIdIn(
+        ids: Collection<UUID>,
+        workspaceId: WorkspaceId,
+        pageable: Pageable,
+    ): Page<Task> = taskRepository.findAllByIdIn(ids, workspaceId, pageable)
+
+    fun deleteTaskById(
+        id: UUID,
+        deletedBy: UUID,
+        workspaceId: WorkspaceId,
+    ): Int = taskRepository.deleteById(id, deletedBy, workspaceId)
+
+    fun deleteTasksByIdIn(
+        ids: Collection<UUID>,
+        deletedBy: UUID,
+        workspaceId: WorkspaceId,
+    ): Int = taskRepository.deleteByIdIn(ids, deletedBy, workspaceId)
+
     // -----------------------------------------------------------------------------
 
     // todo 유저 로직 추가 시 수정
     private fun Page<Task>.toResult(): Page<TaskResult.TaskListInfo> =
         map {
             TaskResult.TaskListInfo(
-                id = requireNotNull(it.id),
+                id = it.taskId,
                 title = it.title,
                 assignee =
                     it.assigneeId.value?.let { id ->
@@ -59,31 +86,28 @@ class TaskService(
                             email = "",
                         )
                     },
+                status = it.status,
                 dueDate = it.dueDate.value,
             )
         }
 
     private fun Task.toResult(): TaskResult =
-        if (id == null) {
-            TaskResult.Failure.IdNotFound
-        } else {
-            TaskInformation(
-                id = requireNotNull(id),
-                title = title,
-                description = description,
-                status = status,
-                assignee =
-                    assigneeId.value?.let { id ->
-                        Assignee(
-                            id = id,
-                            name = "",
-                            email = "",
-                        )
-                    },
-                dueDate = dueDate.value,
-                workspaceId = workspaceId.value,
-            )
-        }
+        TaskInformation(
+            id = taskId,
+            title = title,
+            description = description,
+            status = status,
+            assignee =
+                assigneeId.value?.let { id ->
+                    Assignee(
+                        id = id,
+                        name = "",
+                        email = "",
+                    )
+                },
+            dueDate = dueDate.value,
+            workspaceId = workspaceId.value,
+        )
 
     private fun TaskCommand.AddTask.toDomain(): Task =
         Task.create(

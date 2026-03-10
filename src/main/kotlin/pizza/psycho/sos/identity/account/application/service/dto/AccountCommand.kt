@@ -4,14 +4,35 @@ import java.util.UUID
 
 sealed interface AccountCommand {
     data class Register(
-        val email: String,
+        val confirmationTokenId: UUID,
         val password: String,
         val firstName: String,
         val lastName: String,
     ) : AccountCommand
 
-    data class UpdateDisplayName(
+    sealed interface Update {
+        data class DisplayName(
+            val accountId: UUID,
+            val displayName: String,
+        ) : Update
+
+        data class Name(
+            val accountId: UUID,
+            val givenName: String,
+            val familyName: String,
+        ) : Update
+
+        data class Password(
+            val accountId: UUID,
+            val confirmationTokenId: UUID,
+            val currentPassword: String,
+            val newPassword: String,
+        ) : Update
+    }
+
+    data class Withdraw(
         val accountId: UUID,
-        val displayName: String,
+        val confirmationTokenId: UUID,
+        val password: String,
     ) : AccountCommand
 }

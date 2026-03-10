@@ -1,28 +1,65 @@
 package pizza.psycho.sos.identity.account.application.service.dto
 
-sealed interface AccountResult {
-    data class Registered(
-        val account: AccountSnapshot,
-    ) : AccountResult
+sealed interface RegisterAccountResult {
+    data class Success(
+        val email: String,
+        val displayName: String,
+    ) : RegisterAccountResult
 
-    sealed interface Updated : AccountResult {
-        data class DisplayName(
-            val displayName: String,
-        ) : Updated
-    }
-
-    sealed interface Failure : AccountResult {
+    sealed interface Failure : RegisterAccountResult {
         data object EmailAlreadyRegistered : Failure
 
-        data object InvalidDisplayName : Failure
-
-        data object AccountNotFound : Failure
+        data object InvalidConfirmationToken : Failure
     }
 }
 
-data class AccountSnapshot(
-    val id: String,
-    val email: String,
-    val firstName: String,
-    val lastName: String,
-)
+sealed interface UpdateDisplayNameAccountResult {
+    data class Success(
+        val displayName: String,
+    ) : UpdateDisplayNameAccountResult
+
+    sealed interface Failure : UpdateDisplayNameAccountResult {
+        data object AccountNotFound : Failure
+
+        data object InvalidDisplayName : Failure
+    }
+}
+
+sealed interface UpdateNameAccountResult {
+    data class Success(
+        val givenName: String,
+        val familyName: String,
+    ) : UpdateNameAccountResult
+
+    sealed interface Failure : UpdateNameAccountResult {
+        data object AccountNotFound : Failure
+
+        data object InvalidDisplayName : Failure
+    }
+}
+
+sealed interface UpdatePasswordAccountResult {
+    data object Success : UpdatePasswordAccountResult
+
+    sealed interface Failure : UpdatePasswordAccountResult {
+        data object AccountNotFound : Failure
+
+        data object InvalidCredentials : Failure
+
+        data object InvalidConfirmationToken : Failure
+    }
+}
+
+sealed interface WithdrawAccountResult {
+    data object Success : WithdrawAccountResult
+
+    sealed interface Failure : WithdrawAccountResult {
+        data object AccountNotFound : Failure
+
+        data object InvalidCredentials : Failure
+
+        data object OwnerWorkspaceExists : Failure
+
+        data object InvalidConfirmationToken : Failure
+    }
+}

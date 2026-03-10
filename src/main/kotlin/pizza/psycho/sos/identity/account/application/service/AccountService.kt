@@ -4,21 +4,44 @@ import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
-import pizza.psycho.sos.identity.account.application.service.dto.AccountResult
-import pizza.psycho.sos.identity.account.application.service.dto.AccountSnapshot
 import pizza.psycho.sos.identity.account.domain.Account
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
+import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
+import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
+import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
+import pizza.psycho.sos.identity.challenge.application.service.dto.ConsumeTokenResult
+import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
+import java.util.UUID
+import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
+import pizza.psycho.sos.identity.account.application.service.dto.UpdateDisplayNameAccountResult as UpdateDisplayName
+import pizza.psycho.sos.identity.account.application.service.dto.UpdateNameAccountResult as UpdateName
+import pizza.psycho.sos.identity.account.application.service.dto.UpdatePasswordAccountResult as UpdatePassword
+import pizza.psycho.sos.identity.account.application.service.dto.WithdrawAccountResult as Withdraw
 
 @Service
 @Transactional
 class AccountService(
     private val accountRepository: AccountRepository,
     private val passwordEncoder: PasswordEncoder,
+    private val refreshTokenService: RefreshTokenService,
+    private val challengeService: ChallengeService,
 ) {
-    fun register(command: AccountCommand.Register): AccountResult {
-        val email = command.email.trim().lowercase()
-        if (accountRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(email)) {
-            return AccountResult.Failure.EmailAlreadyRegistered
+    fun findActiveAccountIdByEmailOrNull(email: String): UUID? =
+        accountRepository
+            .findByEmailValueIgnoreCaseAndDeletedAtIsNull(Email.of(email).value)
+            ?.id
+
+    fun register(command: AccountCommand.Register): Register {
+        val tokenResult =
+            challengeService.consumeToken(
+                ChallengeCommand.ConsumeToken(command.confirmationTokenId, OperationType.REGISTER),
+            ) as? ConsumeTokenResult.Success
+                ?: return Register.Failure.InvalidConfirmationToken
+
+        val email = Email.of(tokenResult.targetEmail)
+        if (accountRepository.existsByEmailValueIgnoreCaseAndDeletedAtIsNull(email.value)) {
+            return Register.Failure.EmailAlreadyRegistered
         }
 
         val account =
@@ -30,34 +53,100 @@ class AccountService(
             )
 
         val saved = accountRepository.save(account)
-        return AccountResult.Registered(
-            account =
-                AccountSnapshot(
-                    id = saved.id.toString(),
-                    email = saved.email.orEmpty(),
-                    firstName = saved.givenName.orEmpty(),
-                    lastName = saved.familyName.orEmpty(),
-                ),
+
+        return Register.Success(
+            email = saved.email.value,
+            displayName = saved.displayName,
         )
     }
 
-    fun updateDisplayName(command: AccountCommand.UpdateDisplayName): AccountResult {
+    fun updateDisplayName(command: AccountCommand.Update.DisplayName): UpdateDisplayName {
         val normalizedDisplayName = command.displayName.trim()
         if (normalizedDisplayName.length !in DISPLAY_NAME_LENGTH_RANGE) {
-            return AccountResult.Failure.InvalidDisplayName
+            return UpdateDisplayName.Failure.InvalidDisplayName
         }
 
         val account =
             accountRepository.findByIdAndDeletedAtIsNull(command.accountId)
-                ?: return AccountResult.Failure.AccountNotFound
+                ?: return UpdateDisplayName.Failure.AccountNotFound
 
         account.updateDisplayName(normalizedDisplayName)
-        return AccountResult.Updated.DisplayName(
+        return UpdateDisplayName.Success(
             displayName = normalizedDisplayName,
         )
     }
 
+    fun updateName(command: AccountCommand.Update.Name): UpdateName {
+        val normalizedGivenName = command.givenName.trim()
+        val normalizedFamilyName = command.familyName.trim()
+
+        // TODO - add validation layer
+
+        val account =
+            accountRepository.findByIdAndDeletedAtIsNull(command.accountId)
+                ?: return UpdateName.Failure.AccountNotFound
+
+        account.updateName(givenName = normalizedGivenName, familyName = normalizedFamilyName)
+        return UpdateName.Success(
+            givenName = normalizedGivenName,
+            familyName = normalizedFamilyName,
+        )
+    }
+
+    fun updatePassword(command: AccountCommand.Update.Password): UpdatePassword {
+        val tokenResult =
+            challengeService.consumeToken(
+                ChallengeCommand.ConsumeToken(command.confirmationTokenId, OperationType.CHANGE_PASSWORD),
+            ) as? ConsumeTokenResult.Success
+                ?: return UpdatePassword.Failure.InvalidConfirmationToken
+
+        val account =
+            accountRepository.findByIdAndDeletedAtIsNull(command.accountId)
+                ?: return UpdatePassword.Failure.AccountNotFound
+
+        if (account.email != Email.of(tokenResult.targetEmail)) {
+            return UpdatePassword.Failure.InvalidConfirmationToken
+        }
+
+        if (!passwordEncoder.matches(command.currentPassword, account.passwordHash)) {
+            return UpdatePassword.Failure.InvalidCredentials
+        }
+
+        account.updatePasswordHash(passwordEncoder.encode(command.newPassword))
+        return UpdatePassword.Success
+    }
+
+    fun withdraw(command: AccountCommand.Withdraw): Withdraw {
+        val tokenResult =
+            challengeService.consumeToken(
+                ChallengeCommand.ConsumeToken(command.confirmationTokenId, OperationType.WITHDRAW),
+            ) as? ConsumeTokenResult.Success
+                ?: return Withdraw.Failure.InvalidConfirmationToken
+
+        val account =
+            accountRepository.findByIdAndDeletedAtIsNull(command.accountId)
+                ?: return Withdraw.Failure.AccountNotFound
+
+        if (account.email != Email.of(tokenResult.targetEmail)) {
+            return Withdraw.Failure.InvalidConfirmationToken
+        }
+
+        if (!passwordEncoder.matches(command.password, account.passwordHash)) {
+            return Withdraw.Failure.InvalidCredentials
+        }
+
+//        TODO - membership service required
+//        if (membershipService.existsActiveOwnerMembershipByAccountId(command.accountId)) {
+//           return Withdraw.Failure.OwnerWorkspaceExists
+//        }
+
+        account.delete(command.accountId)
+        accountRepository.save(account)
+        refreshTokenService.revokeAllByAccountId(command.accountId)
+        return Withdraw.Success
+    }
+
     companion object {
-        private val DISPLAY_NAME_LENGTH_RANGE = 1..40
+        private val DISPLAY_NAME_LENGTH_RANGE = 1..64
     }
 }

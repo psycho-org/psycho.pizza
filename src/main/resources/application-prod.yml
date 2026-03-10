@@ -16,6 +16,17 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 security:
   jwt:
@@ -27,3 +38,16 @@ security:
     refresh-cookie-same-site: ${JWT_REFRESH_COOKIE_SAME_SITE}
     refresh-cookie-secure: ${JWT_REFRESH_COOKIE_SECURE:true}
     secret: ${JWT_SECRET}
+
+challenge:
+  otp-length: ${OTP_LENGTH}
+  otp-ttl-seconds: ${OTP_TTL_SECONDS}
+  otp-max-attempts: ${OTP_MAX_ATTEMPTS}
+  cooldown-seconds: ${OTP_REQUEST_COOLDOWN}
+  confirmation-token-ttl-seconds: ${CONFIRMATION_TOKEN_TTL_SECONDS}
+
+mail:
+  token:
+    verify-base-url: ${MAIL_TOKEN_VERIFY_BASE_URL}
+    verify-success-url: ${MAIL_TOKEN_VERIFY_SUCCESS_URL}
+    verify-failure-url: ${MAIL_TOKEN_VERIFY_FAILURE_URL}

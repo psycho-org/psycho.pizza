@@ -103,10 +103,7 @@ class TaskServiceTests {
 
         every { taskRepository.findAllActiveTasks(WorkspaceId(workspaceId), pageable) } returns page
 
-        val result = taskService.getAll(command)
-
-        assertTrue(result is TaskResult.TaskList)
-        val taskList = result as TaskResult.TaskList
+        val taskList = taskService.getAll(command)
         assertEquals(2, taskList.page.content.size)
         assertEquals("태스크 1", taskList.page.content[0].title)
         assertEquals("태스크 2", taskList.page.content[1].title)

@@ -11,6 +11,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.identity.account.domain.Account
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import java.util.UUID
 
 @DataJpaTest
@@ -21,11 +22,11 @@ class AccountRepositoryTests {
     private lateinit var accountRepository: AccountRepository
 
     @Test
-    fun `existsByEmailIgnoreCaseAndDeletedAtIsNull returns true for active account with case-insensitive email`() {
+    fun `existsByEmailValueIgnoreCaseAndDeletedAtIsNull returns true for active account with case-insensitive email`() {
         val account =
             accountRepository.save(
                 Account.create(
-                    email = "user@psycho.pizza",
+                    email = Email.of("user@psycho.pizza"),
                     passwordHash = "encoded-password",
                     givenName = "Rick",
                     familyName = "Sanchez",
@@ -33,16 +34,16 @@ class AccountRepositoryTests {
             )
         assertNotNull(account.id)
 
-        val exists = accountRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull("USER@PSYCHO.PIZZA")
+        val exists = accountRepository.existsByEmailValueIgnoreCaseAndDeletedAtIsNull("USER@PSYCHO.PIZZA")
         assertTrue(exists)
     }
 
     @Test
-    fun `findByEmailIgnoreCaseAndDeletedAtIsNull returns null for soft deleted account`() {
+    fun `findByEmailValueIgnoreCaseAndDeletedAtIsNull returns null for soft deleted account`() {
         val account =
             accountRepository.save(
                 Account.create(
-                    email = "user@psycho.pizza",
+                    email = Email.of("user@psycho.pizza"),
                     passwordHash = "encoded-password",
                     givenName = "Rick",
                     familyName = "Sanchez",
@@ -51,25 +52,25 @@ class AccountRepositoryTests {
         account.delete(UUID.fromString("00000000-0000-0000-0000-000000000999"))
         accountRepository.save(account)
 
-        val found = accountRepository.findByEmailIgnoreCaseAndDeletedAtIsNull("user@psycho.pizza")
+        val found = accountRepository.findByEmailValueIgnoreCaseAndDeletedAtIsNull("user@psycho.pizza")
         assertNull(found)
     }
 
     @Test
-    fun `findByEmailIgnoreCaseAndDeletedAtIsNull returns active account`() {
+    fun `findByEmailValueIgnoreCaseAndDeletedAtIsNull returns active account`() {
         accountRepository.save(
             Account.create(
-                email = "user@psycho.pizza",
+                email = Email.of("user@psycho.pizza"),
                 passwordHash = "encoded-password",
                 givenName = "Rick",
                 familyName = "Sanchez",
             ),
         )
 
-        val found = accountRepository.findByEmailIgnoreCaseAndDeletedAtIsNull("USER@psycho.pizza")
+        val found = accountRepository.findByEmailValueIgnoreCaseAndDeletedAtIsNull("USER@psycho.pizza")
 
         val account = requireNotNull(found)
-        assertEquals("user@psycho.pizza", account.email)
+        assertEquals("user@psycho.pizza", account.email.value)
         assertFalse(account.isDeleted)
     }
 }
