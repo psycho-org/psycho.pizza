@@ -36,6 +36,8 @@ JWT_REFRESH_COOKIE_PATH=$(get_param jwt-refresh-cookie-path)
 JWT_REFRESH_COOKIE_SAME_SITE=$(get_param jwt-refresh-cookie-same-site)
 JWT_REFRESH_COOKIE_SECURE=$(get_param jwt-refresh-cookie-secure)
 JWT_SECRET=$(get_param jwt-secret)
+MAIL_USERNAME=$(get_param mail-username)
+MAIL_PASSWORD=$(get_param mail-password)
 EOF
 
 # 보안: .env 파일 권한 제한
