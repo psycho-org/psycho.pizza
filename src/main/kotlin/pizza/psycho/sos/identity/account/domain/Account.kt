@@ -1,5 +1,6 @@
 package pizza.psycho.sos.identity.account.domain
 
+import jakarta.persistence.AttributeOverride
 import jakarta.persistence.Column
 import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
@@ -11,6 +12,7 @@ import pizza.psycho.sos.identity.account.domain.vo.Email
 @Table(name = "accounts")
 class Account protected constructor() : BaseDeletableEntity() {
     @Embedded
+    @AttributeOverride(name = "value", column = Column(name = "email", nullable = false))
     var email: Email = Email()
         protected set
 

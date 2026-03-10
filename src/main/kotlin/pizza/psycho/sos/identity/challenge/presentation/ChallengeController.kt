@@ -118,7 +118,7 @@ class ChallengeController(
                     data =
                         ChallengeResponse.Confirmed(
                             confirmationTokenId = confirmationTokenId,
-                            verifiedEmail = targetEmail,
+                            verifiedEmail = targetEmail.value,
                         ),
                 )
 

@@ -1,11 +1,14 @@
 package pizza.psycho.sos.identity.challenge.domain
 
+import jakarta.persistence.AttributeOverride
 import jakarta.persistence.Column
+import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Table
 import pizza.psycho.sos.common.entity.BaseEntity
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.domain.vo.ChallengeStatus
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import java.time.Instant
@@ -18,8 +21,9 @@ class Challenge protected constructor() : BaseEntity() {
     var operationType: OperationType = OperationType.REGISTER
         protected set
 
-    @Column(name = "target_email", nullable = false)
-    var targetEmail: String = ""
+    @Embedded
+    @AttributeOverride(name = "value", column = Column(name = "target_email", nullable = false))
+    var targetEmail: Email = Email()
         protected set
 
     @Column(name = "otp_hash", nullable = false)
@@ -69,14 +73,14 @@ class Challenge protected constructor() : BaseEntity() {
     companion object {
         fun create(
             operationType: OperationType,
-            targetEmail: String,
+            targetEmail: Email,
             otpHash: String,
             expiresAt: Instant,
             maxAttempts: Int = 5,
         ): Challenge =
             Challenge().apply {
                 this.operationType = operationType
-                this.targetEmail = targetEmail.lowercase()
+                this.targetEmail = targetEmail
                 this.otpHash = otpHash
                 this.expiresAt = expiresAt
                 this.maxAttempts = maxAttempts

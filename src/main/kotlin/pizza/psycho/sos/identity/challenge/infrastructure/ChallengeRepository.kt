@@ -7,7 +7,7 @@ import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import java.util.UUID
 
 interface ChallengeRepository : JpaRepository<Challenge, UUID> {
-    fun findByTargetEmailIgnoreCaseAndOperationTypeAndStatus(
+    fun findByTargetEmailValueIgnoreCaseAndOperationTypeAndStatus(
         targetEmail: String,
         operationType: OperationType,
         status: ChallengeStatus,
