@@ -10,8 +10,10 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.testcontainers.junit.jupiter.Testcontainers
 import pizza.psycho.sos.identity.account.domain.vo.Email
+import pizza.psycho.sos.identity.challenge.application.port.VerificationDelivery
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
 import pizza.psycho.sos.identity.challenge.application.service.dto.RequestChallengeResult
@@ -33,6 +35,9 @@ class ChallengeServicePostgresIntegrationTests : PostgresTestContainerSupport() 
 
     @Autowired
     private lateinit var challengeRepository: ChallengeRepository
+
+    @MockitoBean
+    private lateinit var verificationDelivery: VerificationDelivery
 
     @BeforeEach
     fun cleanUp() {
