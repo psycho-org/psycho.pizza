@@ -9,6 +9,7 @@ import pizza.psycho.sos.common.message.channel.mail.send.application.model.MailS
 import pizza.psycho.sos.common.message.channel.mail.send.application.port.MailSender
 import pizza.psycho.sos.common.message.channel.mail.send.presentation.dto.MailSendStatus
 import pizza.psycho.sos.common.message.channel.mail.template.application.service.MailTemplateService
+import pizza.psycho.sos.common.message.channel.mail.template.domain.data.OtpTemplateData
 import pizza.psycho.sos.common.message.channel.mail.template.domain.data.WorkspaceInviteTemplateData
 import pizza.psycho.sos.common.message.domain.MessageChannel
 import pizza.psycho.sos.common.message.domain.MessageType
@@ -27,6 +28,8 @@ class MailSendService(
 ) {
     fun send(command: MailSendCommand): MailSendStatus =
         when (command) {
+            is MailSendCommand.General -> sendGeneral(command)
+            is MailSendCommand.Otp -> sendOtp(command)
             is MailSendCommand.WorkspaceInvite -> sendWorkspaceInvite(command)
         }
 
@@ -35,6 +38,68 @@ class MailSendService(
         to: String,
         params: Map<String, String?> = emptyMap(),
     ): MailSendStatus = send(toCommand(mailType, to, params))
+
+    fun sendOtp(
+        to: String,
+        otpCode: String,
+        otpPurpose: String? = null,
+        expiresInMinutes: Long = DEFAULT_OTP_EXPIRES_IN_MINUTES,
+    ): MailSendStatus {
+        if (expiresInMinutes <= 0) {
+            throw DomainException("expiresInMinutes must be positive")
+        }
+        return send(
+            MailSendCommand.Otp(
+                to = to,
+                templateData =
+                    OtpTemplateData(
+                        otpCode = otpCode.trim(),
+                        expiresInMinutes = expiresInMinutes,
+                        otpPurpose = otpPurpose?.trim()?.takeIf { it.isNotEmpty() },
+                    ),
+            ),
+        )
+    }
+
+    private fun sendGeneral(command: MailSendCommand.General): MailSendStatus {
+        val normalizedEmail = command.to.trim().lowercase()
+        val subject = command.subject.trim().takeIf { it.isNotEmpty() } ?: throw DomainException("subject is required")
+        val htmlContent = command.htmlContent.trim().takeIf { it.isNotEmpty() } ?: throw DomainException("htmlContent is required")
+        val from = command.from?.trim()?.takeIf { it.isNotEmpty() }
+
+        logger.info("Sending general mail. to={}", normalizedEmail)
+        mailSender.send(
+            MailSendRequest(
+                to = normalizedEmail,
+                subject = subject,
+                htmlContent = htmlContent,
+                from = from,
+            ),
+        )
+        return MailSendStatus.SUCCESS
+    }
+
+    private fun sendOtp(command: MailSendCommand.Otp): MailSendStatus {
+        val normalizedEmail = command.to.trim().lowercase()
+        logger.info("Sending OTP mail. to={}", normalizedEmail)
+        val template = mailTemplateService.getActiveTemplate(command.mailType)
+        if (!command.mailType.supportedChannels.contains(MessageChannel.EMAIL)) {
+            throw DomainException("channel EMAIL is not supported for mailType=${command.mailType}")
+        }
+        if (template.tokenAuthEnabled) {
+            throw DomainException("token auth is not supported for mailType=${command.mailType}")
+        }
+
+        val rendered = mailTemplateService.render(command.templateData)
+        mailSender.send(
+            MailSendRequest(
+                to = normalizedEmail,
+                subject = rendered.title,
+                htmlContent = rendered.htmlContent,
+            ),
+        )
+        return MailSendStatus.SUCCESS
+    }
 
     private fun sendWorkspaceInvite(command: MailSendCommand.WorkspaceInvite): MailSendStatus {
         val normalizedEmail = command.to.trim().lowercase()
@@ -87,6 +152,18 @@ class MailSendService(
         params: Map<String, String?>,
     ): MailSendCommand =
         when (mailType) {
+            MessageType.OTP ->
+                MailSendCommand.Otp(
+                    to = to,
+                    templateData =
+                        OtpTemplateData(
+                            otpCode = params.requiredAny("otpCode", "OTP", "otp"),
+                            expiresInMinutes = params.optionalPositiveLong("expiresInMinutes") ?: DEFAULT_OTP_EXPIRES_IN_MINUTES,
+                            otpPurpose = params.optional("otpPurpose"),
+                            title = params.optional("title") ?: OtpTemplateData.DEFAULT_TITLE,
+                        ),
+                )
+
             MessageType.WORKSPACE_INVITE ->
                 MailSendCommand.WorkspaceInvite(
                     to = to,
@@ -105,7 +182,23 @@ class MailSendService(
         this[key]?.trim()?.takeIf { it.isNotEmpty() }
             ?: throw DomainException("param '$key' is required")
 
+    private fun Map<String, String?>.requiredAny(vararg keys: String): String =
+        keys
+            .asSequence()
+            .mapNotNull { key -> this[key]?.trim()?.takeIf { it.isNotEmpty() } }
+            .firstOrNull()
+            ?: throw DomainException("one of params [${keys.joinToString()}] is required")
+
     private fun Map<String, String?>.optional(key: String): String? = this[key]?.trim()?.takeIf { it.isNotEmpty() }
+
+    private fun Map<String, String?>.optionalPositiveLong(key: String): Long? =
+        optional(key)?.let {
+            val value = it.toLongOrNull() ?: throw DomainException("param '$key' must be a valid number")
+            if (value <= 0) {
+                throw DomainException("param '$key' must be positive")
+            }
+            value
+        }
 
     private fun Map<String, String?>.requiredUuid(key: String): UUID =
         try {
@@ -123,6 +216,7 @@ class MailSendService(
     }
 
     companion object {
+        private const val DEFAULT_OTP_EXPIRES_IN_MINUTES = 5L
         private val logger = LoggerFactory.getLogger(MailSendService::class.java)
     }
 }
