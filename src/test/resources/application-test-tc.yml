@@ -1,0 +1,17 @@
+spring:
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:TEST-kYNFuADL-ekw9P+A6-qJdo5HKx-HejUHqD0-40Qi/chV-6a5W+FoP-MrbjWku4-G+jbT8HO-Pap5ojs2i}
+
+challenge:
+  otp-length: 6
+  otp-ttl-seconds: 300
+  otp-max-attempts: 3
+  cooldown-seconds: 0
+  confirmation-token-ttl-seconds: 300

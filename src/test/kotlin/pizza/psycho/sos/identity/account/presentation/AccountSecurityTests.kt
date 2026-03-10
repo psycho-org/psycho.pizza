@@ -15,9 +15,11 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.identity.account.application.service.AccountService
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
+import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.security.config.SecurityConfig
 import pizza.psycho.sos.identity.security.filter.JwtAuthenticationFilter
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
+import java.util.UUID
 import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
 
 @WebMvcTest(AccountController::class)
@@ -34,6 +36,9 @@ class AccountSecurityTests {
     @MockitoBean
     private lateinit var accessTokenProvider: AccessTokenProvider
 
+    @MockitoBean
+    private lateinit var challengeService: ChallengeService
+
     @Test
     fun `update display name requires authentication`() {
         mockMvc
@@ -49,7 +54,7 @@ class AccountSecurityTests {
         `when`(
             accountService.register(
                 AccountCommand.Register(
-                    email = "user@psycho.pizza",
+                    confirmationTokenId = UUID.fromString("00000000-0000-0000-0000-ffffffffffff"),
                     password = "Password123!",
                     firstName = "Rick",
                     lastName = "Sanchez",
@@ -69,7 +74,7 @@ class AccountSecurityTests {
                     .content(
                         """
                         {
-                          "email":"user@psycho.pizza",
+                          "confirmationTokenId":"00000000-0000-0000-0000-ffffffffffff",
                           "password":"Password123!",
                           "givenName":"Rick",
                           "familyName":"Sanchez"
@@ -85,7 +90,7 @@ class AccountSecurityTests {
             .perform(
                 post("/api/v1/accounts/me/withdraw")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"password":"Password123!"}"""),
+                    .content("""{"confirmationTokenId":"00000000-0000-0000-0000-ffffffffffff","password":"Password123!"}"""),
             ).andExpect(status().isUnauthorized)
     }
 }

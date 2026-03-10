@@ -13,7 +13,7 @@ sealed interface AccountResponse {
 
         data object Name : Updated
 
-        data object UpdatedPassword : Updated
+        data object Password : Updated
     }
 
     data object Withdrawn : AccountResponse

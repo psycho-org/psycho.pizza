@@ -50,4 +50,35 @@ class AccountTests {
 
         assertEquals("Pickle Rick", account.displayName)
     }
+
+    @Test
+    fun `update name changes given name and family name`() {
+        val account =
+            Account.create(
+                email = Email.of("user@psycho.pizza"),
+                passwordHash = "encoded-password",
+                givenName = "Rick",
+                familyName = "Sanchez",
+            )
+
+        account.updateName(givenName = "Morty", familyName = "Smith")
+
+        assertEquals("Morty", account.givenName)
+        assertEquals("Smith", account.familyName)
+    }
+
+    @Test
+    fun `update password hash changes password hash`() {
+        val account =
+            Account.create(
+                email = Email.of("user@psycho.pizza"),
+                passwordHash = "old-hash",
+                givenName = "Rick",
+                familyName = "Sanchez",
+            )
+
+        account.updatePasswordHash("new-hash")
+
+        assertEquals("new-hash", account.passwordHash)
+    }
 }

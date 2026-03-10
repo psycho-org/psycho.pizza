@@ -39,6 +39,13 @@ security:
     refresh-cookie-secure: ${JWT_REFRESH_COOKIE_SECURE:true}
     secret: ${JWT_SECRET}
 
+challenge:
+  otp-length: ${OTP_LENGTH}
+  otp-ttl-seconds: ${OTP_TTL_SECONDS}
+  otp-max-attempts: ${OTP_MAX_ATTEMPTS}
+  cooldown-seconds: ${OTP_REQUEST_COOLDOWN}
+  confirmation-token-ttl-seconds: ${CONFIRMATION_TOKEN_TTL_SECONDS}
+
 mail:
   token:
     verify-base-url: ${MAIL_TOKEN_VERIFY_BASE_URL}
