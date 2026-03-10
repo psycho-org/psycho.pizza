@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
-import pizza.psycho.sos.analysis.application.service.AnalysisService
+import pizza.psycho.sos.analysis.application.service.AnalysisRequestService
 import pizza.psycho.sos.analysis.application.service.dto.AnalysisCommand
 import pizza.psycho.sos.analysis.presentation.dto.AnalysisRequest
 import pizza.psycho.sos.analysis.presentation.dto.AnalysisResponse
@@ -25,7 +25,7 @@ import java.util.UUID
 @RestController
 @RequestMapping("/api/v1/{workspaceId}/analysis")
 class AnalysisController(
-    private val analysisService: AnalysisService,
+    private val analysisRequestService: AnalysisRequestService,
 ) {
     @Operation(
         summary = "스프린트 분석 요청 생성",
@@ -43,7 +43,7 @@ class AnalysisController(
         @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
     ): ApiResponse<AnalysisResponse.CreateAnalysisRequestResponse> {
         val result =
-            analysisService.createSprintAnalysisRequest(
+            analysisRequestService.createSprintAnalysisRequest(
                 AnalysisCommand.Create(
                     workspaceId = workspaceId,
                     sprintId = request.target.sprintId,

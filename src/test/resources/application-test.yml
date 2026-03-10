@@ -9,6 +9,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: test@psycho.pizza
+    password: test-password
 
 security:
   jwt:
@@ -20,3 +25,7 @@ challenge:
   otp-max-attempts: 3
   cooldown-seconds: 60
   confirmation-token-ttl-seconds: 300
+
+openai:
+  api-key: test-dummy-api-key
+  model: gpt-test-model

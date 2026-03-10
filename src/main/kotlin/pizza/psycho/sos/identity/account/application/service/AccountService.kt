@@ -12,6 +12,7 @@ import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
 import pizza.psycho.sos.identity.challenge.application.service.dto.ConsumeTokenResult
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
+import java.util.UUID
 import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
 import pizza.psycho.sos.identity.account.application.service.dto.UpdateDisplayNameAccountResult as UpdateDisplayName
 import pizza.psycho.sos.identity.account.application.service.dto.UpdateNameAccountResult as UpdateName
@@ -26,6 +27,11 @@ class AccountService(
     private val refreshTokenService: RefreshTokenService,
     private val challengeService: ChallengeService,
 ) {
+    fun findActiveAccountIdByEmailOrNull(email: String): UUID? =
+        accountRepository
+            .findByEmailValueIgnoreCaseAndDeletedAtIsNull(Email.of(email).value)
+            ?.id
+
     fun register(command: AccountCommand.Register): Register {
         val tokenResult =
             challengeService.consumeToken(

@@ -41,6 +41,8 @@ OTP_TTL_SECONDS=$(get_param otp-ttl-seconds)
 OTP_MAX_ATTEMPTS=$(get_param otp-max-attempts)
 OTP_REQUEST_COOLDOWN=$(get_param cooldown-seconds)
 CONFIRMATION_TOKEN_TTL_SECONDS=$(get_param confirmation-token-ttl-seconds)
+MAIL_USERNAME=$(get_param mail-username)
+MAIL_PASSWORD=$(get_param mail-password)
 EOF
 
 # 보안: .env 파일 권한 제한

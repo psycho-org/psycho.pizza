@@ -42,12 +42,16 @@ class Project(
 
     fun addTask(taskId: UUID) {
         if (mappings.none { it.taskId == taskId }) {
-            mappings.add(ProjectTaskMapping(project = this, taskId = taskId, workspaceId = this.workspaceId))
+            mappings += ProjectTaskMapping(project = this, taskId = taskId, workspaceId = this.workspaceId)
         }
     }
 
     fun addTasks(taskIds: Collection<UUID>) {
         taskIds.forEach { addTask(it) }
+    }
+
+    fun removeTasks(taskIds: Collection<UUID>) {
+        taskIds.forEach { removeTask(it) }
     }
 
     fun removeTask(taskId: UUID) {
