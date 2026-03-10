@@ -18,6 +18,9 @@ import pizza.psycho.sos.project.task.domain.model.vo.TaskDueDate
 import java.time.Instant
 import java.util.UUID
 
+/*
+ * todo: task의 우선순위 추가
+ */
 @Entity
 @Table(name = "tasks")
 class Task protected constructor(

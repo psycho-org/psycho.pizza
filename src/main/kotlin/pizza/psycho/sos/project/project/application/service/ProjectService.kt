@@ -19,6 +19,10 @@ class ProjectService(
 ) {
     private val log by loggerDelegate()
 
+    /*
+     * todo: 워크스페이스의 모든 프로젝트를 찾는 로직 추가
+     */
+
     fun getProject(command: ProjectCommand.Get): ProjectResult =
         Tx.readable {
             log.debug("getProject: projectId={}, workspaceId={}", command.projectId, command.workspaceId)

@@ -232,21 +232,20 @@ class SprintControllerTests {
         val userId = UUID.randomUUID()
 
         `when`(
-            sprintService.removeWithProjects(
-                SprintCommand.RemoveWithProjects(WorkspaceId(workspaceId), sprintId, userId),
+            sprintService.removeWithTasks(
+                SprintCommand.RemoveWithTasks(WorkspaceId(workspaceId), sprintId, userId),
             ),
-        ).thenReturn(SprintResult.RemoveWithProjects(sprintCount = 1, projectCount = 2, taskCount = 5))
+        ).thenReturn(SprintResult.RemoveWithTasks(sprintCount = 1, projectCount = 2, taskCount = 5))
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId/$userId/with-projects"),
+                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId/$userId/with-tasks"),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.projectCount").value(2))
             .andExpect(jsonPath("$.data.taskCount").value(5))
-
-        verify(
-            sprintService,
-        ).removeWithProjects(SprintCommand.RemoveWithProjects(WorkspaceId(workspaceId), sprintId, userId))
+        verify(sprintService).removeWithTasks(
+            SprintCommand.RemoveWithTasks(WorkspaceId(workspaceId), sprintId, userId),
+        )
     }
 
     @Test

@@ -82,14 +82,14 @@ class SprintController(
             sprintService.remove(SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId))
         }
 
-    @DeleteMapping("/{sprintId}/{userId}/with-projects")
-    fun removeSprintWithProjects(
+    @DeleteMapping("/{sprintId}/{userId}/with-tasks")
+    fun removeSprintWithTasks(
         @PathVariable workspaceId: UUID,
         @PathVariable sprintId: UUID,
         @PathVariable userId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            sprintService.removeWithProjects(SprintCommand.RemoveWithProjects(WorkspaceId(workspaceId), sprintId, userId))
+            sprintService.removeWithTasks(SprintCommand.RemoveWithTasks(WorkspaceId(workspaceId), sprintId, userId))
         }
 
     // ------------------------------------------------------------------------------------------------
@@ -104,10 +104,10 @@ class SprintController(
                     message = "데이터 삭제에 성공하였습니다.",
                     data = SprintResponse.Remove(result.count),
                 )
-            is SprintResult.RemoveWithProjects ->
+            is SprintResult.RemoveWithTasks ->
                 responseOf(
                     message = "스프린트 및 하위 프로젝트, 태스크 삭제에 성공하였습니다.",
-                    data = SprintResponse.RemoveWithProjects(result.sprintCount, result.projectCount, result.taskCount),
+                    data = SprintResponse.RemoveWithTasks(result.sprintCount, result.projectCount, result.taskCount),
                 )
             is SprintResult.Success -> responseOf<Unit>(message = "데이터 수정에 성공하였습니다.")
             is SprintResult.Failure.IdNotFound -> throw DomainException("id not found")

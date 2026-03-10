@@ -148,27 +148,29 @@ class SprintServiceTests {
         every { projectPort.findByIdIn(listOf(projectId1, projectId2), workspaceId) } returns listOf(snapshot1, snapshot2)
         every { taskPort.deleteByIdIn(any(), deletedBy, workspaceId) } returns 2
         every { projectPort.deleteByIdIn(any(), deletedBy, workspaceId) } returns 2
+        every { sprintRepository.deleteById(sprintId, deletedBy, workspaceId) } returns 1
 
         val result =
-            sprintService.removeWithProjects(
-                SprintCommand.RemoveWithProjects(workspaceId, sprintId, deletedBy),
+            sprintService.removeWithTasks(
+                SprintCommand.RemoveWithTasks(workspaceId, sprintId, deletedBy),
             )
 
-        assertTrue(result is SprintResult.RemoveWithProjects)
-        result as SprintResult.RemoveWithProjects
+        assertTrue(result is SprintResult.RemoveWithTasks)
+        result as SprintResult.RemoveWithTasks
         assertEquals(2, result.projectCount)
         assertEquals(2, result.taskCount)
         verify { taskPort.deleteByIdIn(match { it.size == 2 }, deletedBy, workspaceId) }
         verify { projectPort.deleteByIdIn(match { it.size == 2 }, deletedBy, workspaceId) }
+        verify { sprintRepository.deleteById(sprintId, deletedBy, workspaceId) }
     }
 
     @Test
-    fun `removeWithProjects는 스프린트가 없으면 IdNotFound를 반환한다`() {
+    fun `removeWithTasks는 스프린트가 없으면 IdNotFound를 반환한다`() {
         every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns null
 
         val result =
-            sprintService.removeWithProjects(
-                SprintCommand.RemoveWithProjects(workspaceId, sprintId, UUID.randomUUID()),
+            sprintService.removeWithTasks(
+                SprintCommand.RemoveWithTasks(workspaceId, sprintId, UUID.randomUUID()),
             )
 
         assertTrue(result is SprintResult.Failure.IdNotFound)

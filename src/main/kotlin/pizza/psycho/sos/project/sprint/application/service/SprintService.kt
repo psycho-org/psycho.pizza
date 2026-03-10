@@ -25,6 +25,12 @@ class SprintService(
     /*
      * todo
      *      1. sprint의 기간 변경 시 하위 task들의 기간변경 (검증 후 초과 task 목록 반환 방식 검토)
+     *          - sprint 범위 밖 task일 경우
+     *          - sprintA에서 sprintB로 옮겼을 때 기준 기간이 달라진다면..?
+     *          - sprint 기간 변경 시 하위 task들 기간 그대로 대신 task 기간을 변경하거나 task를 추가할 시 검증
+     *          - ui에 줄 때 sprint 기간 내에 있는지 dto에 담아서 보내줄 것
+     *      2. sprint 내의 프로젝트에 task의 기간 변경 또는 task 추가 시 sprint와의 기간 검증
+     *          - 변경은 task에 넣고 검증을 sprint에?
      */
 
     fun getSprint(command: SprintCommand.Get): SprintResult =
@@ -84,14 +90,15 @@ class SprintService(
 
     fun create(command: SprintCommand.Create): SprintResult =
         Tx.writable {
-            val sprint =
-                Sprint.create(
-                    name = command.name,
-                    workspaceId = command.workspaceId,
-                    startDate = command.startDate,
-                    endDate = command.endDate,
+            val saved =
+                sprintRepository.save(
+                    Sprint.create(
+                        name = command.name,
+                        workspaceId = command.workspaceId,
+                        startDate = command.startDate,
+                        endDate = command.endDate,
+                    ),
                 )
-            val saved = sprintRepository.save(sprint)
             saved
                 .toResult()
                 .also { log.info("create success: sprintId=${saved.sprintId}") }
@@ -99,44 +106,51 @@ class SprintService(
 
     fun remove(command: SprintCommand.Remove): SprintResult =
         Tx.writable {
-            sprintRepository
-                .deleteById(command.sprintId, command.deletedBy, command.workspaceId)
-                .let { count -> SprintResult.Remove(count) }
-                .also { log.info("remove success: sprintId=${command.sprintId}") }
+            val sprint =
+                findActiveSprint(command.sprintId, command.workspaceId)
+                    ?: run {
+                        log.warn("remove: sprint not found. sprintId=${command.sprintId}")
+                        return@writable SprintResult.Failure.IdNotFound
+                    }
+
+            val projectIds = sprint.projectIds()
+            val deletedProjectCount = deleteProjects(projectIds, command.deletedBy, command.workspaceId)
+            val deletedSprintCount = deleteSprint(command.sprintId, command.deletedBy, command.workspaceId)
+
+            log.info(
+                "remove success: sprintId={}, deletedProjects={}, deletedSprint={}",
+                command.sprintId,
+                deletedProjectCount,
+                deletedSprintCount,
+            )
+
+            SprintResult.Remove(deletedSprintCount)
         }
 
-    fun removeWithProjects(command: SprintCommand.RemoveWithProjects): SprintResult =
+    fun removeWithTasks(command: SprintCommand.RemoveWithTasks): SprintResult =
         Tx.writable {
             val sprint =
                 findActiveSprint(command.sprintId, command.workspaceId)
                     ?: run {
-                        log.warn("removeWithProjects: sprint not found. sprintId=${command.sprintId}")
+                        log.warn("removeWithTasks: sprint not found. sprintId=${command.sprintId}")
                         return@writable SprintResult.Failure.IdNotFound
                     }
 
             val projectIds = sprint.projectIds()
             val projectSnapshots = loadProjectSnapshots(projectIds, command.workspaceId)
-            val (deletedProjectCount, deletedTaskCount) =
-                deleteProjectsAndTasks(
-                    projectIds = projectIds,
-                    projectSnapshots = projectSnapshots,
-                    deletedBy = command.deletedBy,
-                    workspaceId = command.workspaceId,
-                )
+            val deletedTaskCount = deleteTasks(projectSnapshots, command.deletedBy, command.workspaceId)
+            val deletedProjectCount = deleteProjects(projectIds, command.deletedBy, command.workspaceId)
+            val deletedSprintCount = deleteSprint(command.sprintId, command.deletedBy, command.workspaceId)
 
-            if (deletedProjectCount > 0 || deletedTaskCount > 0) {
-                log.info(
-                    "removeWithProjects: projects={}, tasks={}, sprintId={}",
-                    deletedProjectCount,
-                    deletedTaskCount,
-                    command.sprintId,
-                )
-            }
+            log.info(
+                "removeWithTasks success: sprintId={}, projects={}, tasks={}",
+                command.sprintId,
+                deletedProjectCount,
+                deletedTaskCount,
+            )
 
-            sprint.delete(command.deletedBy)
-            log.info("removeWithProjects success: sprintId=${command.sprintId}")
-            SprintResult.RemoveWithProjects(
-                sprintCount = 1,
+            SprintResult.RemoveWithTasks(
+                sprintCount = deletedSprintCount,
                 projectCount = deletedProjectCount,
                 taskCount = deletedTaskCount,
             )
@@ -226,29 +240,35 @@ class SprintService(
             projectPort.findByIdIn(projectIds, workspaceId)
         }
 
-    private fun deleteProjectsAndTasks(
+    private fun deleteProjects(
         projectIds: List<UUID>,
+        deletedBy: UUID,
+        workspaceId: WorkspaceId,
+    ): Int =
+        if (projectIds.isEmpty()) {
+            0
+        } else {
+            projectPort.deleteByIdIn(projectIds, deletedBy, workspaceId)
+        }
+
+    private fun deleteTasks(
         projectSnapshots: List<ProjectSnapshot>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
-    ): Pair<Int, Int> {
+    ): Int {
         val taskIds = projectSnapshots.flatMap { it.taskIds }.distinct()
-        val deletedTaskCount =
-            if (taskIds.isEmpty()) {
-                0
-            } else {
-                taskPort.deleteByIdIn(taskIds, deletedBy, workspaceId)
-            }
-
-        val deletedProjectCount =
-            if (projectIds.isEmpty()) {
-                0
-            } else {
-                projectPort.deleteByIdIn(projectIds, deletedBy, workspaceId)
-            }
-
-        return deletedProjectCount to deletedTaskCount
+        return if (taskIds.isEmpty()) {
+            0
+        } else {
+            taskPort.deleteByIdIn(taskIds, deletedBy, workspaceId)
+        }
     }
+
+    private fun deleteSprint(
+        sprintId: UUID,
+        deletedBy: UUID,
+        workspaceId: WorkspaceId,
+    ): Int = sprintRepository.deleteById(sprintId, deletedBy, workspaceId)
 
     private fun Sprint.toResult(): SprintResult =
         SprintResult.SprintInfo(

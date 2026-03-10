@@ -38,7 +38,7 @@ sealed interface SprintCommand {
         val deletedBy: UUID,
     )
 
-    data class RemoveWithProjects(
+    data class RemoveWithTasks(
         val workspaceId: WorkspaceId,
         val sprintId: UUID,
         val deletedBy: UUID,
