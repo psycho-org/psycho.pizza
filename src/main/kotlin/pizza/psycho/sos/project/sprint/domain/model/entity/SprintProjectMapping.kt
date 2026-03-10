@@ -1,4 +1,4 @@
-package pizza.psycho.sos.project.project.domain.model.entity
+package pizza.psycho.sos.project.sprint.domain.model.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Embedded
@@ -12,13 +12,13 @@ import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import java.util.UUID
 
 @Entity
-@Table(name = "project_task_mapping")
-class ProjectTaskMapping(
+@Table(name = "sprint_project_mapping")
+class SprintProjectMapping(
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "project_id")
-    var project: Project,
-    @Column(name = "task_id", nullable = false)
-    val taskId: UUID,
+    @JoinColumn(name = "sprint_id")
+    var sprint: Sprint,
+    @Column(name = "projectId", nullable = false)
+    var projectId: UUID,
     @Embedded
     val workspaceId: WorkspaceId,
 ) : BaseEntity()
