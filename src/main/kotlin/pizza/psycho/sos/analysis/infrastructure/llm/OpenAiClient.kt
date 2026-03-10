@@ -15,7 +15,7 @@ import pizza.psycho.sos.common.support.log.loggerDelegate
 @Component
 class OpenAiClient(
     private val restClient: RestClient,
-    @Value("\${openai.model}")
+    @param:Value("\${openai.model}")
     private val model: String,
 ) : LlmClient {
     private val log by loggerDelegate()

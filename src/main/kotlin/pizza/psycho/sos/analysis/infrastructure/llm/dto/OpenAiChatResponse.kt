@@ -15,7 +15,7 @@ data class OpenAiChatResponse(
     data class Choice(
         val index: Int,
         val message: Message,
-        @JsonProperty("finish_reason")
+        @param:JsonProperty("finish_reason")
         val finishReason: String?, // 응답이 정상적으로 끝났는지(stop) 토큰 제한에 걸렸는지(length) 확인
     )
 
@@ -27,11 +27,11 @@ data class OpenAiChatResponse(
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class Usage(
-        @JsonProperty("prompt_tokens")
+        @param:JsonProperty("prompt_tokens")
         val promptTokens: Int,
-        @JsonProperty("completion_tokens")
+        @param:JsonProperty("completion_tokens")
         val completionTokens: Int,
-        @JsonProperty("total_tokens")
+        @param:JsonProperty("total_tokens")
         val totalTokens: Int,
     )
 }
