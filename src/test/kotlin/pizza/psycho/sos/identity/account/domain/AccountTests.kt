@@ -1,7 +1,7 @@
 package pizza.psycho.sos.identity.account.domain
 
 import org.springframework.test.context.ActiveProfiles
-import pizza.psycho.sos.identity.account.domain.vo.Email
+import pizza.psycho.sos.common.domain.vo.Email
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

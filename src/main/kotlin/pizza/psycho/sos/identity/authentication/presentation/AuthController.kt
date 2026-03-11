@@ -5,19 +5,19 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
 import org.springframework.http.HttpHeaders
-import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseCookie
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.web.server.ResponseStatusException
+import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.response.ApiResponse
 import pizza.psycho.sos.common.response.Success
 import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.identity.authentication.application.service.AuthService
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthQuery
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthResult
+import pizza.psycho.sos.identity.authentication.domain.exception.AuthErrorCode
 import pizza.psycho.sos.identity.authentication.presentation.dto.AuthRequest
 import pizza.psycho.sos.identity.authentication.presentation.dto.AuthResponse
 import pizza.psycho.sos.identity.security.config.JwtProperties
@@ -86,8 +86,7 @@ class AuthController(
                 )
             }
 
-            AuthResult.Login.Failure.InvalidCredentials ->
-                throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password")
+            AuthResult.Login.Failure.InvalidCredentials -> throw DomainException(AuthErrorCode.AUTH_INVALID_CREDENTIALS)
         }
 
     private fun AuthResult.Refresh.toRefreshApiResponse(response: HttpServletResponse): ApiResponse<AuthResponse.Refresh> =
@@ -109,8 +108,7 @@ class AuthController(
                 )
             }
 
-            AuthResult.Refresh.Failure.InvalidRefreshToken ->
-                throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token")
+            AuthResult.Refresh.Failure.InvalidRefreshToken -> throw DomainException(AuthErrorCode.AUTH_INVALID_REFRESH_TOKEN)
         }
 
     private fun writeRefreshCookie(
