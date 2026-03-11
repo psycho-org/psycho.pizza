@@ -5,22 +5,26 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.common.handler.DomainException
+import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.common.response.ApiResponse
 import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.common.support.pagination.PageInfoSupport
 import pizza.psycho.sos.project.task.application.service.TaskService
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
+import pizza.psycho.sos.project.task.application.service.dto.TaskQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult
 import pizza.psycho.sos.project.task.presentation.dto.TaskRequest
 import pizza.psycho.sos.project.task.presentation.dto.TaskResponse
 import java.util.UUID
 
+// todo: userId AuthenticationPrincipal에서 받아오도록 변경
 @RestController
 @RequestMapping("/api/v1/workspaces/{workspaceId}/tasks")
 class TaskController(
@@ -39,10 +43,10 @@ class TaskController(
     @GetMapping
     fun findAllTasks(
         @PathVariable workspaceId: UUID,
-        @PageableDefault(size = 10) pageable: Pageable,
+        @PageableDefault(page = 1, size = 10) pageable: Pageable,
     ): ApiResponse<*> =
         handleResult {
-            taskService.getAll(TaskCommand.FindTasks(workspaceId, pageable))
+            taskService.getAll(TaskQuery.FindTasks(workspaceId, pageable))
         }
 
     @GetMapping("/{id}")
@@ -51,7 +55,7 @@ class TaskController(
         @PathVariable id: UUID,
     ): ApiResponse<*> =
         handleResult {
-            taskService.getInformation(TaskCommand.FindTask(workspaceId, id))
+            taskService.getInformation(TaskQuery.FindTask(workspaceId, id))
         }
 
     @DeleteMapping("/{id}/{userId}")
@@ -62,6 +66,17 @@ class TaskController(
     ): ApiResponse<*> =
         handleResult {
             taskService.remove(TaskCommand.RemoveTask(workspaceId, id, userId))
+        }
+
+    @PatchMapping("/{id}/{userId}")
+    fun update(
+        @PathVariable workspaceId: UUID,
+        @PathVariable id: UUID,
+        @PathVariable userId: UUID,
+        @Valid @RequestBody request: TaskRequest.Update,
+    ): ApiResponse<*> =
+        handleResult {
+            taskService.update(request.toCommand(workspaceId, id, userId))
         }
 
     // ------------------------------------------------------------------------------------------------
@@ -82,6 +97,23 @@ class TaskController(
             description = description,
             assigneeId = assigneeId,
             dueDate = dueDate,
+        )
+
+    private fun TaskRequest.Update.toCommand(
+        workspaceId: UUID,
+        taskId: UUID,
+        actorId: UUID,
+    ): TaskCommand.UpdateTask =
+        TaskCommand.UpdateTask(
+            workspaceId = workspaceId,
+            id = taskId,
+            title = title?.let { Patch.Value(it) } ?: Patch.Undefined,
+            description = description?.let { Patch.Value(it) } ?: Patch.Undefined,
+            status = status?.let { Patch.Value(it) } ?: Patch.Undefined,
+            assigneeId = assigneeId?.let { Patch.Value(assigneeId) } ?: Patch.Clear,
+            dueDate = dueDate?.let { Patch.Value(dueDate) } ?: Patch.Clear,
+            priority = priority?.let { Patch.Value(it) } ?: Patch.Clear,
+            actorId = actorId,
         )
 
     private fun TaskResult.TaskListInfo.toResponse(): TaskResponse.List =

@@ -11,7 +11,15 @@ import pizza.psycho.sos.common.entity.BaseDeletableEntity
 import pizza.psycho.sos.common.event.AggregateRoot
 import pizza.psycho.sos.common.event.DomainEvent
 import pizza.psycho.sos.common.handler.DomainException
+import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.task.domain.event.TaskAssigneeChangedEvent
+import pizza.psycho.sos.project.task.domain.event.TaskDeletedEvent
+import pizza.psycho.sos.project.task.domain.event.TaskDomainEvent
+import pizza.psycho.sos.project.task.domain.event.TaskDueDateChangedEvent
+import pizza.psycho.sos.project.task.domain.event.TaskStatusChangedEvent
+import pizza.psycho.sos.project.task.domain.exception.InvalidPriorityTransitionException
+import pizza.psycho.sos.project.task.domain.exception.InvalidStatusTransitionException
 import pizza.psycho.sos.project.task.domain.model.vo.AssigneeId
 import pizza.psycho.sos.project.task.domain.model.vo.Priority
 import pizza.psycho.sos.project.task.domain.model.vo.Status
@@ -69,24 +77,171 @@ class Task protected constructor(
         this.description = description
     }
 
-    fun assign(assigneeId: UUID) {
-        this.assigneeId = AssigneeId(assigneeId)
+    fun assign(
+        assigneeId: UUID,
+        by: UUID? = null,
+    ) = changeAssignee(assigneeId, by)
+
+    fun unassign(by: UUID) = changeAssignee(null, by)
+
+    private fun changeAssignee(
+        newAssigneeId: UUID?,
+        by: UUID? = null,
+    ) {
+        val old = this.assigneeId
+        this.assigneeId = AssigneeId(newAssigneeId)
+
+        TaskAssigneeChangedEvent(
+            workspaceId = this.workspaceId.value,
+            actorId = by,
+            taskId = this.taskId,
+            fromAssigneeId = old.value?.toString(),
+            toAssigneeId = this.assigneeId.value?.toString(),
+            eventId = UUID.randomUUID(),
+        ).register()
     }
 
-    fun unassign() {
-        this.assigneeId = AssigneeId.empty()
+    fun changePriority(
+        priority: Priority,
+        by: UUID? = null,
+    ) {
+        this.priority?.let {
+            if (!it.isTransitionableTo(priority)) {
+                throw InvalidPriorityTransitionException(from = it, to = priority)
+            }
+        }
+
+        this.priority = priority
     }
 
-    fun changeStatus(status: Status) {
+    fun changeStatus(
+        status: Status,
+        by: UUID? = null,
+    ) {
+        if (!this.status.isTransitionableTo(status)) {
+            throw InvalidStatusTransitionException(from = this.status, to = status)
+        }
+
+        val old = this.status
         this.status = status
+
+        TaskStatusChangedEvent(
+            workspaceId = this.workspaceId.value,
+            actorId = by,
+            taskId = this.taskId,
+            fromStatus = old.name,
+            toStatus = this.status.name,
+            eventId = UUID.randomUUID(),
+        ).register()
     }
 
-    fun changeDueDate(dueDate: Instant) {
+    fun changeDueDate(
+        dueDate: Instant,
+        by: UUID? = null,
+    ) {
+        val old = this.dueDate
         this.dueDate = TaskDueDate.withValidation(dueDate)
+
+        TaskDueDateChangedEvent(
+            workspaceId = this.workspaceId.value,
+            actorId = by,
+            taskId = this.taskId,
+            fromDueDate = old.value,
+            toDueDate = this.dueDate.value,
+            eventId = UUID.randomUUID(),
+        ).register()
     }
 
     fun clearDueDate() {
         this.dueDate = TaskDueDate()
+    }
+
+    fun apply(spec: TaskUpdateSpec) {
+        // 1) 제목 / 설명
+        val newTitle = (spec.title as? Patch.Value)?.value
+        val newDescription = (spec.description as? Patch.Value)?.value
+        if (newTitle != null || newDescription != null) {
+            modify(title = newTitle, description = newDescription)
+        }
+
+        // 2) 상태 (이벤트 발생)
+        when (spec.status) {
+            is Patch.Value -> {
+                val newStatus = spec.status.value
+                if (status != newStatus) {
+                    changeStatus(newStatus, spec.actorId)
+                }
+            }
+
+            Patch.Undefined, Patch.Clear -> Unit
+        }
+
+        // 3) 담당자 (이벤트 발생)
+        val currentAssigneeId = assigneeId.value
+        when (spec.assigneeId) {
+            is Patch.Value -> {
+                val newAssigneeId = spec.assigneeId.value
+                if (newAssigneeId != currentAssigneeId) {
+                    assign(newAssigneeId, spec.actorId)
+                }
+            }
+
+            Patch.Clear -> {
+                if (currentAssigneeId != null) {
+                    unassign(spec.actorId ?: UUID.randomUUID())
+                }
+            }
+
+            Patch.Undefined -> Unit
+        }
+
+        // 4) 마감일 (set 시 이벤트, clear 는 현재 도메인 정책상 이벤트 없음)
+        val currentDueDate = dueDate.value
+        when (spec.dueDate) {
+            is Patch.Value -> {
+                val newDueDate = spec.dueDate.value
+                if (newDueDate != currentDueDate) {
+                    changeDueDate(newDueDate, spec.actorId)
+                }
+            }
+
+            Patch.Clear -> {
+                if (currentDueDate != null) {
+                    clearDueDate()
+                }
+            }
+
+            Patch.Undefined -> Unit
+        }
+
+        // 5) 우선순위 (이벤트는 아직 없음)
+        when (spec.priority) {
+            is Patch.Value -> {
+                val newPriority = spec.priority.value
+                if (priority != newPriority) {
+                    changePriority(newPriority, spec.actorId)
+                }
+            }
+
+            Patch.Clear -> {
+                if (priority != null) {
+                    priority = null
+                }
+            }
+
+            Patch.Undefined -> Unit
+        }
+    }
+
+    override fun delete(by: UUID) {
+        super.delete(by)
+        TaskDeletedEvent(
+            workspaceId = this.workspaceId.value,
+            actorId = by,
+            taskId = this.taskId,
+            taskTitle = this.title,
+            eventId = UUID.randomUUID(),
+        ).register()
     }
 
     @PostLoad
@@ -96,6 +251,8 @@ class Task protected constructor(
         assigneeId = assigneeId ?: AssigneeId.empty()
         dueDate = dueDate ?: TaskDueDate()
     }
+
+    private fun TaskDomainEvent.register() = registerEvent(this)
 
     companion object {
         fun create(

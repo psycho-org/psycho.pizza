@@ -25,13 +25,18 @@ class TaskTests {
         workspaceId: UUID = this.workspaceId,
         dueDate: Instant? = null,
     ): Task =
-        Task.create(
-            title = title,
-            description = description,
-            assigneeId = assigneeId,
-            workspaceId = workspaceId,
-            dueDate = dueDate,
-        )
+        Task
+            .create(
+                title = title,
+                description = description,
+                assigneeId = assigneeId,
+                workspaceId = workspaceId,
+                dueDate = dueDate,
+            ).apply {
+                // 테스트에서는 영속된 엔티티 상황을 가정하고 도메인 이벤트 발행을 검증하기 위해
+                // ID를 임의로 세팅한다.
+                id = UUID.randomUUID()
+            }
 
     @Test
     fun `create - 태스크 필드가 올바르게 설정된다`() {
@@ -93,7 +98,7 @@ class TaskTests {
         val task = createTask()
         val newAssigneeId = UUID.randomUUID()
 
-        task.assign(newAssigneeId)
+        task.assign(newAssigneeId, assigneeId)
 
         assertEquals(AssigneeId(newAssigneeId), task.assigneeId)
     }
@@ -102,7 +107,7 @@ class TaskTests {
     fun `unassign - 담당자가 해제된다`() {
         val task = createTask()
 
-        task.unassign()
+        task.unassign(assigneeId)
 
         assertEquals(AssigneeId.empty(), task.assigneeId)
         assertNull(task.assigneeId.value)
@@ -112,13 +117,13 @@ class TaskTests {
     fun `changeStatus - 상태가 변경된다`() {
         val task = createTask()
 
-        task.changeStatus(Status.IN_PROGRESS)
+        task.changeStatus(Status.IN_PROGRESS, assigneeId)
         assertEquals(Status.IN_PROGRESS, task.status)
 
-        task.changeStatus(Status.DONE)
+        task.changeStatus(Status.DONE, assigneeId)
         assertEquals(Status.DONE, task.status)
 
-        task.changeStatus(Status.CANCELLED)
+        task.changeStatus(Status.CANCELLED, assigneeId)
         assertEquals(Status.CANCELLED, task.status)
     }
 
@@ -127,7 +132,7 @@ class TaskTests {
         val task = createTask()
         val dueDate = Instant.now().plusSeconds(3600)
 
-        task.changeDueDate(dueDate)
+        task.changeDueDate(dueDate, assigneeId)
 
         assertEquals(dueDate, task.dueDate.value)
     }
@@ -137,14 +142,14 @@ class TaskTests {
         val task = createTask()
 
         assertFailsWith<InvalidDueDateException> {
-            task.changeDueDate(Instant.now().minusSeconds(3600))
+            task.changeDueDate(Instant.now().minusSeconds(3600), assigneeId)
         }
     }
 
     @Test
     fun `clearDueDate - 마감일이 초기화된다`() {
         val task = createTask()
-        task.changeDueDate(Instant.now().plusSeconds(3600))
+        task.changeDueDate(Instant.now().plusSeconds(3600), assigneeId)
 
         task.clearDueDate()
 
