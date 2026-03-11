@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 data class OpenAiChatRequest(
     val model: String,
     val temperature: Double,
-    @JsonProperty("response_format")
+    @param:JsonProperty("response_format")
     val responseFormat: ResponseFormat? = null,
     val messages: List<Message>,
 )

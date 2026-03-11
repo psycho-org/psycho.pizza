@@ -10,6 +10,7 @@ import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
 import org.springframework.security.crypto.password.PasswordEncoder
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.application.port.VerificationDelivery
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
@@ -57,13 +58,13 @@ class ChallengeServiceTests {
             Challenge
                 .create(
                     operationType = OperationType.REGISTER,
-                    targetEmail = "user@psycho.pizza",
+                    targetEmail = Email.of("user@psycho.pizza"),
                     otpHash = "old-hash",
                     expiresAt = Instant.now().plusSeconds(300),
                     maxAttempts = 3,
                 ).also { it.createdAt = Instant.now() }
         `when`(
-            challengeRepository.findByTargetEmailIgnoreCaseAndOperationTypeAndStatus(
+            challengeRepository.findByTargetEmailValueIgnoreCaseAndOperationTypeAndStatus(
                 "user@psycho.pizza",
                 OperationType.REGISTER,
                 ChallengeStatus.PENDING,
@@ -89,7 +90,7 @@ class ChallengeServiceTests {
             Challenge
                 .create(
                     operationType = OperationType.REGISTER,
-                    targetEmail = "user@psycho.pizza",
+                    targetEmail = Email.of("user@psycho.pizza"),
                     otpHash = "old-hash",
                     expiresAt = Instant.now().plusSeconds(300),
                     maxAttempts = 3,
@@ -99,7 +100,7 @@ class ChallengeServiceTests {
                 }
         val savedNewChallengeId = UUID.fromString("00000000-0000-0000-0000-000000000002")
         `when`(
-            challengeRepository.findByTargetEmailIgnoreCaseAndOperationTypeAndStatus(
+            challengeRepository.findByTargetEmailValueIgnoreCaseAndOperationTypeAndStatus(
                 "user@psycho.pizza",
                 OperationType.REGISTER,
                 ChallengeStatus.PENDING,
@@ -123,7 +124,7 @@ class ChallengeServiceTests {
         assertEquals(savedNewChallengeId, (result as RequestChallengeResult.Success).challengeId)
         assertEquals(ChallengeStatus.EXPIRED, pending.status)
         verify(challengeRepository).saveAndFlush(pending)
-        verify(verificationDelivery).sendOtp("user@psycho.pizza", "123456", OperationType.REGISTER)
+        verify(verificationDelivery).sendOtp(Email.of("user@psycho.pizza"), "123456", OperationType.REGISTER)
     }
 
     @Test
@@ -149,7 +150,7 @@ class ChallengeServiceTests {
             Challenge
                 .create(
                     operationType = OperationType.REGISTER,
-                    targetEmail = "user@psycho.pizza",
+                    targetEmail = Email.of("user@psycho.pizza"),
                     otpHash = "otp-hash",
                     expiresAt = Instant.now().plusSeconds(300),
                     maxAttempts = 3,
@@ -178,7 +179,7 @@ class ChallengeServiceTests {
             Challenge
                 .create(
                     operationType = OperationType.REGISTER,
-                    targetEmail = "user@psycho.pizza",
+                    targetEmail = Email.of("user@psycho.pizza"),
                     otpHash = "otp-hash",
                     expiresAt = Instant.now().plusSeconds(300),
                     maxAttempts = 3,
@@ -200,7 +201,7 @@ class ChallengeServiceTests {
         assertTrue(result is VerifyOtpResult.Success)
         val success = result as VerifyOtpResult.Success
         assertEquals(tokenId, success.confirmationTokenId)
-        assertEquals("user@psycho.pizza", success.targetEmail)
+        assertEquals(Email.of("user@psycho.pizza"), success.targetEmail)
         assertEquals(ChallengeStatus.VERIFIED, challenge.status)
     }
 
@@ -210,7 +211,7 @@ class ChallengeServiceTests {
         val challenge =
             Challenge.create(
                 operationType = OperationType.REGISTER,
-                targetEmail = "user@psycho.pizza",
+                targetEmail = Email.of("user@psycho.pizza"),
                 otpHash = "hash",
                 expiresAt = Instant.now().plusSeconds(300),
                 maxAttempts = 3,
@@ -220,7 +221,7 @@ class ChallengeServiceTests {
                 .create(
                     challenge = challenge,
                     operationType = OperationType.REGISTER,
-                    targetEmail = "user@psycho.pizza",
+                    targetEmail = Email.of("user@psycho.pizza"),
                     expiresAt = Instant.now().plusSeconds(300),
                 ).also { it.id = tokenId }
         `when`(confirmationTokenRepository.findByIdAndUsedFalse(tokenId)).thenReturn(token)
@@ -243,7 +244,7 @@ class ChallengeServiceTests {
         val challenge =
             Challenge.create(
                 operationType = OperationType.CHANGE_PASSWORD,
-                targetEmail = "user@psycho.pizza",
+                targetEmail = Email.of("user@psycho.pizza"),
                 otpHash = "hash",
                 expiresAt = Instant.now().plusSeconds(300),
                 maxAttempts = 3,
@@ -253,7 +254,7 @@ class ChallengeServiceTests {
                 .create(
                     challenge = challenge,
                     operationType = OperationType.CHANGE_PASSWORD,
-                    targetEmail = "user@psycho.pizza",
+                    targetEmail = Email.of("user@psycho.pizza"),
                     expiresAt = Instant.now().plusSeconds(300),
                 ).also { it.id = tokenId }
         `when`(confirmationTokenRepository.findByIdAndUsedFalse(tokenId)).thenReturn(token)
@@ -267,7 +268,7 @@ class ChallengeServiceTests {
             )
 
         assertTrue(result is ConsumeTokenResult.Success)
-        assertEquals("user@psycho.pizza", (result as ConsumeTokenResult.Success).targetEmail)
+        assertEquals(Email.of("user@psycho.pizza"), (result as ConsumeTokenResult.Success).targetEmail)
         assertTrue(token.used)
     }
 }

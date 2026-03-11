@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import java.time.Instant
 
@@ -14,7 +15,7 @@ class ConfirmationTokenTests {
         val challenge =
             Challenge.create(
                 operationType = OperationType.REGISTER,
-                targetEmail = "USER@Psycho.Pizza",
+                targetEmail = Email.of("USER@Psycho.Pizza"),
                 otpHash = "hash",
                 expiresAt = Instant.now().plusSeconds(300),
                 maxAttempts = 3,
@@ -23,12 +24,12 @@ class ConfirmationTokenTests {
             ConfirmationToken.create(
                 challenge = challenge,
                 operationType = OperationType.REGISTER,
-                targetEmail = "USER@Psycho.Pizza",
+                targetEmail = Email.of("USER@Psycho.Pizza"),
                 expiresAt = Instant.now().plusSeconds(300),
             )
 
         assertFalse(token.used)
-        assertEquals("user@psycho.pizza", token.targetEmail)
+        assertEquals(Email.of("user@psycho.pizza"), token.targetEmail)
     }
 
     @Test
@@ -36,7 +37,7 @@ class ConfirmationTokenTests {
         val challenge =
             Challenge.create(
                 operationType = OperationType.REGISTER,
-                targetEmail = "user@psycho.pizza",
+                targetEmail = Email.of("user@psycho.pizza"),
                 otpHash = "hash",
                 expiresAt = Instant.now().plusSeconds(300),
                 maxAttempts = 3,
@@ -45,7 +46,7 @@ class ConfirmationTokenTests {
             ConfirmationToken.create(
                 challenge = challenge,
                 operationType = OperationType.REGISTER,
-                targetEmail = "user@psycho.pizza",
+                targetEmail = Email.of("user@psycho.pizza"),
                 expiresAt = Instant.now().plusSeconds(300),
             )
 
@@ -59,7 +60,7 @@ class ConfirmationTokenTests {
         val challenge =
             Challenge.create(
                 operationType = OperationType.REGISTER,
-                targetEmail = "user@psycho.pizza",
+                targetEmail = Email.of("user@psycho.pizza"),
                 otpHash = "hash",
                 expiresAt = Instant.now().plusSeconds(300),
                 maxAttempts = 3,
@@ -69,7 +70,7 @@ class ConfirmationTokenTests {
             ConfirmationToken.create(
                 challenge = challenge,
                 operationType = OperationType.REGISTER,
-                targetEmail = "user@psycho.pizza",
+                targetEmail = Email.of("user@psycho.pizza"),
                 expiresAt = expiresAt,
             )
 

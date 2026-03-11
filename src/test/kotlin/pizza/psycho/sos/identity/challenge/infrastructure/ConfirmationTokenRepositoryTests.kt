@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing
 import org.springframework.test.context.ActiveProfiles
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.domain.Challenge
 import pizza.psycho.sos.identity.challenge.domain.ConfirmationToken
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
@@ -29,7 +30,7 @@ class ConfirmationTokenRepositoryTests {
             challengeRepository.save(
                 Challenge.create(
                     operationType = OperationType.REGISTER,
-                    targetEmail = "user@psycho.pizza",
+                    targetEmail = Email.of("user@psycho.pizza"),
                     otpHash = "hash",
                     expiresAt = Instant.now().plusSeconds(300),
                     maxAttempts = 5,
@@ -40,7 +41,7 @@ class ConfirmationTokenRepositoryTests {
                 ConfirmationToken.create(
                     challenge = challenge,
                     operationType = OperationType.REGISTER,
-                    targetEmail = "user@psycho.pizza",
+                    targetEmail = Email.of("user@psycho.pizza"),
                     expiresAt = Instant.now().plusSeconds(300),
                 ),
             )
@@ -57,7 +58,7 @@ class ConfirmationTokenRepositoryTests {
             challengeRepository.save(
                 Challenge.create(
                     operationType = OperationType.WITHDRAW,
-                    targetEmail = "user@psycho.pizza",
+                    targetEmail = Email.of("user@psycho.pizza"),
                     otpHash = "hash",
                     expiresAt = Instant.now().plusSeconds(300),
                     maxAttempts = 5,
@@ -68,7 +69,7 @@ class ConfirmationTokenRepositoryTests {
                 ConfirmationToken.create(
                     challenge = challenge,
                     operationType = OperationType.WITHDRAW,
-                    targetEmail = "user@psycho.pizza",
+                    targetEmail = Email.of("user@psycho.pizza"),
                     expiresAt = Instant.now().plusSeconds(300),
                 ),
             )

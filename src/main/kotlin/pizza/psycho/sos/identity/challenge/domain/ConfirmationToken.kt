@@ -1,6 +1,8 @@
 package pizza.psycho.sos.identity.challenge.domain
 
+import jakarta.persistence.AttributeOverride
 import jakarta.persistence.Column
+import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
@@ -9,6 +11,7 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import pizza.psycho.sos.common.entity.BaseEntity
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import java.time.Instant
 import java.util.UUID
@@ -26,8 +29,9 @@ class ConfirmationToken protected constructor() : BaseEntity() {
     var operationType: OperationType = OperationType.REGISTER
         protected set
 
-    @Column(name = "target_email", nullable = false)
-    var targetEmail: String = ""
+    @Embedded
+    @AttributeOverride(name = "value", column = Column(name = "target_email", nullable = false))
+    var targetEmail: Email = Email()
         protected set
 
     @Column(name = "expires_at", nullable = false)
@@ -51,13 +55,13 @@ class ConfirmationToken protected constructor() : BaseEntity() {
         fun create(
             challenge: Challenge,
             operationType: OperationType,
-            targetEmail: String,
+            targetEmail: Email,
             expiresAt: Instant,
         ): ConfirmationToken =
             ConfirmationToken().apply {
                 this.challenge = challenge
                 this.operationType = operationType
-                this.targetEmail = targetEmail.lowercase()
+                this.targetEmail = targetEmail
                 this.expiresAt = expiresAt
             }
     }

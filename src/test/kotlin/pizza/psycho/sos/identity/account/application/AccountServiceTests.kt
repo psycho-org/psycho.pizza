@@ -47,7 +47,7 @@ class AccountServiceTests {
 
         `when`(
             challengeService.consumeToken(ChallengeCommand.ConsumeToken(testTokenId, OperationType.REGISTER)),
-        ).thenReturn(ConsumeTokenResult.Success(targetEmail = "already@psycho.pizza"))
+        ).thenReturn(ConsumeTokenResult.Success(targetEmail = Email.of("already@psycho.pizza")))
         `when`(accountRepository.existsByEmailValueIgnoreCaseAndDeletedAtIsNull("already@psycho.pizza")).thenReturn(true)
 
         val result = accountService.register(command)
@@ -66,7 +66,7 @@ class AccountServiceTests {
 
         `when`(
             challengeService.consumeToken(ChallengeCommand.ConsumeToken(testTokenId, OperationType.REGISTER)),
-        ).thenReturn(ConsumeTokenResult.Success(targetEmail = "newuser@psycho.pizza"))
+        ).thenReturn(ConsumeTokenResult.Success(targetEmail = Email.of("newuser@psycho.pizza")))
         `when`(accountRepository.existsByEmailValueIgnoreCaseAndDeletedAtIsNull("newuser@psycho.pizza")).thenReturn(false)
         `when`(passwordEncoder.encode("Password123!")).thenReturn("encoded-password")
         `when`(accountRepository.save(org.mockito.ArgumentMatchers.any(Account::class.java))).thenAnswer { invocation ->
@@ -204,7 +204,7 @@ class AccountServiceTests {
 
         `when`(
             challengeService.consumeToken(ChallengeCommand.ConsumeToken(testTokenId, OperationType.WITHDRAW)),
-        ).thenReturn(ConsumeTokenResult.Success(targetEmail = "user@psycho.pizza"))
+        ).thenReturn(ConsumeTokenResult.Success(targetEmail = Email.of("user@psycho.pizza")))
         `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(null)
 
         val result = accountService.withdraw(command)
@@ -238,7 +238,7 @@ class AccountServiceTests {
 
         `when`(
             challengeService.consumeToken(ChallengeCommand.ConsumeToken(testTokenId, OperationType.WITHDRAW)),
-        ).thenReturn(ConsumeTokenResult.Success(targetEmail = "user@psycho.pizza"))
+        ).thenReturn(ConsumeTokenResult.Success(targetEmail = Email.of("user@psycho.pizza")))
         `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
         `when`(passwordEncoder.matches("WrongPassword!", "encoded-password")).thenReturn(false)
 
@@ -270,7 +270,7 @@ class AccountServiceTests {
 
         `when`(
             challengeService.consumeToken(ChallengeCommand.ConsumeToken(testTokenId, OperationType.WITHDRAW)),
-        ).thenReturn(ConsumeTokenResult.Success(targetEmail = "user@psycho.pizza"))
+        ).thenReturn(ConsumeTokenResult.Success(targetEmail = Email.of("user@psycho.pizza")))
         `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
         `when`(passwordEncoder.matches("Password123!", "encoded-password")).thenReturn(true)
 

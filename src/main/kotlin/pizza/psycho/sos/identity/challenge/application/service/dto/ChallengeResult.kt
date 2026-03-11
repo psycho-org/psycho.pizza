@@ -1,5 +1,6 @@
 package pizza.psycho.sos.identity.challenge.application.service.dto
 
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import java.util.UUID
 
 sealed interface RequestChallengeResult {
@@ -7,9 +8,7 @@ sealed interface RequestChallengeResult {
         val challengeId: UUID,
     ) : RequestChallengeResult
 
-    sealed interface Failure :
-        RequestChallengeResult,
-        ChallengeFailures {
+    sealed interface Failure : RequestChallengeResult {
         data object CooldownActive : Failure
     }
 }
@@ -17,12 +16,10 @@ sealed interface RequestChallengeResult {
 sealed interface VerifyOtpResult {
     data class Success(
         val confirmationTokenId: UUID,
-        val targetEmail: String,
+        val targetEmail: Email,
     ) : VerifyOtpResult
 
-    sealed interface Failure :
-        VerifyOtpResult,
-        ChallengeFailures {
+    sealed interface Failure : VerifyOtpResult {
         data object ChallengeNotFound : Failure
 
         data object ChallengeExpired : Failure
@@ -35,12 +32,10 @@ sealed interface VerifyOtpResult {
 
 sealed interface ConsumeTokenResult {
     data class Success(
-        val targetEmail: String,
+        val targetEmail: Email,
     ) : ConsumeTokenResult
 
-    sealed interface Failure :
-        ConsumeTokenResult,
-        ChallengeFailures {
+    sealed interface Failure : ConsumeTokenResult {
         data object TokenNotFound : Failure
 
         data object TokenExpired : Failure
@@ -48,5 +43,3 @@ sealed interface ConsumeTokenResult {
         data object OperationTypeMismatch : Failure
     }
 }
-
-sealed interface ChallengeFailures

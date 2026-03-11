@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.domain.vo.ChallengeStatus
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import java.time.Instant
@@ -14,14 +15,14 @@ class ChallengeTests {
         val challenge =
             Challenge.create(
                 operationType = OperationType.REGISTER,
-                targetEmail = "USER@Psycho.Pizza",
+                targetEmail = Email.of("USER@Psycho.Pizza"),
                 otpHash = "hash",
                 expiresAt = Instant.now().plusSeconds(300),
                 maxAttempts = 3,
             )
 
         assertEquals(ChallengeStatus.PENDING, challenge.status)
-        assertEquals("user@psycho.pizza", challenge.targetEmail)
+        assertEquals(Email.of("user@psycho.pizza"), challenge.targetEmail)
         assertEquals(0, challenge.attemptCount)
         assertEquals(3, challenge.maxAttempts)
     }
@@ -31,7 +32,7 @@ class ChallengeTests {
         val challenge =
             Challenge.create(
                 operationType = OperationType.REGISTER,
-                targetEmail = "user@psycho.pizza",
+                targetEmail = Email.of("user@psycho.pizza"),
                 otpHash = "hash",
                 expiresAt = Instant.now().plusSeconds(300),
                 maxAttempts = 2,
@@ -50,7 +51,7 @@ class ChallengeTests {
         val challenge =
             Challenge.create(
                 operationType = OperationType.WITHDRAW,
-                targetEmail = "user@psycho.pizza",
+                targetEmail = Email.of("user@psycho.pizza"),
                 otpHash = "hash",
                 expiresAt = expiresAt,
                 maxAttempts = 3,
@@ -66,7 +67,7 @@ class ChallengeTests {
         val verified =
             Challenge.create(
                 operationType = OperationType.REGISTER,
-                targetEmail = "user@psycho.pizza",
+                targetEmail = Email.of("user@psycho.pizza"),
                 otpHash = "hash",
                 expiresAt = Instant.now().plusSeconds(300),
                 maxAttempts = 3,
@@ -77,7 +78,7 @@ class ChallengeTests {
         val failed =
             Challenge.create(
                 operationType = OperationType.REGISTER,
-                targetEmail = "user@psycho.pizza",
+                targetEmail = Email.of("user@psycho.pizza"),
                 otpHash = "hash",
                 expiresAt = Instant.now().plusSeconds(300),
                 maxAttempts = 3,
@@ -88,7 +89,7 @@ class ChallengeTests {
         val expired =
             Challenge.create(
                 operationType = OperationType.REGISTER,
-                targetEmail = "user@psycho.pizza",
+                targetEmail = Email.of("user@psycho.pizza"),
                 otpHash = "hash",
                 expiresAt = Instant.now().plusSeconds(300),
                 maxAttempts = 3,
