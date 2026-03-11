@@ -1,7 +1,7 @@
 package pizza.psycho.sos.identity.account.domain
 
 import org.springframework.test.context.ActiveProfiles
-import pizza.psycho.sos.identity.account.domain.vo.Email
+import pizza.psycho.sos.common.domain.vo.Email
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -21,34 +21,6 @@ class AccountTests {
         assertEquals("encoded-password", account.passwordHash)
         assertEquals("Rick", account.givenName)
         assertEquals("Sanchez", account.familyName)
-    }
-
-    @Test
-    fun `create builds display name from given and family names`() {
-        val account =
-            Account.create(
-                email = Email.of("user@psycho.pizza"),
-                passwordHash = "encoded-password",
-                givenName = "Rick",
-                familyName = "Sanchez",
-            )
-
-        assertEquals("Rick Sanchez", account.displayName)
-    }
-
-    @Test
-    fun `update display name changes display name`() {
-        val account =
-            Account.create(
-                email = Email.of("user@psycho.pizza"),
-                passwordHash = "encoded-password",
-                givenName = "Rick",
-                familyName = "Sanchez",
-            )
-
-        account.updateDisplayName("Pickle Rick")
-
-        assertEquals("Pickle Rick", account.displayName)
     }
 
     @Test

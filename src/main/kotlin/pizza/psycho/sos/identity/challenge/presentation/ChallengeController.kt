@@ -1,19 +1,19 @@
 package pizza.psycho.sos.identity.challenge.presentation
 
 import jakarta.validation.Valid
-import org.springframework.http.HttpStatus
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.web.server.ResponseStatusException
+import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.response.ApiResponse
 import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
 import pizza.psycho.sos.identity.challenge.application.service.dto.RequestChallengeResult
 import pizza.psycho.sos.identity.challenge.application.service.dto.VerifyOtpResult
+import pizza.psycho.sos.identity.challenge.domain.exception.ChallengeErrorCode
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import pizza.psycho.sos.identity.challenge.presentation.dto.ChallengeRequest
 import pizza.psycho.sos.identity.challenge.presentation.dto.ChallengeResponse
@@ -45,6 +45,8 @@ class ChallengeController(
                 ChallengeCommand.Verify(
                     challengeId = request.challengeId,
                     otpCode = request.otpCode,
+                    expectedOperationType = OperationType.REGISTER,
+                    requesterEmail = null,
                 ),
             ).toConfirmedResponse()
 
@@ -62,6 +64,7 @@ class ChallengeController(
 
     @PostMapping("/me/withdraw/confirmations")
     fun confirmWithdraw(
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
         @Valid @RequestBody request: ChallengeRequest.VerifyOtp,
     ): ApiResponse<ChallengeResponse.Confirmed> =
         challengeService
@@ -69,6 +72,8 @@ class ChallengeController(
                 ChallengeCommand.Verify(
                     challengeId = request.challengeId,
                     otpCode = request.otpCode,
+                    expectedOperationType = OperationType.WITHDRAW,
+                    requesterEmail = principal.email,
                 ),
             ).toConfirmedResponse()
 
@@ -94,6 +99,8 @@ class ChallengeController(
                 ChallengeCommand.Verify(
                     challengeId = request.challengeId,
                     otpCode = request.otpCode,
+                    expectedOperationType = OperationType.CHANGE_PASSWORD,
+                    requesterEmail = principal.email,
                 ),
             ).toConfirmedResponse()
 
@@ -105,10 +112,7 @@ class ChallengeController(
                 )
 
             RequestChallengeResult.Failure.CooldownActive ->
-                throw ResponseStatusException(
-                    HttpStatus.TOO_MANY_REQUESTS,
-                    "Please wait before requesting a new OTP",
-                )
+                throw DomainException(ChallengeErrorCode.CHALLENGE_OTP_COOLDOWN_ACTIVE)
         }
 
     private fun VerifyOtpResult.toConfirmedResponse(): ApiResponse<ChallengeResponse.Confirmed> =
@@ -122,16 +126,10 @@ class ChallengeController(
                         ),
                 )
 
-            VerifyOtpResult.Failure.ChallengeNotFound ->
-                throw ResponseStatusException(HttpStatus.NOT_FOUND, "Challenge not found")
-
-            VerifyOtpResult.Failure.ChallengeExpired ->
-                throw ResponseStatusException(HttpStatus.GONE, "Challenge has expired")
-
+            VerifyOtpResult.Failure.ChallengeNotFound -> throw DomainException(ChallengeErrorCode.CHALLENGE_NOT_FOUND)
+            VerifyOtpResult.Failure.ChallengeExpired -> throw DomainException(ChallengeErrorCode.CHALLENGE_EXPIRED)
             VerifyOtpResult.Failure.MaxAttemptsExceeded ->
-                throw ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Maximum attempts exceeded")
-
-            VerifyOtpResult.Failure.InvalidOtp ->
-                throw ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid OTP code")
+                throw DomainException(ChallengeErrorCode.CHALLENGE_MAX_ATTEMPTS_EXCEEDED)
+            VerifyOtpResult.Failure.InvalidOtp -> throw DomainException(ChallengeErrorCode.CHALLENGE_INVALID_OTP)
         }
 }

@@ -10,7 +10,7 @@ import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
 import org.springframework.security.crypto.password.PasswordEncoder
-import pizza.psycho.sos.identity.account.domain.vo.Email
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.application.port.VerificationDelivery
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
@@ -137,6 +137,8 @@ class ChallengeServiceTests {
                 ChallengeCommand.Verify(
                     challengeId = challengeId,
                     otpCode = "123456",
+                    expectedOperationType = OperationType.REGISTER,
+                    requesterEmail = null,
                 ),
             )
 
@@ -163,6 +165,8 @@ class ChallengeServiceTests {
                 ChallengeCommand.Verify(
                     challengeId = challengeId,
                     otpCode = "000000",
+                    expectedOperationType = OperationType.REGISTER,
+                    requesterEmail = null,
                 ),
             )
 
@@ -172,13 +176,73 @@ class ChallengeServiceTests {
     }
 
     @Test
-    fun `verifyOtp returns confirmation token on success`() {
+    fun `verifyOtp returns operation type mismatch when challenge operation differs from expected`() {
         val challengeId = UUID.fromString("00000000-0000-0000-0000-000000000012")
-        val tokenId = UUID.fromString("00000000-0000-0000-0000-000000000013")
         val challenge =
             Challenge
                 .create(
-                    operationType = OperationType.REGISTER,
+                    operationType = OperationType.WITHDRAW,
+                    targetEmail = Email.of("user@psycho.pizza"),
+                    otpHash = "otp-hash",
+                    expiresAt = Instant.now().plusSeconds(300),
+                    maxAttempts = 3,
+                ).also { it.id = challengeId }
+        `when`(challengeRepository.findByIdAndStatus(challengeId, ChallengeStatus.PENDING)).thenReturn(challenge)
+
+        val result =
+            challengeService.verifyOtp(
+                ChallengeCommand.Verify(
+                    challengeId = challengeId,
+                    otpCode = "123456",
+                    expectedOperationType = OperationType.REGISTER,
+                    requesterEmail = null,
+                ),
+            )
+
+        assertEquals(VerifyOtpResult.Failure.OperationTypeMismatch, result)
+        assertEquals(0, challenge.attemptCount)
+        assertEquals(ChallengeStatus.PENDING, challenge.status)
+        verifyNoInteractions(confirmationTokenRepository)
+    }
+
+    @Test
+    fun `verifyOtp returns requester email mismatch when authenticated requester differs from challenge target`() {
+        val challengeId = UUID.fromString("00000000-0000-0000-0000-000000000013")
+        val challenge =
+            Challenge
+                .create(
+                    operationType = OperationType.CHANGE_PASSWORD,
+                    targetEmail = Email.of("user@psycho.pizza"),
+                    otpHash = "otp-hash",
+                    expiresAt = Instant.now().plusSeconds(300),
+                    maxAttempts = 3,
+                ).also { it.id = challengeId }
+        `when`(challengeRepository.findByIdAndStatus(challengeId, ChallengeStatus.PENDING)).thenReturn(challenge)
+
+        val result =
+            challengeService.verifyOtp(
+                ChallengeCommand.Verify(
+                    challengeId = challengeId,
+                    otpCode = "123456",
+                    expectedOperationType = OperationType.CHANGE_PASSWORD,
+                    requesterEmail = "other@psycho.pizza",
+                ),
+            )
+
+        assertEquals(VerifyOtpResult.Failure.RequesterEmailMismatch, result)
+        assertEquals(0, challenge.attemptCount)
+        assertEquals(ChallengeStatus.PENDING, challenge.status)
+        verifyNoInteractions(confirmationTokenRepository)
+    }
+
+    @Test
+    fun `verifyOtp returns confirmation token on success when operation and requester match`() {
+        val challengeId = UUID.fromString("00000000-0000-0000-0000-000000000012")
+        val tokenId = UUID.fromString("00000000-0000-0000-0000-000000000014")
+        val challenge =
+            Challenge
+                .create(
+                    operationType = OperationType.CHANGE_PASSWORD,
                     targetEmail = Email.of("user@psycho.pizza"),
                     otpHash = "otp-hash",
                     expiresAt = Instant.now().plusSeconds(300),
@@ -195,6 +259,8 @@ class ChallengeServiceTests {
                 ChallengeCommand.Verify(
                     challengeId = challengeId,
                     otpCode = "123456",
+                    expectedOperationType = OperationType.CHANGE_PASSWORD,
+                    requesterEmail = "user@psycho.pizza",
                 ),
             )
 

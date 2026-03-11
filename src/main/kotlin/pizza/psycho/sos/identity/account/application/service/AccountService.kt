@@ -3,9 +3,9 @@ package pizza.psycho.sos.identity.account.application.service
 import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
 import pizza.psycho.sos.identity.account.domain.Account
-import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
 import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
@@ -14,7 +14,6 @@ import pizza.psycho.sos.identity.challenge.application.service.dto.ConsumeTokenR
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import java.util.UUID
 import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
-import pizza.psycho.sos.identity.account.application.service.dto.UpdateDisplayNameAccountResult as UpdateDisplayName
 import pizza.psycho.sos.identity.account.application.service.dto.UpdateNameAccountResult as UpdateName
 import pizza.psycho.sos.identity.account.application.service.dto.UpdatePasswordAccountResult as UpdatePassword
 import pizza.psycho.sos.identity.account.application.service.dto.WithdrawAccountResult as Withdraw
@@ -33,6 +32,9 @@ class AccountService(
             ?.id
 
     fun register(command: AccountCommand.Register): Register {
+        val normalizedGivenName = normalizeName(command.firstName) ?: return Register.Failure.InvalidName
+        val normalizedFamilyName = normalizeName(command.lastName) ?: return Register.Failure.InvalidName
+
         val tokenResult =
             challengeService.consumeToken(
                 ChallengeCommand.ConsumeToken(command.confirmationTokenId, OperationType.REGISTER),
@@ -48,39 +50,22 @@ class AccountService(
             Account.create(
                 email = email,
                 passwordHash = passwordEncoder.encode(command.password),
-                givenName = command.firstName.trim(),
-                familyName = command.lastName.trim(),
+                givenName = normalizedGivenName,
+                familyName = normalizedFamilyName,
             )
 
         val saved = accountRepository.save(account)
 
         return Register.Success(
             email = saved.email.value,
-            displayName = saved.displayName,
-        )
-    }
-
-    fun updateDisplayName(command: AccountCommand.Update.DisplayName): UpdateDisplayName {
-        val normalizedDisplayName = command.displayName.trim()
-        if (normalizedDisplayName.length !in DISPLAY_NAME_LENGTH_RANGE) {
-            return UpdateDisplayName.Failure.InvalidDisplayName
-        }
-
-        val account =
-            accountRepository.findByIdAndDeletedAtIsNull(command.accountId)
-                ?: return UpdateDisplayName.Failure.AccountNotFound
-
-        account.updateDisplayName(normalizedDisplayName)
-        return UpdateDisplayName.Success(
-            displayName = normalizedDisplayName,
+            givenName = saved.givenName,
+            familyName = saved.familyName,
         )
     }
 
     fun updateName(command: AccountCommand.Update.Name): UpdateName {
-        val normalizedGivenName = command.givenName.trim()
-        val normalizedFamilyName = command.familyName.trim()
-
-        // TODO - add validation layer
+        val normalizedGivenName = normalizeName(command.givenName) ?: return UpdateName.Failure.InvalidName
+        val normalizedFamilyName = normalizeName(command.familyName) ?: return UpdateName.Failure.InvalidName
 
         val account =
             accountRepository.findByIdAndDeletedAtIsNull(command.accountId)
@@ -146,7 +131,21 @@ class AccountService(
         return Withdraw.Success
     }
 
+    private fun normalizeName(value: String): String? {
+        val normalized = value.trim()
+        if (normalized.isBlank()) {
+            return null
+        }
+        if (normalized.length > NAME_MAX_LENGTH) {
+            return null
+        }
+        if (normalized.any { Character.isISOControl(it) }) {
+            return null
+        }
+        return normalized
+    }
+
     companion object {
-        private val DISPLAY_NAME_LENGTH_RANGE = 1..64
+        private const val NAME_MAX_LENGTH = 64
     }
 }

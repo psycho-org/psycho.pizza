@@ -5,8 +5,8 @@ import jakarta.persistence.Column
 import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
 import jakarta.persistence.Table
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.common.entity.BaseDeletableEntity
-import pizza.psycho.sos.identity.account.domain.vo.Email
 
 @Entity
 @Table(name = "accounts")
@@ -28,10 +28,6 @@ class Account protected constructor() : BaseDeletableEntity() {
     var familyName: String = ""
         protected set
 
-    @Column(name = "display_name", nullable = false)
-    var displayName: String = ""
-        protected set
-
     companion object {
         fun create(
             email: Email,
@@ -44,12 +40,7 @@ class Account protected constructor() : BaseDeletableEntity() {
                 this.passwordHash = passwordHash
                 this.givenName = givenName
                 this.familyName = familyName
-                this.displayName = "$givenName $familyName"
             }
-    }
-
-    fun updateDisplayName(displayName: String) {
-        this.displayName = displayName
     }
 
     fun updateName(

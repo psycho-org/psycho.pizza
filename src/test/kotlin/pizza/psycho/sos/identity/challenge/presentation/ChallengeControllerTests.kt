@@ -15,7 +15,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
-import pizza.psycho.sos.identity.account.domain.vo.Email
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
 import pizza.psycho.sos.identity.challenge.application.service.dto.RequestChallengeResult
@@ -79,6 +79,7 @@ class ChallengeControllerTests {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"email":"user@psycho.pizza"}"""),
             ).andExpect(status().isTooManyRequests)
+            .andExpect(jsonPath("$.code").value("CHALLENGE_OTP_COOLDOWN_ACTIVE"))
     }
 
     @Test
@@ -90,6 +91,8 @@ class ChallengeControllerTests {
                 ChallengeCommand.Verify(
                     challengeId = challengeId,
                     otpCode = "123456",
+                    expectedOperationType = OperationType.REGISTER,
+                    requesterEmail = null,
                 ),
             ),
         ).thenReturn(
@@ -117,6 +120,8 @@ class ChallengeControllerTests {
                 ChallengeCommand.Verify(
                     challengeId = challengeId,
                     otpCode = "000000",
+                    expectedOperationType = OperationType.REGISTER,
+                    requesterEmail = null,
                 ),
             ),
         ).thenReturn(VerifyOtpResult.Failure.InvalidOtp)
@@ -127,6 +132,29 @@ class ChallengeControllerTests {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"challengeId":"$challengeId","otpCode":"000000"}"""),
             ).andExpect(status().isUnauthorized)
+            .andExpect(jsonPath("$.code").value("CHALLENGE_INVALID_OTP"))
+    }
+
+    @Test
+    fun `register confirmation maps operation type mismatch to not found`() {
+        val challengeId = UUID.fromString("00000000-0000-0000-0000-000000000104")
+        `when`(
+            challengeService.verifyOtp(
+                ChallengeCommand.Verify(
+                    challengeId = challengeId,
+                    otpCode = "000000",
+                    expectedOperationType = OperationType.REGISTER,
+                    requesterEmail = null,
+                ),
+            ),
+        ).thenReturn(VerifyOtpResult.Failure.OperationTypeMismatch)
+
+        mockMvc
+            .perform(
+                post("/api/v1/accounts/register/confirmations")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"challengeId":"$challengeId","otpCode":"000000"}"""),
+            ).andExpect(status().isNotFound)
     }
 
     @Test
@@ -163,5 +191,71 @@ class ChallengeControllerTests {
                     .contentType(MediaType.APPLICATION_JSON),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.challengeId").value(challengeId.toString()))
+    }
+
+    @Test
+    fun `me withdraw confirmation uses principal email and withdraw operation type`() {
+        val principal =
+            AuthenticatedAccountPrincipal(
+                accountId = UUID.fromString("00000000-0000-0000-0000-000000000107"),
+                email = "me@psycho.pizza",
+            )
+        val authentication = UsernamePasswordAuthenticationToken(principal, null, emptyList())
+        val challengeId = UUID.fromString("00000000-0000-0000-0000-000000000108")
+        val tokenId = UUID.fromString("00000000-0000-0000-0000-000000000109")
+        `when`(
+            challengeService.verifyOtp(
+                ChallengeCommand.Verify(
+                    challengeId = challengeId,
+                    otpCode = "123456",
+                    expectedOperationType = OperationType.WITHDRAW,
+                    requesterEmail = "me@psycho.pizza",
+                ),
+            ),
+        ).thenReturn(
+            VerifyOtpResult.Success(
+                confirmationTokenId = tokenId,
+                targetEmail = Email.of("me@psycho.pizza"),
+            ),
+        )
+
+        mockMvc
+            .perform(
+                post("/api/v1/accounts/me/withdraw/confirmations")
+                    .with(authentication(authentication))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"challengeId":"$challengeId","otpCode":"123456"}"""),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.confirmationTokenId").value(tokenId.toString()))
+            .andExpect(jsonPath("$.data.verifiedEmail").value("me@psycho.pizza"))
+    }
+
+    @Test
+    fun `me password confirmation maps requester mismatch to not found`() {
+        val principal =
+            AuthenticatedAccountPrincipal(
+                accountId = UUID.fromString("00000000-0000-0000-0000-000000000110"),
+                email = "me@psycho.pizza",
+            )
+        val authentication = UsernamePasswordAuthenticationToken(principal, null, emptyList())
+        val challengeId = UUID.fromString("00000000-0000-0000-0000-000000000111")
+        `when`(
+            challengeService.verifyOtp(
+                ChallengeCommand.Verify(
+                    challengeId = challengeId,
+                    otpCode = "123456",
+                    expectedOperationType = OperationType.CHANGE_PASSWORD,
+                    requesterEmail = "me@psycho.pizza",
+                ),
+            ),
+        ).thenReturn(VerifyOtpResult.Failure.RequesterEmailMismatch)
+
+        mockMvc
+            .perform(
+                post("/api/v1/accounts/me/password/confirmations")
+                    .with(authentication(authentication))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"challengeId":"$challengeId","otpCode":"123456"}"""),
+            ).andExpect(status().isNotFound)
     }
 }

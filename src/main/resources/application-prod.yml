@@ -9,7 +9,6 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
-
   jpa:
     hibernate:
       ddl-auto: none
@@ -55,3 +54,12 @@ mail:
 openai:
   api-key: ${OPENAI_API_KEY}
   model: gpt-4.1-mini
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+server:
+  forward-headers-strategy: framework
