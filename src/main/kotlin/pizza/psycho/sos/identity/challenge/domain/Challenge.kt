@@ -7,8 +7,8 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Table
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.common.entity.BaseEntity
-import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.domain.vo.ChallengeStatus
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import java.time.Instant

@@ -95,6 +95,7 @@ class AuthControllerTests {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"email":"user@psycho.pizza","password":"wrong"}"""),
             ).andExpect(status().isUnauthorized)
+            .andExpect(jsonPath("$.code").value("AUTH_INVALID_CREDENTIALS"))
     }
 
     @Test
@@ -135,6 +136,7 @@ class AuthControllerTests {
                 post("/api/v1/auth/refresh")
                     .cookie(jakarta.servlet.http.Cookie("refresh_token", "invalid-refresh-token")),
             ).andExpect(status().isUnauthorized)
+            .andExpect(jsonPath("$.code").value("AUTH_INVALID_REFRESH_TOKEN"))
     }
 
     @Test
@@ -145,6 +147,7 @@ class AuthControllerTests {
         mockMvc
             .perform(post("/api/v1/auth/refresh"))
             .andExpect(status().isUnauthorized)
+            .andExpect(jsonPath("$.code").value("AUTH_INVALID_REFRESH_TOKEN"))
     }
 
     @Test

@@ -75,10 +75,22 @@ class GlobalExceptionHandler {
     fun handleDomainException(
         ex: DomainException,
         request: HttpServletRequest,
-    ) = HttpStatus.BAD_REQUEST.toResponse(
-        message = ex.message ?: "Bad Request",
-        path = request.requestURI,
-    )
+    ): ResponseEntity<ErrorResponse> {
+        val errorCode = ex.errorCode
+        if (errorCode == null) {
+            logger.warn("Legacy DomainException without errorCode at path={}", request.requestURI, ex)
+            return HttpStatus.BAD_REQUEST.toResponse(
+                message = ex.message ?: "Bad Request",
+                path = request.requestURI,
+            )
+        }
+
+        return errorCode.status.toResponse(
+            code = errorCode.code,
+            message = errorCode.message,
+            path = request.requestURI,
+        )
+    }
 
     @ExceptionHandler(Exception::class)
     fun handleException(

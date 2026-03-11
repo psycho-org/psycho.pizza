@@ -5,8 +5,8 @@ import io.jsonwebtoken.security.Keys
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.springframework.test.context.ActiveProfiles
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.identity.account.domain.Account
-import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.security.config.JwtProperties
 import java.nio.charset.StandardCharsets
 import java.time.Instant

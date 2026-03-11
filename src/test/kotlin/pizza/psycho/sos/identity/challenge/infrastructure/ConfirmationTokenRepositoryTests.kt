@@ -8,7 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing
 import org.springframework.test.context.ActiveProfiles
-import pizza.psycho.sos.identity.account.domain.vo.Email
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.domain.Challenge
 import pizza.psycho.sos.identity.challenge.domain.ConfirmationToken
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
