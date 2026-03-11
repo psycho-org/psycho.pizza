@@ -1,15 +1,21 @@
 package pizza.psycho.sos.identity.challenge.application
 
+import org.hibernate.exception.ConstraintViolationException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.any
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
+import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.security.crypto.password.PasswordEncoder
+import pizza.psycho.sos.common.support.transaction.helper.Tx
+import pizza.psycho.sos.common.support.transaction.runner.TransactionRunner
 import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.application.port.VerificationDelivery
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
@@ -51,6 +57,11 @@ class ChallengeServiceTests {
             challengeProperties = challengeProperties,
         )
 
+    @BeforeEach
+    fun setUp() {
+        Tx.initialize(TransactionRunner())
+    }
+
     @Test
     fun `createChallenge returns cooldown active when existing pending is still within cooldown`() {
         val pending =
@@ -79,7 +90,7 @@ class ChallengeServiceTests {
             )
 
         assertEquals(RequestChallengeResult.Failure.CooldownActive, result)
-        verify(challengeRepository, never()).save(any(Challenge::class.java))
+        verify(challengeRepository, never()).saveAndFlush(any(Challenge::class.java))
         verifyNoInteractions(verificationDelivery)
     }
 
@@ -107,7 +118,7 @@ class ChallengeServiceTests {
         ).thenReturn(pending)
         `when`(otpGenerator.generate(6)).thenReturn("123456")
         `when`(passwordEncoder.encode("123456")).thenReturn("new-hash")
-        `when`(challengeRepository.save(any(Challenge::class.java))).thenAnswer { invocation ->
+        `when`(challengeRepository.saveAndFlush(any(Challenge::class.java))).thenAnswer { invocation ->
             invocation.getArgument<Challenge>(0).also { it.id = savedNewChallengeId }
         }
 
@@ -122,8 +133,42 @@ class ChallengeServiceTests {
         assertTrue(result is RequestChallengeResult.Success)
         assertEquals(savedNewChallengeId, (result as RequestChallengeResult.Success).challengeId)
         assertEquals(ChallengeStatus.EXPIRED, pending.status)
-        verify(challengeRepository).saveAndFlush(pending)
+        verify(challengeRepository, times(2)).saveAndFlush(any(Challenge::class.java))
         verify(verificationDelivery).sendOtp(Email.of("user@psycho.pizza"), "123456", OperationType.REGISTER)
+    }
+
+    @Test
+    fun `createChallenge maps pending challenge unique constraint to cooldown active`() {
+        `when`(
+            challengeRepository.findByTargetEmailValueIgnoreCaseAndOperationTypeAndStatus(
+                "user@psycho.pizza",
+                OperationType.REGISTER,
+                ChallengeStatus.PENDING,
+            ),
+        ).thenReturn(null)
+        `when`(otpGenerator.generate(6)).thenReturn("123456")
+        `when`(passwordEncoder.encode("123456")).thenReturn("new-hash")
+        `when`(challengeRepository.saveAndFlush(any(Challenge::class.java))).thenThrow(
+            DataIntegrityViolationException(
+                "duplicate pending challenge",
+                ConstraintViolationException(
+                    "duplicate pending challenge",
+                    java.sql.SQLException("duplicate pending challenge"),
+                    "uk_challenges_email_op_pending",
+                ),
+            ),
+        )
+
+        val result =
+            challengeService.createChallenge(
+                ChallengeCommand.Request(
+                    email = "user@psycho.pizza",
+                    operationType = OperationType.REGISTER,
+                ),
+            )
+
+        assertEquals(RequestChallengeResult.Failure.CooldownActive, result)
+        verifyNoInteractions(verificationDelivery)
     }
 
     @Test
