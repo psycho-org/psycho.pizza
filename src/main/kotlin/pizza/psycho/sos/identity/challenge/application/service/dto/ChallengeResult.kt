@@ -22,6 +22,10 @@ sealed interface VerifyOtpResult {
     sealed interface Failure : VerifyOtpResult {
         data object ChallengeNotFound : Failure
 
+        data object OperationTypeMismatch : Failure
+
+        data object RequesterEmailMismatch : Failure
+
         data object ChallengeExpired : Failure
 
         data object MaxAttemptsExceeded : Failure
