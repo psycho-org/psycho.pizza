@@ -9,7 +9,7 @@ import jakarta.persistence.PostLoad
 import jakarta.persistence.Table
 import pizza.psycho.sos.common.entity.BaseDeletableEntity
 import pizza.psycho.sos.common.event.AggregateRoot
-import pizza.psycho.sos.common.event.DomainEventDelegate
+import pizza.psycho.sos.common.event.DomainEvent
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.task.domain.model.vo.AssigneeId
@@ -38,7 +38,7 @@ class Task protected constructor(
     @Embedded
     var dueDate: TaskDueDate = TaskDueDate(),
 ) : BaseDeletableEntity(),
-    AggregateRoot by DomainEventDelegate() {
+    AggregateRoot {
     val taskId: UUID
         get() = id ?: throw DomainException("Task ID is null")
 
@@ -113,4 +113,24 @@ class Task protected constructor(
                 dueDate = TaskDueDate.withValidation(dueDate),
             )
     }
+
+    // 이벤트 관련 ---------------------------------------------------------------------
+
+    @Transient
+    private var events: MutableSet<DomainEvent>? = null
+
+    private fun ensureEvents(): MutableSet<DomainEvent> {
+        if (events == null) {
+            events = mutableSetOf()
+        }
+        return events!!
+    }
+
+    override fun registerEvent(event: DomainEvent) {
+        ensureEvents() += event
+    }
+
+    override fun domainEvents(): List<DomainEvent> = events?.toList() ?: emptyList()
+
+    override fun pullDomainEvents(): List<DomainEvent> = domainEvents().also { events?.clear() }
 }
