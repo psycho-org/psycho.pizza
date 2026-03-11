@@ -1,12 +1,10 @@
 package pizza.psycho.sos.identity.account.domain.vo
 
-import jakarta.persistence.Column
 import jakarta.persistence.Embeddable
 import pizza.psycho.sos.identity.account.domain.exception.InvalidEmailException
 
 @Embeddable
 data class Email(
-    @Column(name = "email", nullable = false)
     val value: String = "",
 ) {
     companion object {

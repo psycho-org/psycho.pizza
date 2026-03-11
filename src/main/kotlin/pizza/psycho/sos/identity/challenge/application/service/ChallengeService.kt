@@ -3,6 +3,7 @@ package pizza.psycho.sos.identity.challenge.application.service
 import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.application.port.VerificationDelivery
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
 import pizza.psycho.sos.identity.challenge.application.service.dto.ConsumeTokenResult
@@ -29,9 +30,11 @@ class ChallengeService(
 ) {
     fun createChallenge(command: ChallengeCommand.Request): RequestChallengeResult {
         val now = Instant.now()
+        val email = Email.of(command.email)
+
         challengeRepository
-            .findByTargetEmailIgnoreCaseAndOperationTypeAndStatus(
-                targetEmail = command.email,
+            .findByTargetEmailValueIgnoreCaseAndOperationTypeAndStatus(
+                targetEmail = email.value,
                 operationType = command.operationType,
                 status = ChallengeStatus.PENDING,
             )?.let {
@@ -48,14 +51,15 @@ class ChallengeService(
         val challenge =
             Challenge.create(
                 operationType = command.operationType,
-                targetEmail = command.email,
+                targetEmail = email,
                 otpHash = otpHash,
                 expiresAt = now.plusSeconds(challengeProperties.otpTtlSeconds),
                 maxAttempts = challengeProperties.otpMaxAttempts,
             )
 
         val saved = challengeRepository.save(challenge)
-        verificationDelivery.sendOtp(command.email, otp, command.operationType)
+
+        verificationDelivery.sendOtp(email, otp, command.operationType)
 
         return RequestChallengeResult.Success(
             challengeId = requireNotNull(saved.id),

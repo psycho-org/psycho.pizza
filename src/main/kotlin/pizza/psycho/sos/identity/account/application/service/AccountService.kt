@@ -39,7 +39,7 @@ class AccountService(
             ) as? ConsumeTokenResult.Success
                 ?: return Register.Failure.InvalidConfirmationToken
 
-        val email = Email.of(tokenResult.targetEmail)
+        val email = tokenResult.targetEmail
         if (accountRepository.existsByEmailValueIgnoreCaseAndDeletedAtIsNull(email.value)) {
             return Register.Failure.EmailAlreadyRegistered
         }
@@ -104,7 +104,7 @@ class AccountService(
             accountRepository.findByIdAndDeletedAtIsNull(command.accountId)
                 ?: return UpdatePassword.Failure.AccountNotFound
 
-        if (account.email != Email.of(tokenResult.targetEmail)) {
+        if (account.email != tokenResult.targetEmail) {
             return UpdatePassword.Failure.InvalidConfirmationToken
         }
 
@@ -127,7 +127,7 @@ class AccountService(
             accountRepository.findByIdAndDeletedAtIsNull(command.accountId)
                 ?: return Withdraw.Failure.AccountNotFound
 
-        if (account.email != Email.of(tokenResult.targetEmail)) {
+        if (account.email != tokenResult.targetEmail) {
             return Withdraw.Failure.InvalidConfirmationToken
         }
 

@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
 import pizza.psycho.sos.identity.challenge.application.service.dto.RequestChallengeResult
@@ -94,7 +95,7 @@ class ChallengeControllerTests {
         ).thenReturn(
             VerifyOtpResult.Success(
                 confirmationTokenId = tokenId,
-                targetEmail = "user@psycho.pizza",
+                targetEmail = Email.of("user@psycho.pizza"),
             ),
         )
 
