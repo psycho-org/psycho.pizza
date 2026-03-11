@@ -70,6 +70,14 @@ class ChallengeService(
             challengeRepository.findByIdAndStatus(command.challengeId, ChallengeStatus.PENDING)
                 ?: return VerifyOtpResult.Failure.ChallengeNotFound
 
+        if (challenge.operationType != command.expectedOperationType) {
+            return VerifyOtpResult.Failure.OperationTypeMismatch
+        }
+
+        if (!requesterEmailMatches(command.requesterEmail, challenge.targetEmail)) {
+            return VerifyOtpResult.Failure.RequesterEmailMismatch
+        }
+
         if (challenge.isExpired()) {
             challenge.markExpired()
             return VerifyOtpResult.Failure.ChallengeExpired
@@ -114,4 +122,15 @@ class ChallengeService(
             operationType = command.operationType,
             now = Instant.now(),
         )
+
+    private fun requesterEmailMatches(
+        requesterEmail: String?,
+        targetEmail: Email,
+    ): Boolean {
+        if (requesterEmail == null) {
+            return true
+        }
+
+        return Email.of(requesterEmail) == targetEmail
+    }
 }
