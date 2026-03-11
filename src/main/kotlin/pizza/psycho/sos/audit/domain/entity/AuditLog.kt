@@ -25,11 +25,13 @@ class AuditLog(
     val targetId: UUID,
     @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false, length = 100, updatable = false)
-    val eventType: AuditEventType,
+    val auditEventType: AuditEventType,
     @Column(name = "from_value", columnDefinition = "TEXT", updatable = false)
     val fromValue: String?,
     @Column(name = "to_value", columnDefinition = "TEXT", updatable = false)
     val toValue: String?,
+    @Column(name = "event_id", nullable = false, updatable = false)
+    val eventId: UUID, // 동일한 요청/트랜잭션에서 발생한 로그들을 묶어주는 ID
     @Column(name = "occurred_at", nullable = false, updatable = false)
     val occurredAt: Instant,
 ) : BaseEntity()
