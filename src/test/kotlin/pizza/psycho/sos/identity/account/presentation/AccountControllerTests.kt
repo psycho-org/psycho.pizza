@@ -94,6 +94,7 @@ class AccountControllerTests {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"displayName":"invalid"}"""),
             ).andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("ACCOUNT_INVALID_DISPLAY_NAME"))
     }
 
     @Test
@@ -121,6 +122,7 @@ class AccountControllerTests {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"displayName":"Summer"}"""),
             ).andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_FOUND"))
     }
 
     @Test
@@ -177,10 +179,11 @@ class AccountControllerTests {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"confirmationTokenId":"00000000-0000-0000-0000-ffffffffffff","password":"wrong-password"}"""),
             ).andExpect(status().isUnauthorized)
+            .andExpect(jsonPath("$.code").value("ACCOUNT_INVALID_CREDENTIALS"))
     }
 
     @Test
-    fun `withdraw returns conflict when owner workspace exists`() {
+    fun `withdraw returns precondition failed when owner workspace exists`() {
         val principal =
             AuthenticatedAccountPrincipal(
                 accountId = UUID.fromString("00000000-0000-0000-0000-000000000833"),
@@ -204,6 +207,7 @@ class AccountControllerTests {
                     .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"confirmationTokenId":"00000000-0000-0000-0000-ffffffffffff","password":"Password123!"}"""),
-            ).andExpect(status().isConflict)
+            ).andExpect(status().isPreconditionFailed)
+            .andExpect(jsonPath("$.code").value("ACCOUNT_WITHDRAWAL_BLOCKED_BY_OWNED_WORKSPACE"))
     }
 }
