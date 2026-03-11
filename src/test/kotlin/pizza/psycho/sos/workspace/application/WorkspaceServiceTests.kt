@@ -77,6 +77,16 @@ class WorkspaceServiceTests {
         assertEquals(ownerAccountId, workspace.deletedBy)
     }
 
+    @Test
+    fun `existsActiveOwnerMembershipByAccountId - delegates to membership repository`() {
+        val accountId = UUID.randomUUID()
+        `when`(membershipRepository.existsActiveOwnerMembershipByAccountId(accountId)).thenReturn(true)
+
+        val result = service.existsActiveOwnerMembershipByAccountId(accountId)
+
+        assertTrue(result)
+    }
+
     private class FakeWorkspaceRepository : WorkspaceRepository {
         private val store = mutableMapOf<UUID, Workspace>()
         var lastSaved: Workspace? = null

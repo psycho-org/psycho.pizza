@@ -26,4 +26,18 @@ interface MembershipJpaRepository :
         @Param("workspaceId") workspaceId: UUID,
         @Param("accountId") accountId: UUID,
     ): Role?
+
+    @Query(
+        """
+        select case when count(m) > 0 then true else false end
+        from Membership m
+        where m.accountId = :accountId
+          and m.role = pizza.psycho.sos.workspace.domain.model.membership.Role.OWNER
+          and m.deletedAt is null
+          and m.workspace.deletedAt is null
+        """,
+    )
+    override fun existsActiveOwnerMembershipByAccountId(
+        @Param("accountId") accountId: UUID,
+    ): Boolean
 }

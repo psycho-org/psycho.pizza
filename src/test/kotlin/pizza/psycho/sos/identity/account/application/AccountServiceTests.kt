@@ -12,6 +12,7 @@ import org.mockito.Mockito.`when`
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.identity.account.application.service.AccountService
+import pizza.psycho.sos.identity.account.application.service.WorkspaceOwnershipQueryService
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
 import pizza.psycho.sos.identity.account.domain.Account
 import pizza.psycho.sos.identity.account.domain.vo.Email
@@ -35,7 +36,15 @@ class AccountServiceTests {
     private val passwordEncoder = mock(PasswordEncoder::class.java)
     private val refreshTokenService = mock(RefreshTokenService::class.java)
     private val challengeService = mock(ChallengeService::class.java)
-    private val accountService = AccountService(accountRepository, passwordEncoder, refreshTokenService, challengeService)
+    private val workspaceOwnershipQueryService = mock(WorkspaceOwnershipQueryService::class.java)
+    private val accountService =
+        AccountService(
+            accountRepository,
+            passwordEncoder,
+            refreshTokenService,
+            challengeService,
+            workspaceOwnershipQueryService,
+        )
 
     private val testTokenId: UUID = UUID.fromString("00000000-0000-0000-0000-ffffffffffff")
 
@@ -222,6 +231,7 @@ class AccountServiceTests {
 
         assertTrue(result is Withdraw.Failure.AccountNotFound)
         verifyNoInteractions(challengeService)
+        verifyNoInteractions(workspaceOwnershipQueryService)
         verify(
             passwordEncoder,
             never(),
@@ -346,6 +356,42 @@ class AccountServiceTests {
         assertTrue(result is Withdraw.Failure.InvalidCredentials)
         assertTrue(!token.used)
         verify(passwordEncoder).matches("WrongPassword!", "encoded-password")
+        verifyNoInteractions(workspaceOwnershipQueryService)
+        verify(accountRepository, never()).save(org.mockito.ArgumentMatchers.any(Account::class.java))
+        verify(refreshTokenService, never()).revokeAllByAccountId(accountId)
+    }
+
+    @Test
+    fun `withdraw returns owner workspace exists and leaves token unused`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000776")
+        val account =
+            Account
+                .create(
+                    email = Email.of("user@psycho.pizza"),
+                    passwordHash = "encoded-password",
+                    givenName = "Rick",
+                    familyName = "Sanchez",
+                ).also { it.id = accountId }
+        val command =
+            AccountCommand.Withdraw(
+                accountId = accountId,
+                confirmationTokenId = testTokenId,
+                password = "Password123!",
+            )
+        val token = usableToken(operationType = OperationType.WITHDRAW)
+
+        `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
+        `when`(
+            challengeService.acquireUsableToken(ChallengeCommand.AcquireToken(testTokenId, OperationType.WITHDRAW)),
+        ).thenReturn(token)
+        `when`(passwordEncoder.matches("Password123!", "encoded-password")).thenReturn(true)
+        `when`(workspaceOwnershipQueryService.existsActiveOwnerMembershipByAccountId(accountId)).thenReturn(true)
+
+        val result = accountService.withdraw(command)
+
+        assertTrue(result is Withdraw.Failure.OwnerWorkspaceExists)
+        assertTrue(!token.used)
+        verify(workspaceOwnershipQueryService).existsActiveOwnerMembershipByAccountId(accountId)
         verify(accountRepository, never()).save(org.mockito.ArgumentMatchers.any(Account::class.java))
         verify(refreshTokenService, never()).revokeAllByAccountId(accountId)
     }
@@ -374,6 +420,7 @@ class AccountServiceTests {
             challengeService.acquireUsableToken(ChallengeCommand.AcquireToken(testTokenId, OperationType.WITHDRAW)),
         ).thenReturn(token)
         `when`(passwordEncoder.matches("Password123!", "encoded-password")).thenReturn(true)
+        `when`(workspaceOwnershipQueryService.existsActiveOwnerMembershipByAccountId(accountId)).thenReturn(false)
 
         val result = accountService.withdraw(command)
 
@@ -381,6 +428,7 @@ class AccountServiceTests {
         assertTrue(account.isDeleted)
         assertEquals(accountId, account.deletedBy)
         assertTrue(token.used)
+        verify(workspaceOwnershipQueryService).existsActiveOwnerMembershipByAccountId(accountId)
         verify(accountRepository).save(account)
         verify(refreshTokenService).revokeAllByAccountId(accountId)
     }

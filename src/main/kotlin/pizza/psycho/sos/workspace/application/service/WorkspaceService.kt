@@ -4,6 +4,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import pizza.psycho.sos.common.handler.DomainException
+import pizza.psycho.sos.identity.account.application.service.WorkspaceOwnershipQueryService
 import pizza.psycho.sos.workspace.domain.model.membership.Membership
 import pizza.psycho.sos.workspace.domain.model.membership.Role
 import pizza.psycho.sos.workspace.domain.model.workspace.Workspace
@@ -15,7 +16,7 @@ import java.util.UUID
 class WorkspaceService(
     private val workspaceRepository: WorkspaceRepository,
     private val membershipRepository: MembershipRepository,
-) {
+) : WorkspaceOwnershipQueryService {
     @Transactional
     fun createWorkspace(
         name: String,
@@ -231,6 +232,10 @@ class WorkspaceService(
             throw DomainException(ex.message ?: "failed to remove member", ex)
         }
     }
+
+    @Transactional(readOnly = true)
+    override fun existsActiveOwnerMembershipByAccountId(accountId: UUID): Boolean =
+        membershipRepository.existsActiveOwnerMembershipByAccountId(accountId)
 
     private fun requireActiveWorkspace(workspaceId: UUID): Workspace =
         workspaceRepository.findActiveByIdOrNull(workspaceId)
