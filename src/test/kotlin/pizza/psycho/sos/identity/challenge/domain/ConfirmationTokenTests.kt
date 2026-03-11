@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import pizza.psycho.sos.identity.account.domain.vo.Email
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import java.time.Instant
 

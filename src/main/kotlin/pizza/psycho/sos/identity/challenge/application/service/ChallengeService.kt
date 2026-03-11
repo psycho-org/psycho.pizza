@@ -3,7 +3,7 @@ package pizza.psycho.sos.identity.challenge.application.service
 import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
-import pizza.psycho.sos.identity.account.domain.vo.Email
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.application.port.VerificationDelivery
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
 import pizza.psycho.sos.identity.challenge.application.service.dto.RequestChallengeResult

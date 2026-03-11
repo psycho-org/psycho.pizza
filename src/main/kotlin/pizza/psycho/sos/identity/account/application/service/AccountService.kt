@@ -3,9 +3,9 @@ package pizza.psycho.sos.identity.account.application.service
 import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
 import pizza.psycho.sos.identity.account.domain.Account
-import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
 import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
