@@ -14,7 +14,7 @@ sealed interface ChallengeCommand {
         val otpCode: String,
     ) : ChallengeCommand
 
-    data class ConsumeToken(
+    data class AcquireToken(
         val tokenId: UUID,
         val operationType: OperationType,
     ) : ChallengeCommand

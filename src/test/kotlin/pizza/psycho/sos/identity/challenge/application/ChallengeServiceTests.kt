@@ -14,7 +14,6 @@ import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.application.port.VerificationDelivery
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
-import pizza.psycho.sos.identity.challenge.application.service.dto.ConsumeTokenResult
 import pizza.psycho.sos.identity.challenge.application.service.dto.RequestChallengeResult
 import pizza.psycho.sos.identity.challenge.application.service.dto.VerifyOtpResult
 import pizza.psycho.sos.identity.challenge.config.ChallengeProperties
@@ -206,40 +205,29 @@ class ChallengeServiceTests {
     }
 
     @Test
-    fun `consumeToken rejects operation type mismatch`() {
+    fun `acquireUsableToken returns null when repository cannot find a usable token`() {
         val tokenId = UUID.fromString("00000000-0000-0000-0000-000000000020")
-        val challenge =
-            Challenge.create(
-                operationType = OperationType.REGISTER,
-                targetEmail = Email.of("user@psycho.pizza"),
-                otpHash = "hash",
-                expiresAt = Instant.now().plusSeconds(300),
-                maxAttempts = 3,
-            )
-        val token =
-            ConfirmationToken
-                .create(
-                    challenge = challenge,
-                    operationType = OperationType.REGISTER,
-                    targetEmail = Email.of("user@psycho.pizza"),
-                    expiresAt = Instant.now().plusSeconds(300),
-                ).also { it.id = tokenId }
-        `when`(confirmationTokenRepository.findByIdAndUsedFalse(tokenId)).thenReturn(token)
+        `when`(
+            confirmationTokenRepository.findUsableByIdAndOperationTypeForUpdate(
+                eqNonNull(tokenId),
+                eqNonNull(OperationType.WITHDRAW),
+                anyNonNull(),
+            ),
+        ).thenReturn(null)
 
         val result =
-            challengeService.consumeToken(
-                ChallengeCommand.ConsumeToken(
+            challengeService.acquireUsableToken(
+                ChallengeCommand.AcquireToken(
                     tokenId = tokenId,
                     operationType = OperationType.WITHDRAW,
                 ),
             )
 
-        assertEquals(ConsumeTokenResult.Failure.OperationTypeMismatch, result)
-        assertTrue(!token.used)
+        assertEquals(null, result)
     }
 
     @Test
-    fun `consumeToken marks token used and returns target email on success`() {
+    fun `acquireUsableToken returns locked token without consuming it`() {
         val tokenId = UUID.fromString("00000000-0000-0000-0000-000000000021")
         val challenge =
             Challenge.create(
@@ -257,18 +245,34 @@ class ChallengeServiceTests {
                     targetEmail = Email.of("user@psycho.pizza"),
                     expiresAt = Instant.now().plusSeconds(300),
                 ).also { it.id = tokenId }
-        `when`(confirmationTokenRepository.findByIdAndUsedFalse(tokenId)).thenReturn(token)
+        `when`(
+            confirmationTokenRepository.findUsableByIdAndOperationTypeForUpdate(
+                eqNonNull(tokenId),
+                eqNonNull(OperationType.CHANGE_PASSWORD),
+                anyNonNull(),
+            ),
+        ).thenReturn(token)
 
         val result =
-            challengeService.consumeToken(
-                ChallengeCommand.ConsumeToken(
+            challengeService.acquireUsableToken(
+                ChallengeCommand.AcquireToken(
                     tokenId = tokenId,
                     operationType = OperationType.CHANGE_PASSWORD,
                 ),
             )
 
-        assertTrue(result is ConsumeTokenResult.Success)
-        assertEquals(Email.of("user@psycho.pizza"), (result as ConsumeTokenResult.Success).targetEmail)
-        assertTrue(token.used)
+        assertEquals(token, result)
+        assertTrue(!token.used)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> anyNonNull(): T {
+        any<T>()
+        return null as T
+    }
+
+    private fun <T> eqNonNull(value: T): T {
+        org.mockito.Mockito.eq(value)
+        return value
     }
 }

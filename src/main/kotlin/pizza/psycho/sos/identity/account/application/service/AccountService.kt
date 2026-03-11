@@ -10,7 +10,6 @@ import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
 import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
-import pizza.psycho.sos.identity.challenge.application.service.dto.ConsumeTokenResult
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import java.util.UUID
 import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
@@ -35,13 +34,13 @@ class AccountService(
         val normalizedGivenName = normalizeName(command.firstName) ?: return Register.Failure.InvalidName
         val normalizedFamilyName = normalizeName(command.lastName) ?: return Register.Failure.InvalidName
 
-        val tokenResult =
-            challengeService.consumeToken(
-                ChallengeCommand.ConsumeToken(command.confirmationTokenId, OperationType.REGISTER),
-            ) as? ConsumeTokenResult.Success
+        val token =
+            challengeService.acquireUsableToken(
+                ChallengeCommand.AcquireToken(command.confirmationTokenId, OperationType.REGISTER),
+            )
                 ?: return Register.Failure.InvalidConfirmationToken
 
-        val email = tokenResult.targetEmail
+        val email = token.targetEmail
         if (accountRepository.existsByEmailValueIgnoreCaseAndDeletedAtIsNull(email.value)) {
             return Register.Failure.EmailAlreadyRegistered
         }
@@ -54,7 +53,8 @@ class AccountService(
                 familyName = normalizedFamilyName,
             )
 
-        val saved = accountRepository.save(account)
+        val saved = accountRepository.saveAndFlush(account)
+        token.consume()
 
         return Register.Success(
             email = saved.email.value,
@@ -79,17 +79,16 @@ class AccountService(
     }
 
     fun updatePassword(command: AccountCommand.Update.Password): UpdatePassword {
-        val tokenResult =
-            challengeService.consumeToken(
-                ChallengeCommand.ConsumeToken(command.confirmationTokenId, OperationType.CHANGE_PASSWORD),
-            ) as? ConsumeTokenResult.Success
-                ?: return UpdatePassword.Failure.InvalidConfirmationToken
-
         val account =
             accountRepository.findByIdAndDeletedAtIsNull(command.accountId)
                 ?: return UpdatePassword.Failure.AccountNotFound
 
-        if (account.email != tokenResult.targetEmail) {
+        val token =
+            challengeService.acquireUsableToken(
+                ChallengeCommand.AcquireToken(command.confirmationTokenId, OperationType.CHANGE_PASSWORD),
+            ) ?: return UpdatePassword.Failure.InvalidConfirmationToken
+
+        if (account.email != token.targetEmail) {
             return UpdatePassword.Failure.InvalidConfirmationToken
         }
 
@@ -98,21 +97,21 @@ class AccountService(
         }
 
         account.updatePasswordHash(passwordEncoder.encode(command.newPassword))
+        token.consume()
         return UpdatePassword.Success
     }
 
     fun withdraw(command: AccountCommand.Withdraw): Withdraw {
-        val tokenResult =
-            challengeService.consumeToken(
-                ChallengeCommand.ConsumeToken(command.confirmationTokenId, OperationType.WITHDRAW),
-            ) as? ConsumeTokenResult.Success
-                ?: return Withdraw.Failure.InvalidConfirmationToken
-
         val account =
             accountRepository.findByIdAndDeletedAtIsNull(command.accountId)
                 ?: return Withdraw.Failure.AccountNotFound
 
-        if (account.email != tokenResult.targetEmail) {
+        val token =
+            challengeService.acquireUsableToken(
+                ChallengeCommand.AcquireToken(command.confirmationTokenId, OperationType.WITHDRAW),
+            ) ?: return Withdraw.Failure.InvalidConfirmationToken
+
+        if (account.email != token.targetEmail) {
             return Withdraw.Failure.InvalidConfirmationToken
         }
 
@@ -128,6 +127,7 @@ class AccountService(
         account.delete(command.accountId)
         accountRepository.save(account)
         refreshTokenService.revokeAllByAccountId(command.accountId)
+        token.consume()
         return Withdraw.Success
     }
 

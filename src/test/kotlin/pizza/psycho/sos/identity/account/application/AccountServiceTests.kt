@@ -19,11 +19,14 @@ import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
 import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
-import pizza.psycho.sos.identity.challenge.application.service.dto.ConsumeTokenResult
+import pizza.psycho.sos.identity.challenge.domain.Challenge
+import pizza.psycho.sos.identity.challenge.domain.ConfirmationToken
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
+import java.time.Instant
 import java.util.UUID
 import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
 import pizza.psycho.sos.identity.account.application.service.dto.UpdateNameAccountResult as UpdateName
+import pizza.psycho.sos.identity.account.application.service.dto.UpdatePasswordAccountResult as UpdatePassword
 import pizza.psycho.sos.identity.account.application.service.dto.WithdrawAccountResult as Withdraw
 
 @ActiveProfiles("test")
@@ -61,14 +64,16 @@ class AccountServiceTests {
                 firstName = "First",
                 lastName = "Last",
             )
+        val token = usableToken(operationType = OperationType.REGISTER, email = "already@psycho.pizza")
 
         `when`(
-            challengeService.consumeToken(ChallengeCommand.ConsumeToken(testTokenId, OperationType.REGISTER)),
-        ).thenReturn(ConsumeTokenResult.Success(targetEmail = Email.of("already@psycho.pizza")))
+            challengeService.acquireUsableToken(ChallengeCommand.AcquireToken(testTokenId, OperationType.REGISTER)),
+        ).thenReturn(token)
         `when`(accountRepository.existsByEmailValueIgnoreCaseAndDeletedAtIsNull("already@psycho.pizza")).thenReturn(true)
 
         val result = accountService.register(command)
         assertTrue(result is Register.Failure.EmailAlreadyRegistered)
+        assertTrue(!token.used)
     }
 
     @Test
@@ -80,13 +85,14 @@ class AccountServiceTests {
                 firstName = " Rick ",
                 lastName = " Sanchez ",
             )
+        val token = usableToken(operationType = OperationType.REGISTER, email = "newuser@psycho.pizza")
 
         `when`(
-            challengeService.consumeToken(ChallengeCommand.ConsumeToken(testTokenId, OperationType.REGISTER)),
-        ).thenReturn(ConsumeTokenResult.Success(targetEmail = Email.of("newuser@psycho.pizza")))
+            challengeService.acquireUsableToken(ChallengeCommand.AcquireToken(testTokenId, OperationType.REGISTER)),
+        ).thenReturn(token)
         `when`(accountRepository.existsByEmailValueIgnoreCaseAndDeletedAtIsNull("newuser@psycho.pizza")).thenReturn(false)
         `when`(passwordEncoder.encode("Password123!")).thenReturn("encoded-password")
-        `when`(accountRepository.save(org.mockito.ArgumentMatchers.any(Account::class.java))).thenAnswer { invocation ->
+        `when`(accountRepository.saveAndFlush(org.mockito.ArgumentMatchers.any(Account::class.java))).thenAnswer { invocation ->
             val saved = invocation.getArgument<Account>(0)
             saved.id = UUID.fromString("00000000-0000-0000-0000-000000000111")
             saved
@@ -96,7 +102,7 @@ class AccountServiceTests {
         val registered = result as Register.Success
 
         val captor = ArgumentCaptor.forClass(Account::class.java)
-        verify(accountRepository).save(captor.capture())
+        verify(accountRepository).saveAndFlush(captor.capture())
         val saved = captor.value
         assertEquals("newuser@psycho.pizza", saved.email.value)
         assertEquals("encoded-password", saved.passwordHash)
@@ -105,6 +111,7 @@ class AccountServiceTests {
         assertEquals("newuser@psycho.pizza", registered.email)
         assertEquals("Rick", registered.givenName)
         assertEquals("Sanchez", registered.familyName)
+        assertTrue(token.used)
     }
 
     @Test
@@ -209,20 +216,104 @@ class AccountServiceTests {
                 password = "Password123!",
             )
 
-        `when`(
-            challengeService.consumeToken(ChallengeCommand.ConsumeToken(testTokenId, OperationType.WITHDRAW)),
-        ).thenReturn(ConsumeTokenResult.Success(targetEmail = Email.of("user@psycho.pizza")))
         `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(null)
 
         val result = accountService.withdraw(command)
 
         assertTrue(result is Withdraw.Failure.AccountNotFound)
+        verifyNoInteractions(challengeService)
         verify(
             passwordEncoder,
             never(),
         ).matches(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString())
         verify(accountRepository, never()).save(org.mockito.ArgumentMatchers.any(Account::class.java))
         verify(refreshTokenService, never()).revokeAllByAccountId(accountId)
+    }
+
+    @Test
+    fun `update password returns account not found failure before acquiring token`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000556")
+        val command =
+            AccountCommand.Update.Password(
+                accountId = accountId,
+                confirmationTokenId = testTokenId,
+                currentPassword = "Password123!",
+                newPassword = "NewPassword123!",
+            )
+
+        `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(null)
+
+        val result = accountService.updatePassword(command)
+
+        assertTrue(result is UpdatePassword.Failure.AccountNotFound)
+        verifyNoInteractions(challengeService)
+    }
+
+    @Test
+    fun `update password returns invalid credentials and leaves token unused`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000557")
+        val account =
+            Account
+                .create(
+                    email = Email.of("user@psycho.pizza"),
+                    passwordHash = "encoded-password",
+                    givenName = "Rick",
+                    familyName = "Sanchez",
+                ).also { it.id = accountId }
+        val token = usableToken(operationType = OperationType.CHANGE_PASSWORD)
+        val command =
+            AccountCommand.Update.Password(
+                accountId = accountId,
+                confirmationTokenId = testTokenId,
+                currentPassword = "WrongPassword!",
+                newPassword = "NewPassword123!",
+            )
+
+        `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
+        `when`(
+            challengeService.acquireUsableToken(ChallengeCommand.AcquireToken(testTokenId, OperationType.CHANGE_PASSWORD)),
+        ).thenReturn(token)
+        `when`(passwordEncoder.matches("WrongPassword!", "encoded-password")).thenReturn(false)
+
+        val result = accountService.updatePassword(command)
+
+        assertTrue(result is UpdatePassword.Failure.InvalidCredentials)
+        assertTrue(!token.used)
+        verify(passwordEncoder).matches("WrongPassword!", "encoded-password")
+    }
+
+    @Test
+    fun `update password updates password hash and consumes token on success`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000558")
+        val account =
+            Account
+                .create(
+                    email = Email.of("user@psycho.pizza"),
+                    passwordHash = "encoded-password",
+                    givenName = "Rick",
+                    familyName = "Sanchez",
+                ).also { it.id = accountId }
+        val token = usableToken(operationType = OperationType.CHANGE_PASSWORD)
+        val command =
+            AccountCommand.Update.Password(
+                accountId = accountId,
+                confirmationTokenId = testTokenId,
+                currentPassword = "Password123!",
+                newPassword = "NewPassword123!",
+            )
+
+        `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
+        `when`(
+            challengeService.acquireUsableToken(ChallengeCommand.AcquireToken(testTokenId, OperationType.CHANGE_PASSWORD)),
+        ).thenReturn(token)
+        `when`(passwordEncoder.matches("Password123!", "encoded-password")).thenReturn(true)
+        `when`(passwordEncoder.encode("NewPassword123!")).thenReturn("new-password-hash")
+
+        val result = accountService.updatePassword(command)
+
+        assertTrue(result is UpdatePassword.Success)
+        assertEquals("new-password-hash", account.passwordHash)
+        assertTrue(token.used)
     }
 
     @Test
@@ -242,16 +333,18 @@ class AccountServiceTests {
                 confirmationTokenId = testTokenId,
                 password = "WrongPassword!",
             )
+        val token = usableToken(operationType = OperationType.WITHDRAW)
 
-        `when`(
-            challengeService.consumeToken(ChallengeCommand.ConsumeToken(testTokenId, OperationType.WITHDRAW)),
-        ).thenReturn(ConsumeTokenResult.Success(targetEmail = Email.of("user@psycho.pizza")))
         `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
+        `when`(
+            challengeService.acquireUsableToken(ChallengeCommand.AcquireToken(testTokenId, OperationType.WITHDRAW)),
+        ).thenReturn(token)
         `when`(passwordEncoder.matches("WrongPassword!", "encoded-password")).thenReturn(false)
 
         val result = accountService.withdraw(command)
 
         assertTrue(result is Withdraw.Failure.InvalidCredentials)
+        assertTrue(!token.used)
         verify(passwordEncoder).matches("WrongPassword!", "encoded-password")
         verify(accountRepository, never()).save(org.mockito.ArgumentMatchers.any(Account::class.java))
         verify(refreshTokenService, never()).revokeAllByAccountId(accountId)
@@ -274,11 +367,12 @@ class AccountServiceTests {
                 confirmationTokenId = testTokenId,
                 password = "Password123!",
             )
+        val token = usableToken(operationType = OperationType.WITHDRAW)
 
-        `when`(
-            challengeService.consumeToken(ChallengeCommand.ConsumeToken(testTokenId, OperationType.WITHDRAW)),
-        ).thenReturn(ConsumeTokenResult.Success(targetEmail = Email.of("user@psycho.pizza")))
         `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
+        `when`(
+            challengeService.acquireUsableToken(ChallengeCommand.AcquireToken(testTokenId, OperationType.WITHDRAW)),
+        ).thenReturn(token)
         `when`(passwordEncoder.matches("Password123!", "encoded-password")).thenReturn(true)
 
         val result = accountService.withdraw(command)
@@ -286,7 +380,31 @@ class AccountServiceTests {
         assertTrue(result is Withdraw.Success)
         assertTrue(account.isDeleted)
         assertEquals(accountId, account.deletedBy)
+        assertTrue(token.used)
         verify(accountRepository).save(account)
         verify(refreshTokenService).revokeAllByAccountId(accountId)
+    }
+
+    private fun usableToken(
+        operationType: OperationType,
+        email: String = "user@psycho.pizza",
+        tokenId: UUID = testTokenId,
+    ): ConfirmationToken {
+        val challenge =
+            Challenge.create(
+                operationType = operationType,
+                targetEmail = Email.of(email),
+                otpHash = "otp-hash",
+                expiresAt = Instant.now().plusSeconds(300),
+                maxAttempts = 3,
+            )
+
+        return ConfirmationToken
+            .create(
+                challenge = challenge,
+                operationType = operationType,
+                targetEmail = Email.of(email),
+                expiresAt = Instant.now().plusSeconds(300),
+            ).also { it.id = tokenId }
     }
 }

@@ -25,7 +25,7 @@ class ConfirmationTokenRepositoryTests {
     private lateinit var confirmationTokenRepository: ConfirmationTokenRepository
 
     @Test
-    fun `findByIdAndUsedFalse returns token when it is unused`() {
+    fun `findUsableByIdAndOperationTypeForUpdate returns token when it is unused and valid`() {
         val challenge =
             challengeRepository.save(
                 Challenge.create(
@@ -46,14 +46,19 @@ class ConfirmationTokenRepositoryTests {
                 ),
             )
 
-        val found = confirmationTokenRepository.findByIdAndUsedFalse(savedToken.id())
+        val found =
+            confirmationTokenRepository.findUsableByIdAndOperationTypeForUpdate(
+                savedToken.id(),
+                OperationType.REGISTER,
+                Instant.now(),
+            )
 
         assertNotNull(found)
         assertEquals(savedToken.id(), found?.id())
     }
 
     @Test
-    fun `findByIdAndUsedFalse returns null after token is consumed`() {
+    fun `findUsableByIdAndOperationTypeForUpdate returns null after token is consumed`() {
         val challenge =
             challengeRepository.save(
                 Challenge.create(
@@ -76,7 +81,76 @@ class ConfirmationTokenRepositoryTests {
         token.consume()
         confirmationTokenRepository.save(token)
 
-        val found = confirmationTokenRepository.findByIdAndUsedFalse(token.id())
+        val found =
+            confirmationTokenRepository.findUsableByIdAndOperationTypeForUpdate(
+                token.id(),
+                OperationType.WITHDRAW,
+                Instant.now(),
+            )
+
+        assertNull(found)
+    }
+
+    @Test
+    fun `findUsableByIdAndOperationTypeForUpdate returns null when token is expired`() {
+        val challenge =
+            challengeRepository.save(
+                Challenge.create(
+                    operationType = OperationType.WITHDRAW,
+                    targetEmail = Email.of("user@psycho.pizza"),
+                    otpHash = "hash",
+                    expiresAt = Instant.now().plusSeconds(300),
+                    maxAttempts = 5,
+                ),
+            )
+        val token =
+            confirmationTokenRepository.save(
+                ConfirmationToken.create(
+                    challenge = challenge,
+                    operationType = OperationType.WITHDRAW,
+                    targetEmail = Email.of("user@psycho.pizza"),
+                    expiresAt = Instant.now().minusSeconds(1),
+                ),
+            )
+
+        val found =
+            confirmationTokenRepository.findUsableByIdAndOperationTypeForUpdate(
+                token.id(),
+                OperationType.WITHDRAW,
+                Instant.now(),
+            )
+
+        assertNull(found)
+    }
+
+    @Test
+    fun `findUsableByIdAndOperationTypeForUpdate returns null when operation type differs`() {
+        val challenge =
+            challengeRepository.save(
+                Challenge.create(
+                    operationType = OperationType.REGISTER,
+                    targetEmail = Email.of("user@psycho.pizza"),
+                    otpHash = "hash",
+                    expiresAt = Instant.now().plusSeconds(300),
+                    maxAttempts = 5,
+                ),
+            )
+        val token =
+            confirmationTokenRepository.save(
+                ConfirmationToken.create(
+                    challenge = challenge,
+                    operationType = OperationType.REGISTER,
+                    targetEmail = Email.of("user@psycho.pizza"),
+                    expiresAt = Instant.now().plusSeconds(300),
+                ),
+            )
+
+        val found =
+            confirmationTokenRepository.findUsableByIdAndOperationTypeForUpdate(
+                token.id(),
+                OperationType.WITHDRAW,
+                Instant.now(),
+            )
 
         assertNull(found)
     }
