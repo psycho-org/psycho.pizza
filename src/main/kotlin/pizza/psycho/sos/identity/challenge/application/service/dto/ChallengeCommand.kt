@@ -12,6 +12,8 @@ sealed interface ChallengeCommand {
     data class Verify(
         val challengeId: UUID,
         val otpCode: String,
+        val expectedOperationType: OperationType,
+        val requesterEmail: String?,
     ) : ChallengeCommand
 
     data class ConsumeToken(
