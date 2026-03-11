@@ -1,6 +1,6 @@
 package pizza.psycho.sos.identity.challenge.application.service.dto
 
-import pizza.psycho.sos.identity.account.domain.vo.Email
+import pizza.psycho.sos.common.domain.vo.Email
 import java.util.UUID
 
 sealed interface RequestChallengeResult {

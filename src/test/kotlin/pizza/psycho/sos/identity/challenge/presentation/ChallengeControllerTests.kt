@@ -15,7 +15,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
-import pizza.psycho.sos.identity.account.domain.vo.Email
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
 import pizza.psycho.sos.identity.challenge.application.service.dto.RequestChallengeResult
@@ -79,6 +79,7 @@ class ChallengeControllerTests {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"email":"user@psycho.pizza"}"""),
             ).andExpect(status().isTooManyRequests)
+            .andExpect(jsonPath("$.code").value("CHALLENGE_OTP_COOLDOWN_ACTIVE"))
     }
 
     @Test
@@ -131,6 +132,7 @@ class ChallengeControllerTests {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"challengeId":"$challengeId","otpCode":"000000"}"""),
             ).andExpect(status().isUnauthorized)
+            .andExpect(jsonPath("$.code").value("CHALLENGE_INVALID_OTP"))
     }
 
     @Test
