@@ -13,14 +13,12 @@ import pizza.psycho.sos.common.event.DomainEvent
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.task.domain.model.vo.AssigneeId
+import pizza.psycho.sos.project.task.domain.model.vo.Priority
 import pizza.psycho.sos.project.task.domain.model.vo.Status
 import pizza.psycho.sos.project.task.domain.model.vo.TaskDueDate
 import java.time.Instant
 import java.util.UUID
 
-/*
- * todo: task의 우선순위 추가
- */
 @Entity
 @Table(name = "tasks")
 class Task protected constructor(
@@ -37,6 +35,8 @@ class Task protected constructor(
     val workspaceId: WorkspaceId,
     @Embedded
     var dueDate: TaskDueDate = TaskDueDate(),
+    @Enumerated(EnumType.STRING)
+    var priority: Priority? = null,
 ) : BaseDeletableEntity(),
     AggregateRoot {
     val taskId: UUID

@@ -1,0 +1,1 @@
+ALTER TABLE task ADD COLUMN priority VARCHAR(20) NULL;
