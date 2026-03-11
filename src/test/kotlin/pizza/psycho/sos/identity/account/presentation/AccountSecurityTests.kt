@@ -10,7 +10,6 @@ import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.identity.account.application.service.AccountService
@@ -40,12 +39,12 @@ class AccountSecurityTests {
     private lateinit var challengeService: ChallengeService
 
     @Test
-    fun `update display name requires authentication`() {
+    fun `update name requires authentication`() {
         mockMvc
             .perform(
-                patch("/api/v1/accounts/me/update/display-name")
+                post("/api/v1/accounts/me/update/name")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"displayName":"Summer"}"""),
+                    .content("""{"givenName":"Summer","familyName":"Smith"}"""),
             ).andExpect(status().isUnauthorized)
     }
 
@@ -63,7 +62,8 @@ class AccountSecurityTests {
         ).thenReturn(
             Register.Success(
                 email = "user@psycho.pizza",
-                displayName = "Rick Sanchez",
+                givenName = "Rick",
+                familyName = "Sanchez",
             ),
         )
 

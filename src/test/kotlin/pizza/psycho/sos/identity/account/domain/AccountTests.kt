@@ -24,34 +24,6 @@ class AccountTests {
     }
 
     @Test
-    fun `create builds display name from given and family names`() {
-        val account =
-            Account.create(
-                email = Email.of("user@psycho.pizza"),
-                passwordHash = "encoded-password",
-                givenName = "Rick",
-                familyName = "Sanchez",
-            )
-
-        assertEquals("Rick Sanchez", account.displayName)
-    }
-
-    @Test
-    fun `update display name changes display name`() {
-        val account =
-            Account.create(
-                email = Email.of("user@psycho.pizza"),
-                passwordHash = "encoded-password",
-                givenName = "Rick",
-                familyName = "Sanchez",
-            )
-
-        account.updateDisplayName("Pickle Rick")
-
-        assertEquals("Pickle Rick", account.displayName)
-    }
-
-    @Test
     fun `update name changes given name and family name`() {
         val account =
             Account.create(

@@ -2,7 +2,6 @@ package pizza.psycho.sos.identity.account.presentation
 
 import jakarta.validation.Valid
 import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -17,7 +16,6 @@ import pizza.psycho.sos.identity.account.presentation.dto.AccountRequest
 import pizza.psycho.sos.identity.account.presentation.dto.AccountResponse
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
-import pizza.psycho.sos.identity.account.application.service.dto.UpdateDisplayNameAccountResult as DisplayName
 import pizza.psycho.sos.identity.account.application.service.dto.UpdateNameAccountResult as Name
 import pizza.psycho.sos.identity.account.application.service.dto.UpdatePasswordAccountResult as Password
 import pizza.psycho.sos.identity.account.application.service.dto.WithdrawAccountResult as Withdraw
@@ -38,19 +36,6 @@ class AccountController(
                     password = request.password,
                     firstName = request.givenName,
                     lastName = request.familyName,
-                ),
-            ).toApiResponse()
-
-    @PatchMapping("/me/update/display-name")
-    fun updateDisplayName(
-        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
-        @Valid @RequestBody request: AccountRequest.Update.DisplayName,
-    ): ApiResponse<AccountResponse.Updated> =
-        accountService
-            .updateDisplayName(
-                AccountCommand.Update.DisplayName(
-                    accountId = principal.accountId,
-                    displayName = request.displayName,
                 ),
             ).toApiResponse()
 
@@ -104,26 +89,14 @@ class AccountController(
                     data =
                         AccountResponse.Registered(
                             email = email,
-                            displayName = displayName,
+                            givenName = givenName,
+                            familyName = familyName,
                         ),
                 )
 
             Register.Failure.EmailAlreadyRegistered -> throw DomainException(AccountErrorCode.ACCOUNT_EMAIL_ALREADY_REGISTERED)
             Register.Failure.InvalidConfirmationToken -> throw DomainException(AccountErrorCode.ACCOUNT_INVALID_CONFIRMATION_TOKEN)
-        }
-
-    private fun DisplayName.toApiResponse(): ApiResponse<AccountResponse.Updated.DisplayName> =
-        when (this) {
-            is DisplayName.Success ->
-                responseOf(
-                    data =
-                        AccountResponse.Updated.DisplayName(
-                            displayName = displayName,
-                        ),
-                )
-
-            DisplayName.Failure.AccountNotFound -> throw DomainException(AccountErrorCode.ACCOUNT_NOT_FOUND)
-            DisplayName.Failure.InvalidDisplayName -> throw DomainException(AccountErrorCode.ACCOUNT_INVALID_DISPLAY_NAME)
+            Register.Failure.InvalidName -> throw DomainException(AccountErrorCode.ACCOUNT_INVALID_NAME)
         }
 
     private fun Name.toApiResponse(): ApiResponse<AccountResponse.Updated.Name> {
@@ -131,7 +104,7 @@ class AccountController(
             is Name.Success -> return responseOf(AccountResponse.Updated.Name)
 
             Name.Failure.AccountNotFound -> throw DomainException(AccountErrorCode.ACCOUNT_NOT_FOUND)
-            Name.Failure.InvalidDisplayName -> throw DomainException(AccountErrorCode.ACCOUNT_INVALID_DISPLAY_NAME)
+            Name.Failure.InvalidName -> throw DomainException(AccountErrorCode.ACCOUNT_INVALID_NAME)
         }
     }
 

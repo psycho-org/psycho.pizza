@@ -11,11 +11,6 @@ sealed interface AccountCommand {
     ) : AccountCommand
 
     sealed interface Update {
-        data class DisplayName(
-            val accountId: UUID,
-            val displayName: String,
-        ) : Update
-
         data class Name(
             val accountId: UUID,
             val givenName: String,

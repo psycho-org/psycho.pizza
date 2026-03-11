@@ -21,11 +21,6 @@ sealed interface AccountRequest {
     )
 
     sealed interface Update : AccountRequest {
-        data class DisplayName(
-            @field:NotBlank
-            val displayName: String,
-        ) : Update
-
         data class Name(
             @field:NotBlank
             val givenName: String,
