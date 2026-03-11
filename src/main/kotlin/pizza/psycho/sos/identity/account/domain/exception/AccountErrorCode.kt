@@ -9,11 +9,12 @@ enum class AccountErrorCode(
 ) : BaseErrorCode {
     ACCOUNT_EMAIL_ALREADY_REGISTERED(HttpStatus.CONFLICT, "Email already registered"),
     ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "Account not found"),
+    ACCOUNT_INVALID_NAME(HttpStatus.BAD_REQUEST, "Invalid name"),
     ACCOUNT_INVALID_DISPLAY_NAME(HttpStatus.BAD_REQUEST, "Invalid display name"),
     ACCOUNT_INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Invalid credentials"),
     ACCOUNT_INVALID_CONFIRMATION_TOKEN(HttpStatus.UNAUTHORIZED, "Invalid or expired confirmation token"),
     ACCOUNT_WITHDRAWAL_BLOCKED_BY_OWNED_WORKSPACE(
-        HttpStatus.PRECONDITION_FAILED,
+        HttpStatus.CONFLICT,
         "Transfer ownership or delete owned workspaces before withdrawing",
     ),
     ;
