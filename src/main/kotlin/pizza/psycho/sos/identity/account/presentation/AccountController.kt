@@ -1,18 +1,18 @@
 package pizza.psycho.sos.identity.account.presentation
 
 import jakarta.validation.Valid
-import org.springframework.http.HttpStatus
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.web.server.ResponseStatusException
+import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.response.ApiResponse
 import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.identity.account.application.service.AccountService
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
+import pizza.psycho.sos.identity.account.domain.exception.AccountErrorCode
 import pizza.psycho.sos.identity.account.presentation.dto.AccountRequest
 import pizza.psycho.sos.identity.account.presentation.dto.AccountResponse
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
@@ -108,15 +108,8 @@ class AccountController(
                         ),
                 )
 
-            Register.Failure.EmailAlreadyRegistered -> throw ResponseStatusException(
-                HttpStatus.CONFLICT,
-                "Email already registered",
-            )
-
-            Register.Failure.InvalidConfirmationToken -> throw ResponseStatusException(
-                HttpStatus.UNAUTHORIZED,
-                "Invalid or expired confirmation token",
-            )
+            Register.Failure.EmailAlreadyRegistered -> throw DomainException(AccountErrorCode.ACCOUNT_EMAIL_ALREADY_REGISTERED)
+            Register.Failure.InvalidConfirmationToken -> throw DomainException(AccountErrorCode.ACCOUNT_INVALID_CONFIRMATION_TOKEN)
         }
 
     private fun DisplayName.toApiResponse(): ApiResponse<AccountResponse.Updated.DisplayName> =
@@ -129,30 +122,16 @@ class AccountController(
                         ),
                 )
 
-            DisplayName.Failure.AccountNotFound -> throw ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Account not found",
-            )
-
-            DisplayName.Failure.InvalidDisplayName -> throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Invalid display name",
-            )
+            DisplayName.Failure.AccountNotFound -> throw DomainException(AccountErrorCode.ACCOUNT_NOT_FOUND)
+            DisplayName.Failure.InvalidDisplayName -> throw DomainException(AccountErrorCode.ACCOUNT_INVALID_DISPLAY_NAME)
         }
 
     private fun Name.toApiResponse(): ApiResponse<AccountResponse.Updated.Name> {
         when (this) {
             is Name.Success -> return responseOf(AccountResponse.Updated.Name)
 
-            Name.Failure.AccountNotFound -> throw ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Account not found",
-            )
-
-            Name.Failure.InvalidDisplayName -> throw ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Invalid display name",
-            )
+            Name.Failure.AccountNotFound -> throw DomainException(AccountErrorCode.ACCOUNT_NOT_FOUND)
+            Name.Failure.InvalidDisplayName -> throw DomainException(AccountErrorCode.ACCOUNT_INVALID_DISPLAY_NAME)
         }
     }
 
@@ -160,20 +139,9 @@ class AccountController(
         when (this) {
             is Password.Success -> return responseOf(AccountResponse.Updated.Password)
 
-            Password.Failure.AccountNotFound -> throw ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Account not found",
-            )
-
-            Password.Failure.InvalidCredentials -> throw ResponseStatusException(
-                HttpStatus.UNAUTHORIZED,
-                "Invalid credentials",
-            )
-
-            Password.Failure.InvalidConfirmationToken -> throw ResponseStatusException(
-                HttpStatus.UNAUTHORIZED,
-                "Invalid or expired confirmation token",
-            )
+            Password.Failure.AccountNotFound -> throw DomainException(AccountErrorCode.ACCOUNT_NOT_FOUND)
+            Password.Failure.InvalidCredentials -> throw DomainException(AccountErrorCode.ACCOUNT_INVALID_CREDENTIALS)
+            Password.Failure.InvalidConfirmationToken -> throw DomainException(AccountErrorCode.ACCOUNT_INVALID_CONFIRMATION_TOKEN)
         }
     }
 
@@ -182,24 +150,10 @@ class AccountController(
             is Withdraw.Success ->
                 responseOf(AccountResponse.Withdrawn)
 
-            Withdraw.Failure.AccountNotFound -> throw ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Account not found",
-            )
-
-            Withdraw.Failure.InvalidCredentials -> throw ResponseStatusException(
-                HttpStatus.UNAUTHORIZED,
-                "Invalid credentials",
-            )
-
-            Withdraw.Failure.OwnerWorkspaceExists -> throw ResponseStatusException(
-                HttpStatus.CONFLICT,
-                "Transfer ownership or delete owned workspaces before withdrawing",
-            )
-
-            Withdraw.Failure.InvalidConfirmationToken -> throw ResponseStatusException(
-                HttpStatus.UNAUTHORIZED,
-                "Invalid or expired confirmation token",
-            )
+            Withdraw.Failure.AccountNotFound -> throw DomainException(AccountErrorCode.ACCOUNT_NOT_FOUND)
+            Withdraw.Failure.InvalidCredentials -> throw DomainException(AccountErrorCode.ACCOUNT_INVALID_CREDENTIALS)
+            Withdraw.Failure.OwnerWorkspaceExists ->
+                throw DomainException(AccountErrorCode.ACCOUNT_WITHDRAWAL_BLOCKED_BY_OWNED_WORKSPACE)
+            Withdraw.Failure.InvalidConfirmationToken -> throw DomainException(AccountErrorCode.ACCOUNT_INVALID_CONFIRMATION_TOKEN)
         }
 }
