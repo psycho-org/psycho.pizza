@@ -10,8 +10,8 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.common.entity.BaseEntity
-import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import java.time.Instant
 import java.util.UUID
