@@ -73,4 +73,42 @@ class AccountRepositoryTests {
         assertEquals("user@psycho.pizza", account.email.value)
         assertFalse(account.isDeleted)
     }
+
+    @Test
+    fun `findActivePrincipalViewById returns minimum principal fields for active account`() {
+        val saved =
+            accountRepository.save(
+                Account.create(
+                    email = Email.of("user@psycho.pizza"),
+                    passwordHash = "encoded-password",
+                    givenName = "Rick",
+                    familyName = "Sanchez",
+                ),
+            )
+
+        val found = accountRepository.findActivePrincipalViewById(requireNotNull(saved.id))
+
+        val principalView = requireNotNull(found)
+        assertEquals(saved.id, principalView.accountId)
+        assertEquals("user@psycho.pizza", principalView.email)
+    }
+
+    @Test
+    fun `findActivePrincipalViewById returns null for soft deleted account`() {
+        val account =
+            accountRepository.save(
+                Account.create(
+                    email = Email.of("deleted@psycho.pizza"),
+                    passwordHash = "encoded-password",
+                    givenName = "Rick",
+                    familyName = "Sanchez",
+                ),
+            )
+        account.delete(UUID.fromString("00000000-0000-0000-0000-000000000998"))
+        accountRepository.save(account)
+
+        val found = accountRepository.findActivePrincipalViewById(requireNotNull(account.id))
+
+        assertNull(found)
+    }
 }

@@ -18,6 +18,7 @@ import pizza.psycho.sos.identity.authentication.application.service.AuthService
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthQuery
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthResult
 import pizza.psycho.sos.identity.security.config.JwtProperties
+import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryService
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import java.util.UUID
 
@@ -36,6 +37,9 @@ class AuthControllerTests {
 
     @MockitoBean
     private lateinit var accessTokenProvider: AccessTokenProvider
+
+    @MockitoBean
+    private lateinit var activeAccountPrincipalQueryService: ActiveAccountPrincipalQueryService
 
     @Test
     fun `login returns authenticated payload and refresh cookie`() {

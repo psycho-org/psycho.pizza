@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.identity.account.application.service.AccountService
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
+import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryService
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import java.util.UUID
@@ -36,6 +37,9 @@ class AccountControllerTests {
 
     @MockitoBean
     private lateinit var accessTokenProvider: AccessTokenProvider
+
+    @MockitoBean
+    private lateinit var activeAccountPrincipalQueryService: ActiveAccountPrincipalQueryService
 
     @Test
     fun `register returns email and name fields from service payload`() {

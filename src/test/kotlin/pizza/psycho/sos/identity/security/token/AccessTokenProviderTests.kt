@@ -8,7 +8,6 @@ import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.identity.account.domain.Account
 import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.security.config.JwtProperties
-import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.util.Date
@@ -25,7 +24,7 @@ class AccessTokenProviderTests {
     private val accessTokenProvider = AccessTokenProvider(properties)
 
     @Test
-    fun `issueAccessToken creates token that can be parsed into authentication`() {
+    fun `issueAccessToken creates token that can be parsed into claims`() {
         val account =
             Account.Companion
                 .create(
@@ -38,23 +37,22 @@ class AccessTokenProviderTests {
                 }
 
         val accessToken = accessTokenProvider.issueAccessToken(account)
-        val authentication = accessTokenProvider.toAuthentication(accessToken)
+        val claims = accessTokenProvider.parse(accessToken)
 
-        Assertions.assertNotNull(authentication)
-        val principal = authentication!!.principal as AuthenticatedAccountPrincipal
-        Assertions.assertEquals("00000000-0000-0000-0000-000000000222", principal.accountId.toString())
-        Assertions.assertEquals("user@psycho.pizza", principal.email)
+        Assertions.assertNotNull(claims)
+        Assertions.assertEquals("00000000-0000-0000-0000-000000000222", claims!!.accountId.toString())
+        Assertions.assertEquals("user@psycho.pizza", claims.email)
     }
 
     @Test
-    fun `toAuthentication returns null for malformed token`() {
-        val authentication = accessTokenProvider.toAuthentication("not-a-jwt")
+    fun `parse returns null for malformed token`() {
+        val claims = accessTokenProvider.parse("not-a-jwt")
 
-        Assertions.assertNull(authentication)
+        Assertions.assertNull(claims)
     }
 
     @Test
-    fun `toAuthentication returns null when issuer does not match`() {
+    fun `parse returns null when issuer does not match`() {
         val forgedToken =
             Jwts
                 .builder()
@@ -66,8 +64,8 @@ class AccessTokenProviderTests {
                 .signWith(Keys.hmacShaKeyFor(properties.secret.toByteArray(StandardCharsets.UTF_8)))
                 .compact()
 
-        val authentication = accessTokenProvider.toAuthentication(forgedToken)
+        val claims = accessTokenProvider.parse(forgedToken)
 
-        Assertions.assertNull(authentication)
+        Assertions.assertNull(claims)
     }
 }
