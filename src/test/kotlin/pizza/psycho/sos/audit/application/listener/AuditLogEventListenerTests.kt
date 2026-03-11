@@ -1,6 +1,7 @@
 package pizza.psycho.sos.audit.application.listener
 
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.within
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -14,6 +15,7 @@ import pizza.psycho.sos.audit.application.listener.event.TaskStatusChangedEvent
 import pizza.psycho.sos.audit.domain.vo.AuditEventType
 import pizza.psycho.sos.audit.domain.vo.AuditTargetType
 import pizza.psycho.sos.audit.infrastructure.persistence.AuditLogRepository
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 @SpringBootTest
@@ -70,7 +72,8 @@ class AuditLogEventListenerTests {
         assertThat(actual.fromValue).isEqualTo("TODO")
         assertThat(actual.toValue).isEqualTo("IN_PROGRESS")
         assertThat(actual.actorId).isEqualTo(actorId)
-        assertThat(actual.occurredAt).isEqualTo(event.occurredAt)
+        // NOTE: DB 저장 시 시간 정밀도(나노초)가 잘리면서 CI/CD에서 간헐적으로 실패하는 것을 방지합니다.
+        assertThat(actual.occurredAt).isCloseTo(event.occurredAt, within(1, ChronoUnit.SECONDS))
     }
 
     @Test
