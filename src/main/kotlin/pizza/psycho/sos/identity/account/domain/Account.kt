@@ -28,10 +28,6 @@ class Account protected constructor() : BaseDeletableEntity() {
     var familyName: String = ""
         protected set
 
-    @Column(name = "display_name", nullable = false)
-    var displayName: String = ""
-        protected set
-
     companion object {
         fun create(
             email: Email,
@@ -44,12 +40,7 @@ class Account protected constructor() : BaseDeletableEntity() {
                 this.passwordHash = passwordHash
                 this.givenName = givenName
                 this.familyName = familyName
-                this.displayName = "$givenName $familyName"
             }
-    }
-
-    fun updateDisplayName(displayName: String) {
-        this.displayName = displayName
     }
 
     fun updateName(

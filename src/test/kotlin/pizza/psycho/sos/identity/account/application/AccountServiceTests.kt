@@ -7,6 +7,7 @@ import org.mockito.ArgumentCaptor
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.test.context.ActiveProfiles
@@ -22,7 +23,7 @@ import pizza.psycho.sos.identity.challenge.application.service.dto.ConsumeTokenR
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import java.util.UUID
 import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
-import pizza.psycho.sos.identity.account.application.service.dto.UpdateDisplayNameAccountResult as UpdateDisplayName
+import pizza.psycho.sos.identity.account.application.service.dto.UpdateNameAccountResult as UpdateName
 import pizza.psycho.sos.identity.account.application.service.dto.WithdrawAccountResult as Withdraw
 
 @ActiveProfiles("test")
@@ -34,6 +35,22 @@ class AccountServiceTests {
     private val accountService = AccountService(accountRepository, passwordEncoder, refreshTokenService, challengeService)
 
     private val testTokenId: UUID = UUID.fromString("00000000-0000-0000-0000-ffffffffffff")
+
+    @Test
+    fun `register returns invalid name failure when given name is blank after trim`() {
+        val command =
+            AccountCommand.Register(
+                confirmationTokenId = testTokenId,
+                password = "Password123!",
+                firstName = "   ",
+                lastName = "Last",
+            )
+
+        val result = accountService.register(command)
+
+        assertTrue(result is Register.Failure.InvalidName)
+        verifyNoInteractions(challengeService)
+    }
 
     @Test
     fun `register returns email already registered failure when email already exists`() {
@@ -85,13 +102,13 @@ class AccountServiceTests {
         assertEquals("encoded-password", saved.passwordHash)
         assertEquals("Rick", saved.givenName)
         assertEquals("Sanchez", saved.familyName)
-        assertEquals("Rick Sanchez", saved.displayName)
         assertEquals("newuser@psycho.pizza", registered.email)
-        assertEquals("Rick Sanchez", registered.displayName)
+        assertEquals("Rick", registered.givenName)
+        assertEquals("Sanchez", registered.familyName)
     }
 
     @Test
-    fun `update display name trims and updates account`() {
+    fun `update name trims and updates account`() {
         val accountId = UUID.fromString("00000000-0000-0000-0000-000000000111")
         val account =
             Account
@@ -102,94 +119,84 @@ class AccountServiceTests {
                     familyName = "Sanchez",
                 ).also { it.id = accountId }
         val command =
-            AccountCommand.Update.DisplayName(
+            AccountCommand.Update.Name(
                 accountId = accountId,
-                displayName = "  Pickle Rick  ",
+                givenName = "  Morty  ",
+                familyName = "  Smith  ",
             )
 
         `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
 
-        val result = accountService.updateDisplayName(command)
+        val result = accountService.updateName(command)
 
         assertEquals(
-            UpdateDisplayName.Success(
-                displayName = "Pickle Rick",
+            UpdateName.Success(
+                givenName = "Morty",
+                familyName = "Smith",
             ),
             result,
         )
-        assertEquals("Pickle Rick", account.displayName)
+        assertEquals("Morty", account.givenName)
+        assertEquals("Smith", account.familyName)
     }
 
     @Test
-    fun `update display name returns invalid display name failure for blank input`() {
+    fun `update name returns invalid name failure for blank input`() {
         val command =
-            AccountCommand.Update.DisplayName(
+            AccountCommand.Update.Name(
                 accountId = UUID.fromString("00000000-0000-0000-0000-000000000111"),
-                displayName = "   ",
+                givenName = "   ",
+                familyName = "Smith",
             )
 
-        val result = accountService.updateDisplayName(command)
+        val result = accountService.updateName(command)
 
-        assertTrue(result is UpdateDisplayName.Failure.InvalidDisplayName)
+        assertTrue(result is UpdateName.Failure.InvalidName)
     }
 
     @Test
-    fun `update display name returns account not found failure`() {
+    fun `update name returns invalid name failure when trimmed length exceeds 64`() {
+        val command =
+            AccountCommand.Update.Name(
+                accountId = UUID.fromString("00000000-0000-0000-0000-000000000222"),
+                givenName = "a".repeat(65),
+                familyName = "Smith",
+            )
+
+        val result = accountService.updateName(command)
+
+        assertTrue(result is UpdateName.Failure.InvalidName)
+    }
+
+    @Test
+    fun `update name returns invalid name failure when input contains ISO control characters`() {
+        val command =
+            AccountCommand.Update.Name(
+                accountId = UUID.fromString("00000000-0000-0000-0000-000000000333"),
+                givenName = "Rick\u0000",
+                familyName = "Smith",
+            )
+
+        val result = accountService.updateName(command)
+
+        assertTrue(result is UpdateName.Failure.InvalidName)
+    }
+
+    @Test
+    fun `update name returns account not found failure`() {
         val accountId = UUID.fromString("00000000-0000-0000-0000-000000000222")
         val command =
-            AccountCommand.Update.DisplayName(
+            AccountCommand.Update.Name(
                 accountId = accountId,
-                displayName = "Summer",
+                givenName = "Summer",
+                familyName = "Smith",
             )
 
         `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(null)
 
-        val result = accountService.updateDisplayName(command)
+        val result = accountService.updateName(command)
 
-        assertTrue(result is UpdateDisplayName.Failure.AccountNotFound)
-    }
-
-    @Test
-    fun `update display name accepts input longer than 40 only when trimmed value is within range`() {
-        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000333")
-        val account =
-            Account
-                .create(
-                    email = Email.of("user@psycho.pizza"),
-                    passwordHash = "encoded-password",
-                    givenName = "Rick",
-                    familyName = "Sanchez",
-                ).also { it.id = accountId }
-        val validTrimmedDisplayName = "a".repeat(40)
-        val command =
-            AccountCommand.Update.DisplayName(
-                accountId = accountId,
-                displayName = "  $validTrimmedDisplayName  ",
-            )
-
-        `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
-
-        val result = accountService.updateDisplayName(command)
-
-        assertEquals(
-            UpdateDisplayName.Success(
-                displayName = validTrimmedDisplayName,
-            ),
-            result,
-        )
-    }
-
-    @Test
-    fun `update display name returns invalid display name failure when trimmed length exceeds 64`() {
-        val command =
-            AccountCommand.Update.DisplayName(
-                accountId = UUID.fromString("00000000-0000-0000-0000-000000000444"),
-                displayName = "a".repeat(65),
-            )
-
-        val result = accountService.updateDisplayName(command)
-
-        assertTrue(result is UpdateDisplayName.Failure.InvalidDisplayName)
+        assertTrue(result is UpdateName.Failure.AccountNotFound)
     }
 
     @Test

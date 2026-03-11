@@ -3,25 +3,16 @@ package pizza.psycho.sos.identity.account.application.service.dto
 sealed interface RegisterAccountResult {
     data class Success(
         val email: String,
-        val displayName: String,
+        val givenName: String,
+        val familyName: String,
     ) : RegisterAccountResult
 
     sealed interface Failure : RegisterAccountResult {
         data object EmailAlreadyRegistered : Failure
 
         data object InvalidConfirmationToken : Failure
-    }
-}
 
-sealed interface UpdateDisplayNameAccountResult {
-    data class Success(
-        val displayName: String,
-    ) : UpdateDisplayNameAccountResult
-
-    sealed interface Failure : UpdateDisplayNameAccountResult {
-        data object AccountNotFound : Failure
-
-        data object InvalidDisplayName : Failure
+        data object InvalidName : Failure
     }
 }
 
@@ -34,7 +25,7 @@ sealed interface UpdateNameAccountResult {
     sealed interface Failure : UpdateNameAccountResult {
         data object AccountNotFound : Failure
 
-        data object InvalidDisplayName : Failure
+        data object InvalidName : Failure
     }
 }
 

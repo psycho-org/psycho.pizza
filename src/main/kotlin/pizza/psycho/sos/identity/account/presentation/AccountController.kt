@@ -3,7 +3,6 @@ package pizza.psycho.sos.identity.account.presentation
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -17,7 +16,6 @@ import pizza.psycho.sos.identity.account.presentation.dto.AccountRequest
 import pizza.psycho.sos.identity.account.presentation.dto.AccountResponse
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
-import pizza.psycho.sos.identity.account.application.service.dto.UpdateDisplayNameAccountResult as DisplayName
 import pizza.psycho.sos.identity.account.application.service.dto.UpdateNameAccountResult as Name
 import pizza.psycho.sos.identity.account.application.service.dto.UpdatePasswordAccountResult as Password
 import pizza.psycho.sos.identity.account.application.service.dto.WithdrawAccountResult as Withdraw
@@ -38,19 +36,6 @@ class AccountController(
                     password = request.password,
                     firstName = request.givenName,
                     lastName = request.familyName,
-                ),
-            ).toApiResponse()
-
-    @PatchMapping("/me/update/display-name")
-    fun updateDisplayName(
-        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
-        @Valid @RequestBody request: AccountRequest.Update.DisplayName,
-    ): ApiResponse<AccountResponse.Updated> =
-        accountService
-            .updateDisplayName(
-                AccountCommand.Update.DisplayName(
-                    accountId = principal.accountId,
-                    displayName = request.displayName,
                 ),
             ).toApiResponse()
 
@@ -104,7 +89,8 @@ class AccountController(
                     data =
                         AccountResponse.Registered(
                             email = email,
-                            displayName = displayName,
+                            givenName = givenName,
+                            familyName = familyName,
                         ),
                 )
 
@@ -117,26 +103,10 @@ class AccountController(
                 HttpStatus.UNAUTHORIZED,
                 "Invalid or expired confirmation token",
             )
-        }
 
-    private fun DisplayName.toApiResponse(): ApiResponse<AccountResponse.Updated.DisplayName> =
-        when (this) {
-            is DisplayName.Success ->
-                responseOf(
-                    data =
-                        AccountResponse.Updated.DisplayName(
-                            displayName = displayName,
-                        ),
-                )
-
-            DisplayName.Failure.AccountNotFound -> throw ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Account not found",
-            )
-
-            DisplayName.Failure.InvalidDisplayName -> throw ResponseStatusException(
+            Register.Failure.InvalidName -> throw ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
-                "Invalid display name",
+                "Invalid name",
             )
         }
 
@@ -149,9 +119,9 @@ class AccountController(
                 "Account not found",
             )
 
-            Name.Failure.InvalidDisplayName -> throw ResponseStatusException(
+            Name.Failure.InvalidName -> throw ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
-                "Invalid display name",
+                "Invalid name",
             )
         }
     }
