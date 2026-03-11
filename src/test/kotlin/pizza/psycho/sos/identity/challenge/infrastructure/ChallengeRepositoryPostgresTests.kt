@@ -15,7 +15,7 @@ import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import org.testcontainers.junit.jupiter.Testcontainers
-import pizza.psycho.sos.identity.account.domain.vo.Email
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.domain.Challenge
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import pizza.psycho.sos.identity.challenge.support.PostgresTestContainerSupport

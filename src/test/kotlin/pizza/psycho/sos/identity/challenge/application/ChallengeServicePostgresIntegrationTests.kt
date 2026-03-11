@@ -16,7 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.testcontainers.junit.jupiter.Testcontainers
-import pizza.psycho.sos.identity.account.domain.vo.Email
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.application.port.VerificationDelivery
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand

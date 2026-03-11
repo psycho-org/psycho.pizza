@@ -223,7 +223,7 @@ class AccountControllerTests {
     }
 
     @Test
-    fun `withdraw returns conflict when owner workspace exists`() {
+    fun `withdraw returns precondition failed when owner workspace exists`() {
         val principal =
             AuthenticatedAccountPrincipal(
                 accountId = UUID.fromString("00000000-0000-0000-0000-000000000833"),

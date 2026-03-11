@@ -5,8 +5,8 @@ import jakarta.persistence.Column
 import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
 import jakarta.persistence.Table
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.common.entity.BaseDeletableEntity
-import pizza.psycho.sos.identity.account.domain.vo.Email
 
 @Entity
 @Table(name = "accounts")
