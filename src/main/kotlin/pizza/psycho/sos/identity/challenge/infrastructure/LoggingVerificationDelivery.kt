@@ -2,8 +2,8 @@ package pizza.psycho.sos.identity.challenge.infrastructure
 
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.common.message.channel.mail.send.application.service.MailSendService
-import pizza.psycho.sos.identity.account.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.application.port.VerificationDelivery
 import pizza.psycho.sos.identity.challenge.config.ChallengeProperties
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType

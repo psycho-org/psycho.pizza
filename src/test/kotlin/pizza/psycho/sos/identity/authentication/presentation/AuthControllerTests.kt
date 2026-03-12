@@ -18,6 +18,7 @@ import pizza.psycho.sos.identity.authentication.application.service.AuthService
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthQuery
 import pizza.psycho.sos.identity.authentication.application.service.dto.AuthResult
 import pizza.psycho.sos.identity.security.config.JwtProperties
+import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryService
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import java.util.UUID
 
@@ -36,6 +37,9 @@ class AuthControllerTests {
 
     @MockitoBean
     private lateinit var accessTokenProvider: AccessTokenProvider
+
+    @MockitoBean
+    private lateinit var activeAccountPrincipalQueryService: ActiveAccountPrincipalQueryService
 
     @Test
     fun `login returns authenticated payload and refresh cookie`() {
@@ -91,6 +95,7 @@ class AuthControllerTests {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"email":"user@psycho.pizza","password":"wrong"}"""),
             ).andExpect(status().isUnauthorized)
+            .andExpect(jsonPath("$.code").value("AUTH_INVALID_CREDENTIALS"))
     }
 
     @Test
@@ -131,6 +136,7 @@ class AuthControllerTests {
                 post("/api/v1/auth/refresh")
                     .cookie(jakarta.servlet.http.Cookie("refresh_token", "invalid-refresh-token")),
             ).andExpect(status().isUnauthorized)
+            .andExpect(jsonPath("$.code").value("AUTH_INVALID_REFRESH_TOKEN"))
     }
 
     @Test
@@ -141,6 +147,7 @@ class AuthControllerTests {
         mockMvc
             .perform(post("/api/v1/auth/refresh"))
             .andExpect(status().isUnauthorized)
+            .andExpect(jsonPath("$.code").value("AUTH_INVALID_REFRESH_TOKEN"))
     }
 
     @Test

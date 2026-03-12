@@ -84,3 +84,5 @@ GEMINI.md
 # Env
 /.env
 /docs/*
+/docs/draft/
+/docs/plan/

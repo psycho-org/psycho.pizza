@@ -1,20 +1,25 @@
 package pizza.psycho.sos.identity.challenge.application
 
+import org.hibernate.exception.ConstraintViolationException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.any
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
+import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.security.crypto.password.PasswordEncoder
-import pizza.psycho.sos.identity.account.domain.vo.Email
+import pizza.psycho.sos.common.domain.vo.Email
+import pizza.psycho.sos.common.support.transaction.helper.Tx
+import pizza.psycho.sos.common.support.transaction.runner.TransactionRunner
 import pizza.psycho.sos.identity.challenge.application.port.VerificationDelivery
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
-import pizza.psycho.sos.identity.challenge.application.service.dto.ConsumeTokenResult
 import pizza.psycho.sos.identity.challenge.application.service.dto.RequestChallengeResult
 import pizza.psycho.sos.identity.challenge.application.service.dto.VerifyOtpResult
 import pizza.psycho.sos.identity.challenge.config.ChallengeProperties
@@ -52,6 +57,11 @@ class ChallengeServiceTests {
             challengeProperties = challengeProperties,
         )
 
+    @BeforeEach
+    fun setUp() {
+        Tx.initialize(TransactionRunner())
+    }
+
     @Test
     fun `createChallenge returns cooldown active when existing pending is still within cooldown`() {
         val pending =
@@ -80,7 +90,7 @@ class ChallengeServiceTests {
             )
 
         assertEquals(RequestChallengeResult.Failure.CooldownActive, result)
-        verify(challengeRepository, never()).save(any(Challenge::class.java))
+        verify(challengeRepository, never()).saveAndFlush(any(Challenge::class.java))
         verifyNoInteractions(verificationDelivery)
     }
 
@@ -108,7 +118,7 @@ class ChallengeServiceTests {
         ).thenReturn(pending)
         `when`(otpGenerator.generate(6)).thenReturn("123456")
         `when`(passwordEncoder.encode("123456")).thenReturn("new-hash")
-        `when`(challengeRepository.save(any(Challenge::class.java))).thenAnswer { invocation ->
+        `when`(challengeRepository.saveAndFlush(any(Challenge::class.java))).thenAnswer { invocation ->
             invocation.getArgument<Challenge>(0).also { it.id = savedNewChallengeId }
         }
 
@@ -123,8 +133,42 @@ class ChallengeServiceTests {
         assertTrue(result is RequestChallengeResult.Success)
         assertEquals(savedNewChallengeId, (result as RequestChallengeResult.Success).challengeId)
         assertEquals(ChallengeStatus.EXPIRED, pending.status)
-        verify(challengeRepository).saveAndFlush(pending)
+        verify(challengeRepository, times(2)).saveAndFlush(any(Challenge::class.java))
         verify(verificationDelivery).sendOtp(Email.of("user@psycho.pizza"), "123456", OperationType.REGISTER)
+    }
+
+    @Test
+    fun `createChallenge maps pending challenge unique constraint to cooldown active`() {
+        `when`(
+            challengeRepository.findByTargetEmailValueIgnoreCaseAndOperationTypeAndStatus(
+                "user@psycho.pizza",
+                OperationType.REGISTER,
+                ChallengeStatus.PENDING,
+            ),
+        ).thenReturn(null)
+        `when`(otpGenerator.generate(6)).thenReturn("123456")
+        `when`(passwordEncoder.encode("123456")).thenReturn("new-hash")
+        `when`(challengeRepository.saveAndFlush(any(Challenge::class.java))).thenThrow(
+            DataIntegrityViolationException(
+                "duplicate pending challenge",
+                ConstraintViolationException(
+                    "duplicate pending challenge",
+                    java.sql.SQLException("duplicate pending challenge"),
+                    "uk_challenges_email_op_pending",
+                ),
+            ),
+        )
+
+        val result =
+            challengeService.createChallenge(
+                ChallengeCommand.Request(
+                    email = "user@psycho.pizza",
+                    operationType = OperationType.REGISTER,
+                ),
+            )
+
+        assertEquals(RequestChallengeResult.Failure.CooldownActive, result)
+        verifyNoInteractions(verificationDelivery)
     }
 
     @Test
@@ -137,6 +181,8 @@ class ChallengeServiceTests {
                 ChallengeCommand.Verify(
                     challengeId = challengeId,
                     otpCode = "123456",
+                    expectedOperationType = OperationType.REGISTER,
+                    requesterEmail = null,
                 ),
             )
 
@@ -163,6 +209,8 @@ class ChallengeServiceTests {
                 ChallengeCommand.Verify(
                     challengeId = challengeId,
                     otpCode = "000000",
+                    expectedOperationType = OperationType.REGISTER,
+                    requesterEmail = null,
                 ),
             )
 
@@ -172,13 +220,73 @@ class ChallengeServiceTests {
     }
 
     @Test
-    fun `verifyOtp returns confirmation token on success`() {
+    fun `verifyOtp returns operation type mismatch when challenge operation differs from expected`() {
         val challengeId = UUID.fromString("00000000-0000-0000-0000-000000000012")
-        val tokenId = UUID.fromString("00000000-0000-0000-0000-000000000013")
         val challenge =
             Challenge
                 .create(
-                    operationType = OperationType.REGISTER,
+                    operationType = OperationType.WITHDRAW,
+                    targetEmail = Email.of("user@psycho.pizza"),
+                    otpHash = "otp-hash",
+                    expiresAt = Instant.now().plusSeconds(300),
+                    maxAttempts = 3,
+                ).also { it.id = challengeId }
+        `when`(challengeRepository.findByIdAndStatus(challengeId, ChallengeStatus.PENDING)).thenReturn(challenge)
+
+        val result =
+            challengeService.verifyOtp(
+                ChallengeCommand.Verify(
+                    challengeId = challengeId,
+                    otpCode = "123456",
+                    expectedOperationType = OperationType.REGISTER,
+                    requesterEmail = null,
+                ),
+            )
+
+        assertEquals(VerifyOtpResult.Failure.OperationTypeMismatch, result)
+        assertEquals(0, challenge.attemptCount)
+        assertEquals(ChallengeStatus.PENDING, challenge.status)
+        verifyNoInteractions(confirmationTokenRepository)
+    }
+
+    @Test
+    fun `verifyOtp returns requester email mismatch when authenticated requester differs from challenge target`() {
+        val challengeId = UUID.fromString("00000000-0000-0000-0000-000000000013")
+        val challenge =
+            Challenge
+                .create(
+                    operationType = OperationType.CHANGE_PASSWORD,
+                    targetEmail = Email.of("user@psycho.pizza"),
+                    otpHash = "otp-hash",
+                    expiresAt = Instant.now().plusSeconds(300),
+                    maxAttempts = 3,
+                ).also { it.id = challengeId }
+        `when`(challengeRepository.findByIdAndStatus(challengeId, ChallengeStatus.PENDING)).thenReturn(challenge)
+
+        val result =
+            challengeService.verifyOtp(
+                ChallengeCommand.Verify(
+                    challengeId = challengeId,
+                    otpCode = "123456",
+                    expectedOperationType = OperationType.CHANGE_PASSWORD,
+                    requesterEmail = "other@psycho.pizza",
+                ),
+            )
+
+        assertEquals(VerifyOtpResult.Failure.RequesterEmailMismatch, result)
+        assertEquals(0, challenge.attemptCount)
+        assertEquals(ChallengeStatus.PENDING, challenge.status)
+        verifyNoInteractions(confirmationTokenRepository)
+    }
+
+    @Test
+    fun `verifyOtp returns confirmation token on success when operation and requester match`() {
+        val challengeId = UUID.fromString("00000000-0000-0000-0000-000000000012")
+        val tokenId = UUID.fromString("00000000-0000-0000-0000-000000000014")
+        val challenge =
+            Challenge
+                .create(
+                    operationType = OperationType.CHANGE_PASSWORD,
                     targetEmail = Email.of("user@psycho.pizza"),
                     otpHash = "otp-hash",
                     expiresAt = Instant.now().plusSeconds(300),
@@ -195,6 +303,8 @@ class ChallengeServiceTests {
                 ChallengeCommand.Verify(
                     challengeId = challengeId,
                     otpCode = "123456",
+                    expectedOperationType = OperationType.CHANGE_PASSWORD,
+                    requesterEmail = "user@psycho.pizza",
                 ),
             )
 
@@ -206,40 +316,29 @@ class ChallengeServiceTests {
     }
 
     @Test
-    fun `consumeToken rejects operation type mismatch`() {
+    fun `acquireUsableToken returns null when repository cannot find a usable token`() {
         val tokenId = UUID.fromString("00000000-0000-0000-0000-000000000020")
-        val challenge =
-            Challenge.create(
-                operationType = OperationType.REGISTER,
-                targetEmail = Email.of("user@psycho.pizza"),
-                otpHash = "hash",
-                expiresAt = Instant.now().plusSeconds(300),
-                maxAttempts = 3,
-            )
-        val token =
-            ConfirmationToken
-                .create(
-                    challenge = challenge,
-                    operationType = OperationType.REGISTER,
-                    targetEmail = Email.of("user@psycho.pizza"),
-                    expiresAt = Instant.now().plusSeconds(300),
-                ).also { it.id = tokenId }
-        `when`(confirmationTokenRepository.findByIdAndUsedFalse(tokenId)).thenReturn(token)
+        `when`(
+            confirmationTokenRepository.findUsableByIdAndOperationTypeForUpdate(
+                eqNonNull(tokenId),
+                eqNonNull(OperationType.WITHDRAW),
+                anyNonNull(),
+            ),
+        ).thenReturn(null)
 
         val result =
-            challengeService.consumeToken(
-                ChallengeCommand.ConsumeToken(
+            challengeService.acquireUsableToken(
+                ChallengeCommand.AcquireToken(
                     tokenId = tokenId,
                     operationType = OperationType.WITHDRAW,
                 ),
             )
 
-        assertEquals(ConsumeTokenResult.Failure.OperationTypeMismatch, result)
-        assertTrue(!token.used)
+        assertEquals(null, result)
     }
 
     @Test
-    fun `consumeToken marks token used and returns target email on success`() {
+    fun `acquireUsableToken returns locked token without consuming it`() {
         val tokenId = UUID.fromString("00000000-0000-0000-0000-000000000021")
         val challenge =
             Challenge.create(
@@ -257,18 +356,34 @@ class ChallengeServiceTests {
                     targetEmail = Email.of("user@psycho.pizza"),
                     expiresAt = Instant.now().plusSeconds(300),
                 ).also { it.id = tokenId }
-        `when`(confirmationTokenRepository.findByIdAndUsedFalse(tokenId)).thenReturn(token)
+        `when`(
+            confirmationTokenRepository.findUsableByIdAndOperationTypeForUpdate(
+                eqNonNull(tokenId),
+                eqNonNull(OperationType.CHANGE_PASSWORD),
+                anyNonNull(),
+            ),
+        ).thenReturn(token)
 
         val result =
-            challengeService.consumeToken(
-                ChallengeCommand.ConsumeToken(
+            challengeService.acquireUsableToken(
+                ChallengeCommand.AcquireToken(
                     tokenId = tokenId,
                     operationType = OperationType.CHANGE_PASSWORD,
                 ),
             )
 
-        assertTrue(result is ConsumeTokenResult.Success)
-        assertEquals(Email.of("user@psycho.pizza"), (result as ConsumeTokenResult.Success).targetEmail)
-        assertTrue(token.used)
+        assertEquals(token, result)
+        assertTrue(!token.used)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> anyNonNull(): T {
+        any<T>()
+        return null as T
+    }
+
+    private fun <T> eqNonNull(value: T): T {
+        org.mockito.Mockito.eq(value)
+        return value
     }
 }

@@ -1,12 +1,13 @@
 package pizza.psycho.sos.identity.challenge.application.service
 
-import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
-import pizza.psycho.sos.identity.account.domain.vo.Email
+import org.springframework.transaction.annotation.Transactional
+import pizza.psycho.sos.common.domain.vo.Email
+import pizza.psycho.sos.common.support.transaction.helper.Tx
+import pizza.psycho.sos.common.support.transaction.helper.hasConstraintName
 import pizza.psycho.sos.identity.challenge.application.port.VerificationDelivery
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
-import pizza.psycho.sos.identity.challenge.application.service.dto.ConsumeTokenResult
 import pizza.psycho.sos.identity.challenge.application.service.dto.RequestChallengeResult
 import pizza.psycho.sos.identity.challenge.application.service.dto.VerifyOtpResult
 import pizza.psycho.sos.identity.challenge.config.ChallengeProperties
@@ -19,7 +20,6 @@ import pizza.psycho.sos.identity.challenge.infrastructure.ConfirmationTokenRepos
 import java.time.Instant
 
 @Service
-@Transactional
 class ChallengeService(
     private val challengeRepository: ChallengeRepository,
     private val confirmationTokenRepository: ConfirmationTokenRepository,
@@ -28,48 +28,30 @@ class ChallengeService(
     private val verificationDelivery: VerificationDelivery,
     private val challengeProperties: ChallengeProperties,
 ) {
-    fun createChallenge(command: ChallengeCommand.Request): RequestChallengeResult {
-        val now = Instant.now()
-        val email = Email.of(command.email)
-
-        challengeRepository
-            .findByTargetEmailValueIgnoreCaseAndOperationTypeAndStatus(
-                targetEmail = email.value,
-                operationType = command.operationType,
-                status = ChallengeStatus.PENDING,
-            )?.let {
-                if (requireNotNull(it.createdAt).plusSeconds(challengeProperties.cooldownSeconds).isAfter(now)) {
-                    return RequestChallengeResult.Failure.CooldownActive
-                }
-                it.markExpired()
-                challengeRepository.saveAndFlush(it)
+    fun createChallenge(command: ChallengeCommand.Request): RequestChallengeResult =
+        try {
+            Tx.writable { createChallengeInTransaction(command) }
+        } catch (ex: RuntimeException) {
+            if (ex.hasConstraintName(PENDING_CHALLENGE_CONSTRAINT_NAME)) {
+                RequestChallengeResult.Failure.CooldownActive
+            } else {
+                throw ex
             }
+        }
 
-        val otp = otpGenerator.generate(challengeProperties.otpLength)
-        val otpHash = passwordEncoder.encode(otp)
-
-        val challenge =
-            Challenge.create(
-                operationType = command.operationType,
-                targetEmail = email,
-                otpHash = otpHash,
-                expiresAt = now.plusSeconds(challengeProperties.otpTtlSeconds),
-                maxAttempts = challengeProperties.otpMaxAttempts,
-            )
-
-        val saved = challengeRepository.save(challenge)
-
-        verificationDelivery.sendOtp(email, otp, command.operationType)
-
-        return RequestChallengeResult.Success(
-            challengeId = requireNotNull(saved.id),
-        )
-    }
-
+    @Transactional
     fun verifyOtp(command: ChallengeCommand.Verify): VerifyOtpResult {
         val challenge =
             challengeRepository.findByIdAndStatus(command.challengeId, ChallengeStatus.PENDING)
                 ?: return VerifyOtpResult.Failure.ChallengeNotFound
+
+        if (challenge.operationType != command.expectedOperationType) {
+            return VerifyOtpResult.Failure.OperationTypeMismatch
+        }
+
+        if (!requesterEmailMatches(command.requesterEmail, challenge.targetEmail)) {
+            return VerifyOtpResult.Failure.RequesterEmailMismatch
+        }
 
         if (challenge.isExpired()) {
             challenge.markExpired()
@@ -109,23 +91,64 @@ class ChallengeService(
         )
     }
 
-    fun consumeToken(command: ChallengeCommand.ConsumeToken): ConsumeTokenResult {
-        val token =
-            confirmationTokenRepository.findByIdAndUsedFalse(command.tokenId)
-                ?: return ConsumeTokenResult.Failure.TokenNotFound
-
-        if (token.isExpired()) {
-            return ConsumeTokenResult.Failure.TokenExpired
-        }
-
-        if (token.operationType != command.operationType) {
-            return ConsumeTokenResult.Failure.OperationTypeMismatch
-        }
-
-        token.consume()
-
-        return ConsumeTokenResult.Success(
-            targetEmail = token.targetEmail,
+    @Transactional
+    fun acquireUsableToken(command: ChallengeCommand.AcquireToken): ConfirmationToken? =
+        confirmationTokenRepository.findUsableByIdAndOperationTypeForUpdate(
+            id = command.tokenId,
+            operationType = command.operationType,
+            now = Instant.now(),
         )
+
+    private fun createChallengeInTransaction(command: ChallengeCommand.Request): RequestChallengeResult {
+        val now = Instant.now()
+        val email = Email.of(command.email)
+
+        challengeRepository
+            .findByTargetEmailValueIgnoreCaseAndOperationTypeAndStatus(
+                targetEmail = email.value,
+                operationType = command.operationType,
+                status = ChallengeStatus.PENDING,
+            )?.let {
+                if (requireNotNull(it.createdAt).plusSeconds(challengeProperties.cooldownSeconds).isAfter(now)) {
+                    return RequestChallengeResult.Failure.CooldownActive
+                }
+                it.markExpired()
+                challengeRepository.saveAndFlush(it)
+            }
+
+        val otp = otpGenerator.generate(challengeProperties.otpLength)
+        val otpHash = passwordEncoder.encode(otp)
+
+        val challenge =
+            Challenge.create(
+                operationType = command.operationType,
+                targetEmail = email,
+                otpHash = otpHash,
+                expiresAt = now.plusSeconds(challengeProperties.otpTtlSeconds),
+                maxAttempts = challengeProperties.otpMaxAttempts,
+            )
+
+        val saved = challengeRepository.saveAndFlush(challenge)
+
+        verificationDelivery.sendOtp(email, otp, command.operationType)
+
+        return RequestChallengeResult.Success(
+            challengeId = requireNotNull(saved.id),
+        )
+    }
+
+    companion object {
+        private const val PENDING_CHALLENGE_CONSTRAINT_NAME = "uk_challenges_email_op_pending"
+    }
+
+    private fun requesterEmailMatches(
+        requesterEmail: String?,
+        targetEmail: Email,
+    ): Boolean {
+        if (requesterEmail == null) {
+            return true
+        }
+
+        return Email.of(requesterEmail) == targetEmail
     }
 }

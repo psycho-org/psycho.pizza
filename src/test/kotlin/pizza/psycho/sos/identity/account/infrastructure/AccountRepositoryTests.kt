@@ -10,8 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing
 import org.springframework.test.context.ActiveProfiles
+import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.identity.account.domain.Account
-import pizza.psycho.sos.identity.account.domain.vo.Email
 import java.util.UUID
 
 @DataJpaTest
@@ -72,5 +72,43 @@ class AccountRepositoryTests {
         val account = requireNotNull(found)
         assertEquals("user@psycho.pizza", account.email.value)
         assertFalse(account.isDeleted)
+    }
+
+    @Test
+    fun `findActivePrincipalViewById returns minimum principal fields for active account`() {
+        val saved =
+            accountRepository.save(
+                Account.create(
+                    email = Email.of("user@psycho.pizza"),
+                    passwordHash = "encoded-password",
+                    givenName = "Rick",
+                    familyName = "Sanchez",
+                ),
+            )
+
+        val found = accountRepository.findActivePrincipalViewById(requireNotNull(saved.id))
+
+        val principalView = requireNotNull(found)
+        assertEquals(saved.id, principalView.accountId)
+        assertEquals("user@psycho.pizza", principalView.email)
+    }
+
+    @Test
+    fun `findActivePrincipalViewById returns null for soft deleted account`() {
+        val account =
+            accountRepository.save(
+                Account.create(
+                    email = Email.of("deleted@psycho.pizza"),
+                    passwordHash = "encoded-password",
+                    givenName = "Rick",
+                    familyName = "Sanchez",
+                ),
+            )
+        account.delete(UUID.fromString("00000000-0000-0000-0000-000000000998"))
+        accountRepository.save(account)
+
+        val found = accountRepository.findActivePrincipalViewById(requireNotNull(account.id))
+
+        assertNull(found)
     }
 }
