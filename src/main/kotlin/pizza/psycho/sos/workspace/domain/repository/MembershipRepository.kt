@@ -8,4 +8,6 @@ interface MembershipRepository {
         workspaceId: UUID,
         accountId: UUID,
     ): Role?
+
+    fun existsActiveOwnerMembershipByAccountId(accountId: UUID): Boolean
 }

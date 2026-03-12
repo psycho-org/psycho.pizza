@@ -24,6 +24,7 @@ class AccountService(
     private val passwordEncoder: PasswordEncoder,
     private val refreshTokenService: RefreshTokenService,
     private val challengeService: ChallengeService,
+    private val workspaceOwnershipQueryService: WorkspaceOwnershipQueryService,
 ) {
     fun findActiveAccountIdByEmailOrNull(email: String): UUID? =
         accountRepository
@@ -119,10 +120,9 @@ class AccountService(
             return Withdraw.Failure.InvalidCredentials
         }
 
-//        TODO - membership service required
-//        if (membershipService.existsActiveOwnerMembershipByAccountId(command.accountId)) {
-//           return Withdraw.Failure.OwnerWorkspaceExists
-//        }
+        if (workspaceOwnershipQueryService.existsActiveOwnerMembershipByAccountId(command.accountId)) {
+            return Withdraw.Failure.OwnerWorkspaceExists
+        }
 
         account.delete(command.accountId)
         accountRepository.save(account)
