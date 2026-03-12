@@ -301,7 +301,8 @@ class ProjectControllerTests {
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/projects/$projectId/$userId"),
+                delete("/api/v1/workspaces/$workspaceId/projects/$projectId")
+                    .param("account", "$userId"),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.message").value("데이터 삭제에 성공하였습니다."))
             .andExpect(jsonPath("$.data.count").value(1))
@@ -325,7 +326,8 @@ class ProjectControllerTests {
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/projects/$projectId/$userId/with-tasks"),
+                delete("/api/v1/workspaces/$workspaceId/projects/$projectId/with-tasks")
+                    .param("account", "$userId"),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.message").value("프로젝트 및 하위 태스크 삭제에 성공하였습니다."))
             .andExpect(jsonPath("$.data.projectCount").value(1))
@@ -346,7 +348,8 @@ class ProjectControllerTests {
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/projects/$projectId/$userId/with-tasks"),
+                delete("/api/v1/workspaces/$workspaceId/projects/$projectId/with-tasks")
+                    .param("account", "$userId"),
             ).andExpect(status().is4xxClientError)
     }
 }

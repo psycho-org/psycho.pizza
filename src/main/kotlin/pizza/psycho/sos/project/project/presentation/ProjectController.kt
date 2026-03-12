@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.response.ApiResponse
@@ -81,12 +82,12 @@ class ProjectController(
     /**
      * 프로젝트 간 Task 이동
      */
-    @PatchMapping("/{fromProjectId}/tasks/{taskId}/move/{accountId}")
+    @PatchMapping("/{fromProjectId}/tasks/{taskId}/move")
     fun moveTask(
         @PathVariable workspaceId: UUID,
         @PathVariable fromProjectId: UUID,
         @PathVariable taskId: UUID,
-        @PathVariable accountId: UUID,
+        @RequestParam(name = "account") accountId: UUID,
         @Valid @RequestBody request: ProjectRequest.MoveTask,
     ): ApiResponse<*> =
         handleResult {
@@ -111,21 +112,21 @@ class ProjectController(
             projectService.modify(request.toCommand(workspaceId, projectId))
         }
 
-    @DeleteMapping("/{projectId}/{accountId}")
+    @DeleteMapping("/{projectId}")
     fun removeProject(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,
-        @PathVariable accountId: UUID,
+        @RequestParam(name = "account") accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
             projectService.remove(ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, accountId))
         }
 
-    @DeleteMapping("/{projectId}/{accountId}/with-tasks")
+    @DeleteMapping("/{projectId}/with-tasks")
     fun removeProjectWithTasks(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,
-        @PathVariable accountId: UUID,
+        @RequestParam(name = "account") accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
             projectService.removeWithTasks(
