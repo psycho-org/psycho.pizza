@@ -38,4 +38,10 @@ interface TaskFacade {
         deletedBy: UUID,
         workspaceId: WorkspaceId,
     ): Int
+
+    fun resetStatusToTodo(
+        ids: Collection<UUID>,
+        actorId: UUID,
+        workspaceId: WorkspaceId,
+    )
 }

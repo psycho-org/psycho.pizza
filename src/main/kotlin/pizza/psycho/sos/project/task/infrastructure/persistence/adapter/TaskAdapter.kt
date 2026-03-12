@@ -51,4 +51,10 @@ class TaskAdapter(
         deletedBy: UUID,
         workspaceId: WorkspaceId,
     ): Int = taskFacade.deleteTasksByIdIn(ids, deletedBy, workspaceId)
+
+    override fun resetStatusToTodo(
+        ids: Collection<UUID>,
+        actorId: UUID,
+        workspaceId: WorkspaceId,
+    ) = taskFacade.resetStatusToTodo(ids, actorId, workspaceId)
 }

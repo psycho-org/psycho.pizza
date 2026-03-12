@@ -13,6 +13,7 @@ import pizza.psycho.sos.project.task.application.service.dto.TaskResult.Assignee
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult.TaskInformation
 import pizza.psycho.sos.project.task.domain.model.entity.Task
 import pizza.psycho.sos.project.task.domain.model.entity.TaskUpdateSpec
+import pizza.psycho.sos.project.task.domain.model.vo.Status
 import pizza.psycho.sos.project.task.domain.repository.TaskRepository
 import java.util.UUID
 
@@ -88,6 +89,32 @@ class TaskService(
             domainEventPublisher.publishAndClearAll(tasks)
             return@writable tasks.size
         }
+
+    /**
+     * 주어진 Task 들의 상태를 TO DO로 되돌린다. (예: 스프린트에서 분리될 때)
+     */
+    fun resetStatusToTodo(
+        ids: Collection<UUID>,
+        workspaceId: WorkspaceId,
+        actorId: UUID,
+    ) = Tx.writable {
+        if (ids.isEmpty()) return@writable
+
+        val tasks = taskRepository.findAllByIdIn(ids, workspaceId)
+        if (tasks.isEmpty()) return@writable
+
+        tasks.forEach { task ->
+            if (task.status != Status.TODO) {
+                task.changeStatus(
+                    status = Status.TODO,
+                    by = actorId,
+                    emitEvent = false,
+                )
+            }
+        }
+
+        domainEventPublisher.publishAndClearAll(tasks)
+    }
 
     fun update(command: TaskCommand.UpdateTask): TaskResult =
         Tx.writable {

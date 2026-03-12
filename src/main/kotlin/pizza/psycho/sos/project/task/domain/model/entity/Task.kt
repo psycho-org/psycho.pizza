@@ -102,10 +102,7 @@ class Task protected constructor(
         ).register()
     }
 
-    fun changePriority(
-        priority: Priority,
-        by: UUID? = null,
-    ) {
+    fun changePriority(priority: Priority) {
         this.priority?.let {
             if (!it.isTransitionableTo(priority)) {
                 throw InvalidPriorityTransitionException(from = it, to = priority)
@@ -118,6 +115,7 @@ class Task protected constructor(
     fun changeStatus(
         status: Status,
         by: UUID? = null,
+        emitEvent: Boolean = true,
     ) {
         if (!this.status.isTransitionableTo(status)) {
             throw InvalidStatusTransitionException(from = this.status, to = status)
@@ -126,14 +124,16 @@ class Task protected constructor(
         val old = this.status
         this.status = status
 
-        TaskStatusChangedEvent(
-            workspaceId = this.workspaceId.value,
-            actorId = by,
-            taskId = this.taskId,
-            fromStatus = old.name,
-            toStatus = this.status.name,
-            eventId = UUID.randomUUID(),
-        ).register()
+        if (emitEvent) {
+            TaskStatusChangedEvent(
+                workspaceId = this.workspaceId.value,
+                actorId = by,
+                taskId = this.taskId,
+                fromStatus = old.name,
+                toStatus = this.status.name,
+                eventId = UUID.randomUUID(),
+            ).register()
+        }
     }
 
     fun changeDueDate(
@@ -215,12 +215,12 @@ class Task protected constructor(
             Patch.Unchanged -> Unit
         }
 
-        // 5) 우선순위 (이벤트는 아직 없음)
+        // 5) 우선순위
         when (spec.priority) {
             is Patch.Value -> {
                 val newPriority = spec.priority.value
                 if (priority != newPriority) {
-                    changePriority(newPriority, spec.actorId)
+                    changePriority(newPriority)
                 }
             }
 

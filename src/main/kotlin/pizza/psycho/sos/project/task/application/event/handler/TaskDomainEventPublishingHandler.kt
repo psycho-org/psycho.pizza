@@ -5,6 +5,7 @@ import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.log.loggerDelegate
+import pizza.psycho.sos.project.task.application.port.out.TaskSprintParticipationQuery
 import pizza.psycho.sos.project.task.domain.event.TaskAssigneeChangedEvent
 import pizza.psycho.sos.project.task.domain.event.TaskDeletedEvent
 import pizza.psycho.sos.project.task.domain.event.TaskDomainEvent
@@ -18,11 +19,24 @@ import pizza.psycho.sos.audit.application.listener.event.TaskStatusChangedEvent 
 @Component
 class TaskDomainEventPublishingHandler(
     private val eventPublisher: DomainEventPublisher,
+    private val sprintMembershipQuery: TaskSprintParticipationQuery,
 ) {
     private val log by loggerDelegate()
 
+    private fun isInAnyActiveSprint(event: TaskDomainEvent): Boolean =
+        sprintMembershipQuery.existsActiveSprintByTaskId(
+            taskId = event.taskId,
+            workspaceId = event.workspaceId,
+        )
+
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    fun handle(event: TaskDomainEvent) =
+    fun handle(event: TaskDomainEvent) {
+        // 스프린트에 속하지 않는 Task 의 이벤트는 audit 으로 전달하지 않는다
+        if (!isInAnyActiveSprint(event)) {
+            log.debug("Skip task event for non-sprint task: $event")
+            return
+        }
+
         when (event) {
             is TaskStatusChangedEvent ->
                 eventPublisher
@@ -79,4 +93,5 @@ class TaskDomainEventPublishingHandler(
                         ),
                     ).also { log.info("Task deleted event: $event") }
         }
+    }
 }
