@@ -6,4 +6,4 @@ import pizza.psycho.sos.project.task.domain.model.vo.Status
 class InvalidStatusTransitionException(
     from: Status,
     to: Status,
-) : DomainException("Cannot transition from $from to $to")
+) : DomainException(TaskErrorCode.INVALID_TRANSITION, "Cannot transition from $from to $to")

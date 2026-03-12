@@ -13,7 +13,9 @@ data class TaskDueDate(
     companion object {
         fun withValidation(value: Instant? = null): TaskDueDate {
             value?.let {
-                if (!it.isAfter(Instant.now())) throw InvalidDueDateException("마감일은 현재 시간 이후여야 합니다")
+                if (!it.isAfter(Instant.now())) {
+                    throw InvalidDueDateException("Due date must be after current time")
+                }
             }
 
             return TaskDueDate(value)

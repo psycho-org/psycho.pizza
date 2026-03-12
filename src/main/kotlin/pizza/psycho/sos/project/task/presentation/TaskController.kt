@@ -84,14 +84,11 @@ class TaskController(
 
     private fun handleResult(function: () -> TaskResult): ApiResponse<*> =
         when (val result: TaskResult = function()) {
-            is TaskResult.Remove -> responseOf(message = "데이터 삭제에 성공하였습니다.", data = TaskResponse.Remove(result.count))
+            is TaskResult.Remove -> responseOf(message = "Data deletion was successful.", data = TaskResponse.Remove(result.count))
             is TaskResult.TaskInformation -> responseOf(data = result.toResponse())
             is TaskResult.TaskList -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
             is TaskResult.Failure.IdNotFound -> throw DomainException(TaskErrorCode.TASK_NOT_FOUND)
-            is TaskResult.Failure.TaskInformationNotFound -> throw DomainException(
-                TaskErrorCode.TASK_INFORMATION_VALIDATION,
-                "task information not found",
-            )
+            is TaskResult.Failure.TaskInformationNotFound -> throw DomainException(TaskErrorCode.TASK_INFO_NOT_FOUND)
         }
 
     private fun TaskRequest.Create.toCommand(spaceId: UUID) =
