@@ -18,6 +18,7 @@ import pizza.psycho.sos.common.support.pagination.PageInfoSupport
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.service.ProjectService
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
+import pizza.psycho.sos.project.project.application.service.dto.ProjectQuery
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.INVALID_REQUEST
 import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.PROJECT_ID_NULL
@@ -48,7 +49,7 @@ class ProjectController(
         @PathVariable projectId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            projectService.getProject(ProjectCommand.Get(WorkspaceId(workspaceId), projectId))
+            projectService.getProject(ProjectQuery.Find(WorkspaceId(workspaceId), projectId))
         }
 
     @PostMapping("/{projectId}/tasks")
@@ -68,7 +69,13 @@ class ProjectController(
         @PageableDefault(size = 10) pageable: Pageable,
     ): ApiResponse<*> =
         handleResult {
-            projectService.getTasksInProject(ProjectCommand.GetTasks(WorkspaceId(workspaceId), projectId, pageable))
+            projectService.getTasksInProject(
+                ProjectQuery.FindTasksInProject(
+                    WorkspaceId(workspaceId),
+                    projectId,
+                    pageable,
+                ),
+            )
         }
 
     /**
@@ -121,7 +128,13 @@ class ProjectController(
         @PathVariable accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            projectService.removeWithTasks(ProjectCommand.RemoveWithTasks(WorkspaceId(workspaceId), projectId, accountId))
+            projectService.removeWithTasks(
+                ProjectCommand.RemoveWithTasks(
+                    WorkspaceId(workspaceId),
+                    projectId,
+                    accountId,
+                ),
+            )
         }
 
     // ------------------------------------------------------------------------------------------------

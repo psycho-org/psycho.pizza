@@ -8,6 +8,7 @@ import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
+import pizza.psycho.sos.project.project.application.service.dto.ProjectQuery
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
@@ -25,7 +26,7 @@ class ProjectService(
      * todo: 워크스페이스의 모든 프로젝트를 찾는 로직 추가
      */
 
-    fun getProject(command: ProjectCommand.Get): ProjectResult =
+    fun getProject(command: ProjectQuery.Find): ProjectResult =
         Tx.readable {
             log.debug("getProject: projectId={}, workspaceId={}", command.projectId, command.workspaceId)
 
@@ -45,7 +46,7 @@ class ProjectService(
                 .also { log.info("getProject success: projectId=${command.projectId}") }
         }
 
-    fun getTasksInProject(command: ProjectCommand.GetTasks): ProjectResult =
+    fun getTasksInProject(command: ProjectQuery.FindTasksInProject): ProjectResult =
         Tx.readable {
             log.debug("getTasksInProject: projectId={}, workspaceId={}", command.projectId, command.workspaceId)
 

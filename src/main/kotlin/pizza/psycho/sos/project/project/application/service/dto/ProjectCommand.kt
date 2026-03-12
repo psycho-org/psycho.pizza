@@ -1,6 +1,5 @@
 package pizza.psycho.sos.project.project.application.service.dto
 
-import org.springframework.data.domain.Pageable
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import java.time.Instant
 import java.util.UUID
@@ -9,17 +8,6 @@ sealed interface ProjectCommand {
     data class Create(
         val workspaceId: WorkspaceId,
         val name: String,
-    )
-
-    data class Get(
-        val workspaceId: WorkspaceId,
-        val projectId: UUID,
-    )
-
-    data class GetTasks(
-        val workspaceId: WorkspaceId,
-        val projectId: UUID,
-        val pageable: Pageable,
     )
 
     data class Update(
