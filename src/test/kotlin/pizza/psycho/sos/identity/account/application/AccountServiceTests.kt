@@ -1,7 +1,9 @@
 package pizza.psycho.sos.identity.account.application
 
+import org.hibernate.exception.ConstraintViolationException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentCaptor
 import org.mockito.Mockito.mock
@@ -9,9 +11,12 @@ import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.common.domain.vo.Email
+import pizza.psycho.sos.common.support.transaction.helper.Tx
+import pizza.psycho.sos.common.support.transaction.runner.TransactionRunner
 import pizza.psycho.sos.identity.account.application.service.AccountService
 import pizza.psycho.sos.identity.account.application.service.WorkspaceOwnershipQueryService
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
@@ -47,6 +52,11 @@ class AccountServiceTests {
         )
 
     private val testTokenId: UUID = UUID.fromString("00000000-0000-0000-0000-ffffffffffff")
+
+    @BeforeEach
+    fun setUp() {
+        Tx.initialize(TransactionRunner())
+    }
 
     @Test
     fun `register returns invalid name failure when given name is blank after trim`() {
@@ -121,6 +131,40 @@ class AccountServiceTests {
         assertEquals("Rick", registered.givenName)
         assertEquals("Sanchez", registered.familyName)
         assertTrue(token.used)
+    }
+
+    @Test
+    fun `register maps account email unique constraint to email already registered`() {
+        val command =
+            AccountCommand.Register(
+                confirmationTokenId = testTokenId,
+                password = "Password123!",
+                firstName = "Rick",
+                lastName = "Sanchez",
+            )
+        val token = usableToken(operationType = OperationType.REGISTER, email = "race@psycho.pizza")
+
+        `when`(
+            challengeService.acquireUsableToken(ChallengeCommand.AcquireToken(testTokenId, OperationType.REGISTER)),
+        ).thenReturn(token)
+        `when`(accountRepository.existsByEmailValueIgnoreCaseAndDeletedAtIsNull("race@psycho.pizza")).thenReturn(false)
+        `when`(passwordEncoder.encode("Password123!")).thenReturn("encoded-password")
+        `when`(accountRepository.saveAndFlush(org.mockito.ArgumentMatchers.any(Account::class.java))).thenThrow(
+            DataIntegrityViolationException(
+                "duplicate account email",
+                ConstraintViolationException(
+                    "duplicate account email",
+                    java.sql.SQLException("duplicate account email"),
+                    "uk_accounts_email",
+                ),
+            ),
+        )
+
+        val result = accountService.register(command)
+
+        assertEquals(Register.Failure.EmailAlreadyRegistered, result)
+        assertTrue(!token.used)
+        verifyNoInteractions(workspaceOwnershipQueryService)
     }
 
     @Test
