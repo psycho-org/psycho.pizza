@@ -2,7 +2,7 @@ package pizza.psycho.sos.common.patch
 
 sealed interface Patch<out T> {
     // 변경 안 함
-    data object Undefined : Patch<Nothing>
+    data object Unchanged : Patch<Nothing>
 
     // nullable 필드 clear
     data object Clear : Patch<Nothing>

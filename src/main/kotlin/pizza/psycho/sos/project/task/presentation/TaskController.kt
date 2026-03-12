@@ -25,7 +25,7 @@ import pizza.psycho.sos.project.task.presentation.dto.TaskRequest
 import pizza.psycho.sos.project.task.presentation.dto.TaskResponse
 import java.util.UUID
 
-// todo: userId AuthenticationPrincipal에서 받아오도록 변경
+// todo: accountId AuthenticationPrincipal에서 받아오도록 변경
 @RestController
 @RequestMapping("/api/v1/workspaces/{workspaceId}/tasks")
 class TaskController(
@@ -59,25 +59,25 @@ class TaskController(
             taskService.getInformation(TaskQuery.FindTask(workspaceId, id))
         }
 
-    @DeleteMapping("/{id}/{userId}")
+    @DeleteMapping("/{id}/{accountId}")
     fun remove(
         @PathVariable workspaceId: UUID,
         @PathVariable id: UUID,
-        @PathVariable userId: UUID,
+        @PathVariable accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            taskService.remove(TaskCommand.RemoveTask(workspaceId, id, userId))
+            taskService.remove(TaskCommand.RemoveTask(workspaceId, id, accountId))
         }
 
-    @PatchMapping("/{id}/{userId}")
+    @PatchMapping("/{id}/{accountId}")
     fun update(
         @PathVariable workspaceId: UUID,
         @PathVariable id: UUID,
-        @PathVariable userId: UUID,
+        @PathVariable accountId: UUID,
         @Valid @RequestBody request: TaskRequest.Update,
     ): ApiResponse<*> =
         handleResult {
-            taskService.update(request.toCommand(workspaceId, id, userId))
+            taskService.update(request.toCommand(workspaceId, id, accountId))
         }
 
     // ------------------------------------------------------------------------------------------------
@@ -108,9 +108,9 @@ class TaskController(
         TaskCommand.UpdateTask(
             workspaceId = workspaceId,
             id = taskId,
-            title = title?.let { Patch.Value(it) } ?: Patch.Undefined,
-            description = description?.let { Patch.Value(it) } ?: Patch.Undefined,
-            status = status?.let { Patch.Value(it) } ?: Patch.Undefined,
+            title = title?.let { Patch.Value(it) } ?: Patch.Unchanged,
+            description = description?.let { Patch.Value(it) } ?: Patch.Unchanged,
+            status = status?.let { Patch.Value(it) } ?: Patch.Unchanged,
             assigneeId = assigneeId?.let { Patch.Value(assigneeId) } ?: Patch.Clear,
             dueDate = dueDate?.let { Patch.Value(dueDate) } ?: Patch.Clear,
             priority = priority?.let { Patch.Value(it) } ?: Patch.Clear,

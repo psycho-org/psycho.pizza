@@ -174,7 +174,7 @@ class Task protected constructor(
                 }
             }
 
-            Patch.Undefined, Patch.Clear -> Unit
+            Patch.Unchanged, Patch.Clear -> Unit
         }
 
         // 3) 담당자 (이벤트 발생)
@@ -193,7 +193,7 @@ class Task protected constructor(
                 }
             }
 
-            Patch.Undefined -> Unit
+            Patch.Unchanged -> Unit
         }
 
         // 4) 마감일 (set 시 이벤트, clear 는 현재 도메인 정책상 이벤트 없음)
@@ -212,7 +212,7 @@ class Task protected constructor(
                 }
             }
 
-            Patch.Undefined -> Unit
+            Patch.Unchanged -> Unit
         }
 
         // 5) 우선순위 (이벤트는 아직 없음)
@@ -230,7 +230,7 @@ class Task protected constructor(
                 }
             }
 
-            Patch.Undefined -> Unit
+            Patch.Unchanged -> Unit
         }
     }
 
