@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.patch.Patch
@@ -59,21 +60,21 @@ class TaskController(
             taskService.getInformation(TaskQuery.FindTask(workspaceId, id))
         }
 
-    @DeleteMapping("/{id}/{accountId}")
+    @DeleteMapping("/{id}")
     fun remove(
         @PathVariable workspaceId: UUID,
         @PathVariable id: UUID,
-        @PathVariable accountId: UUID,
+        @RequestParam(name = "account") accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
             taskService.remove(TaskCommand.RemoveTask(workspaceId, id, accountId))
         }
 
-    @PatchMapping("/{id}/{accountId}")
+    @PatchMapping("/{id}")
     fun update(
         @PathVariable workspaceId: UUID,
         @PathVariable id: UUID,
-        @PathVariable accountId: UUID,
+        @RequestParam(name = "account") accountId: UUID,
         @Valid @RequestBody request: TaskRequest.Update,
     ): ApiResponse<*> =
         handleResult {
