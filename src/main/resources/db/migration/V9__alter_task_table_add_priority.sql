@@ -1,1 +1,1 @@
-ALTER TABLE task ADD COLUMN priority VARCHAR(20) NULL;
+ALTER TABLE public.tasks ADD COLUMN priority VARCHAR(20) NULL;
