@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service
 import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.identity.challenge.application.port.VerificationDelivery
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
-import pizza.psycho.sos.identity.challenge.application.service.dto.ConsumeTokenResult
 import pizza.psycho.sos.identity.challenge.application.service.dto.RequestChallengeResult
 import pizza.psycho.sos.identity.challenge.application.service.dto.VerifyOtpResult
 import pizza.psycho.sos.identity.challenge.config.ChallengeProperties
@@ -117,25 +116,12 @@ class ChallengeService(
         )
     }
 
-    fun consumeToken(command: ChallengeCommand.ConsumeToken): ConsumeTokenResult {
-        val token =
-            confirmationTokenRepository.findByIdAndUsedFalse(command.tokenId)
-                ?: return ConsumeTokenResult.Failure.TokenNotFound
-
-        if (token.isExpired()) {
-            return ConsumeTokenResult.Failure.TokenExpired
-        }
-
-        if (token.operationType != command.operationType) {
-            return ConsumeTokenResult.Failure.OperationTypeMismatch
-        }
-
-        token.consume()
-
-        return ConsumeTokenResult.Success(
-            targetEmail = token.targetEmail,
+    fun acquireUsableToken(command: ChallengeCommand.AcquireToken): ConfirmationToken? =
+        confirmationTokenRepository.findUsableByIdAndOperationTypeForUpdate(
+            id = command.tokenId,
+            operationType = command.operationType,
+            now = Instant.now(),
         )
-    }
 
     private fun requesterEmailMatches(
         requesterEmail: String?,
