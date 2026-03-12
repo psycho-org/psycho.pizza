@@ -45,6 +45,8 @@ class ChallengeController(
                 ChallengeCommand.Verify(
                     challengeId = request.challengeId,
                     otpCode = request.otpCode,
+                    expectedOperationType = OperationType.REGISTER,
+                    requesterEmail = null,
                 ),
             ).toConfirmedResponse()
 
@@ -62,6 +64,7 @@ class ChallengeController(
 
     @PostMapping("/me/withdraw/confirmations")
     fun confirmWithdraw(
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
         @Valid @RequestBody request: ChallengeRequest.VerifyOtp,
     ): ApiResponse<ChallengeResponse.Confirmed> =
         challengeService
@@ -69,6 +72,8 @@ class ChallengeController(
                 ChallengeCommand.Verify(
                     challengeId = request.challengeId,
                     otpCode = request.otpCode,
+                    expectedOperationType = OperationType.WITHDRAW,
+                    requesterEmail = principal.email,
                 ),
             ).toConfirmedResponse()
 
@@ -94,6 +99,8 @@ class ChallengeController(
                 ChallengeCommand.Verify(
                     challengeId = request.challengeId,
                     otpCode = request.otpCode,
+                    expectedOperationType = OperationType.CHANGE_PASSWORD,
+                    requesterEmail = principal.email,
                 ),
             ).toConfirmedResponse()
 
@@ -120,6 +127,8 @@ class ChallengeController(
                 )
 
             VerifyOtpResult.Failure.ChallengeNotFound -> throw DomainException(ChallengeErrorCode.CHALLENGE_NOT_FOUND)
+            VerifyOtpResult.Failure.OperationTypeMismatch -> throw DomainException(ChallengeErrorCode.CHALLENGE_NOT_FOUND)
+            VerifyOtpResult.Failure.RequesterEmailMismatch -> throw DomainException(ChallengeErrorCode.CHALLENGE_NOT_FOUND)
             VerifyOtpResult.Failure.ChallengeExpired -> throw DomainException(ChallengeErrorCode.CHALLENGE_EXPIRED)
             VerifyOtpResult.Failure.MaxAttemptsExceeded ->
                 throw DomainException(ChallengeErrorCode.CHALLENGE_MAX_ATTEMPTS_EXCEEDED)

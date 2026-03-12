@@ -45,6 +45,14 @@ class ChallengeService(
             challengeRepository.findByIdAndStatus(command.challengeId, ChallengeStatus.PENDING)
                 ?: return VerifyOtpResult.Failure.ChallengeNotFound
 
+        if (challenge.operationType != command.expectedOperationType) {
+            return VerifyOtpResult.Failure.OperationTypeMismatch
+        }
+
+        if (!requesterEmailMatches(command.requesterEmail, challenge.targetEmail)) {
+            return VerifyOtpResult.Failure.RequesterEmailMismatch
+        }
+
         if (challenge.isExpired()) {
             challenge.markExpired()
             return VerifyOtpResult.Failure.ChallengeExpired
@@ -131,5 +139,16 @@ class ChallengeService(
 
     companion object {
         private const val PENDING_CHALLENGE_CONSTRAINT_NAME = "uk_challenges_email_op_pending"
+    }
+
+    private fun requesterEmailMatches(
+        requesterEmail: String?,
+        targetEmail: Email,
+    ): Boolean {
+        if (requesterEmail == null) {
+            return true
+        }
+
+        return Email.of(requesterEmail) == targetEmail
     }
 }
