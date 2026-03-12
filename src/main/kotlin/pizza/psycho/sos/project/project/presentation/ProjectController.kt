@@ -26,7 +26,7 @@ import pizza.psycho.sos.project.project.presentation.dto.ProjectRequest
 import pizza.psycho.sos.project.project.presentation.dto.ProjectResponse
 import java.util.UUID
 
-// todo: userId AuthenticationPrincipal에서 받아오도록 변경
+// todo: accountId AuthenticationPrincipal에서 받아오도록 변경
 @RestController
 @RequestMapping("/api/v1/workspaces/{workspaceId}/projects")
 class ProjectController(
@@ -74,22 +74,22 @@ class ProjectController(
     /**
      * 프로젝트 간 Task 이동
      */
-    @PatchMapping("/{fromProjectId}/tasks/{taskId}/move/{toProjectId}/{userId}")
+    @PatchMapping("/{fromProjectId}/tasks/{taskId}/move/{accountId}")
     fun moveTask(
         @PathVariable workspaceId: UUID,
         @PathVariable fromProjectId: UUID,
-        @PathVariable toProjectId: UUID,
         @PathVariable taskId: UUID,
-        @PathVariable userId: UUID,
+        @PathVariable accountId: UUID,
+        @Valid @RequestBody request: ProjectRequest.MoveTask,
     ): ApiResponse<*> =
         handleResult {
             projectService.moveTask(
                 ProjectCommand.MoveTask(
                     workspaceId = WorkspaceId(workspaceId),
                     fromProjectId = fromProjectId,
-                    toProjectId = toProjectId,
+                    toProjectId = request.toProjectId,
                     taskId = taskId,
-                    movedBy = userId,
+                    movedBy = accountId,
                 ),
             )
         }
@@ -104,24 +104,24 @@ class ProjectController(
             projectService.modify(request.toCommand(workspaceId, projectId))
         }
 
-    @DeleteMapping("/{projectId}/{userId}")
+    @DeleteMapping("/{projectId}/{accountId}")
     fun removeProject(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,
-        @PathVariable userId: UUID,
+        @PathVariable accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            projectService.remove(ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, userId))
+            projectService.remove(ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, accountId))
         }
 
-    @DeleteMapping("/{projectId}/{userId}/with-tasks")
+    @DeleteMapping("/{projectId}/{accountId}/with-tasks")
     fun removeProjectWithTasks(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,
-        @PathVariable userId: UUID,
+        @PathVariable accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            projectService.removeWithTasks(ProjectCommand.RemoveWithTasks(WorkspaceId(workspaceId), projectId, userId))
+            projectService.removeWithTasks(ProjectCommand.RemoveWithTasks(WorkspaceId(workspaceId), projectId, accountId))
         }
 
     // ------------------------------------------------------------------------------------------------
