@@ -108,9 +108,9 @@ class TaskController(
         TaskCommand.UpdateTask(
             workspaceId = workspaceId,
             id = taskId,
-            title = title?.let { Patch.Value(it) } ?: Patch.Undefined,
-            description = description?.let { Patch.Value(it) } ?: Patch.Undefined,
-            status = status?.let { Patch.Value(it) } ?: Patch.Undefined,
+            title = title?.let { Patch.Value(it) } ?: Patch.Unchanged,
+            description = description?.let { Patch.Value(it) } ?: Patch.Unchanged,
+            status = status?.let { Patch.Value(it) } ?: Patch.Unchanged,
             assigneeId = assigneeId?.let { Patch.Value(assigneeId) } ?: Patch.Clear,
             dueDate = dueDate?.let { Patch.Value(dueDate) } ?: Patch.Clear,
             priority = priority?.let { Patch.Value(it) } ?: Patch.Clear,

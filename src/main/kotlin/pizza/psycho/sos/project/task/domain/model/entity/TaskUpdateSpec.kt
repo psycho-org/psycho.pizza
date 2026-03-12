@@ -10,11 +10,11 @@ import java.util.UUID
  * Task 업데이트 요구사항을 표현하는 도메인 전용 스펙
  */
 data class TaskUpdateSpec(
-    val title: Patch<String> = Patch.Undefined,
-    val description: Patch<String> = Patch.Undefined,
-    val status: Patch<Status> = Patch.Undefined,
-    val assigneeId: Patch<UUID> = Patch.Undefined,
-    val dueDate: Patch<Instant> = Patch.Undefined,
-    val priority: Patch<Priority> = Patch.Undefined,
+    val title: Patch<String> = Patch.Unchanged,
+    val description: Patch<String> = Patch.Unchanged,
+    val status: Patch<Status> = Patch.Unchanged,
+    val assigneeId: Patch<UUID> = Patch.Unchanged,
+    val dueDate: Patch<Instant> = Patch.Unchanged,
+    val priority: Patch<Priority> = Patch.Unchanged,
     val actorId: UUID?,
 )
