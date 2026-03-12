@@ -127,6 +127,8 @@ class ChallengeController(
                 )
 
             VerifyOtpResult.Failure.ChallengeNotFound -> throw DomainException(ChallengeErrorCode.CHALLENGE_NOT_FOUND)
+            VerifyOtpResult.Failure.OperationTypeMismatch -> throw DomainException(ChallengeErrorCode.CHALLENGE_NOT_FOUND)
+            VerifyOtpResult.Failure.RequesterEmailMismatch -> throw DomainException(ChallengeErrorCode.CHALLENGE_NOT_FOUND)
             VerifyOtpResult.Failure.ChallengeExpired -> throw DomainException(ChallengeErrorCode.CHALLENGE_EXPIRED)
             VerifyOtpResult.Failure.MaxAttemptsExceeded ->
                 throw DomainException(ChallengeErrorCode.CHALLENGE_MAX_ATTEMPTS_EXCEEDED)

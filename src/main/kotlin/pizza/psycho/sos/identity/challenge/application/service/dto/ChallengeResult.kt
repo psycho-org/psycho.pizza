@@ -33,17 +33,3 @@ sealed interface VerifyOtpResult {
         data object InvalidOtp : Failure
     }
 }
-
-sealed interface ConsumeTokenResult {
-    data class Success(
-        val targetEmail: Email,
-    ) : ConsumeTokenResult
-
-    sealed interface Failure : ConsumeTokenResult {
-        data object TokenNotFound : Failure
-
-        data object TokenExpired : Failure
-
-        data object OperationTypeMismatch : Failure
-    }
-}
