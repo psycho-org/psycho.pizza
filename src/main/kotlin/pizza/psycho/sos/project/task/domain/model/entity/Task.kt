@@ -20,6 +20,7 @@ import pizza.psycho.sos.project.task.domain.event.TaskDueDateChangedEvent
 import pizza.psycho.sos.project.task.domain.event.TaskStatusChangedEvent
 import pizza.psycho.sos.project.task.domain.exception.InvalidPriorityTransitionException
 import pizza.psycho.sos.project.task.domain.exception.InvalidStatusTransitionException
+import pizza.psycho.sos.project.task.domain.exception.TaskErrorCode
 import pizza.psycho.sos.project.task.domain.model.vo.AssigneeId
 import pizza.psycho.sos.project.task.domain.model.vo.Priority
 import pizza.psycho.sos.project.task.domain.model.vo.Status
@@ -48,7 +49,7 @@ class Task protected constructor(
 ) : BaseDeletableEntity(),
     AggregateRoot {
     val taskId: UUID
-        get() = id ?: throw DomainException("Task ID is null")
+        get() = id ?: throw DomainException(TaskErrorCode.TASK_ID_NULL)
 
     init {
         changeTitle(title)
@@ -65,14 +66,14 @@ class Task protected constructor(
 
     private fun changeTitle(title: String) {
         if (title.isBlank()) {
-            throw DomainException("Title cannot be blank")
+            throw DomainException(TaskErrorCode.TITLE_NOT_VALID, "Title cannot be blank")
         }
         this.title = title
     }
 
     private fun changeDescription(description: String) {
         if (description.isBlank()) {
-            throw DomainException("Description cannot be blank")
+            throw DomainException(TaskErrorCode.DESCRIPTION_NOT_VALID, "Description cannot be blank")
         }
         this.description = description
     }

@@ -22,7 +22,7 @@ class TaskDomainEventPublishingHandler(
     private val log by loggerDelegate()
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    fun handle(event: TaskDomainEvent) {
+    fun handle(event: TaskDomainEvent) =
         when (event) {
             is TaskStatusChangedEvent ->
                 eventPublisher
@@ -79,5 +79,4 @@ class TaskDomainEventPublishingHandler(
                         ),
                     ).also { log.info("Task deleted event: $event") }
         }
-    }
 }

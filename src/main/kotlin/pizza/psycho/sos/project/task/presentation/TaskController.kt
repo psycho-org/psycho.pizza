@@ -20,6 +20,7 @@ import pizza.psycho.sos.project.task.application.service.TaskService
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
 import pizza.psycho.sos.project.task.application.service.dto.TaskQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult
+import pizza.psycho.sos.project.task.domain.exception.TaskErrorCode
 import pizza.psycho.sos.project.task.presentation.dto.TaskRequest
 import pizza.psycho.sos.project.task.presentation.dto.TaskResponse
 import java.util.UUID
@@ -86,8 +87,11 @@ class TaskController(
             is TaskResult.Remove -> responseOf(message = "데이터 삭제에 성공하였습니다.", data = TaskResponse.Remove(result.count))
             is TaskResult.TaskInformation -> responseOf(data = result.toResponse())
             is TaskResult.TaskList -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
-            is TaskResult.Failure.IdNotFound -> throw DomainException("id not found")
-            is TaskResult.Failure.TaskInformationNotFound -> throw DomainException("task information not found")
+            is TaskResult.Failure.IdNotFound -> throw DomainException(TaskErrorCode.TASK_NOT_FOUND)
+            is TaskResult.Failure.TaskInformationNotFound -> throw DomainException(
+                TaskErrorCode.TASK_INFORMATION_VALIDATION,
+                "task information not found",
+            )
         }
 
     private fun TaskRequest.Create.toCommand(spaceId: UUID) =
