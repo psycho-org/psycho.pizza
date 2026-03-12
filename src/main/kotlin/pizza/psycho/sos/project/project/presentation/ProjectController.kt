@@ -19,10 +19,14 @@ import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.service.ProjectService
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
+import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.INVALID_REQUEST
+import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.PROJECT_ID_NULL
+import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.TASK_NOT_FOUND
 import pizza.psycho.sos.project.project.presentation.dto.ProjectRequest
 import pizza.psycho.sos.project.project.presentation.dto.ProjectResponse
 import java.util.UUID
 
+// todo: userId AuthenticationPrincipal에서 받아오도록 변경
 @RestController
 @RequestMapping("/api/v1/workspaces/{workspaceId}/projects")
 class ProjectController(
@@ -67,6 +71,29 @@ class ProjectController(
             projectService.getTasksInProject(ProjectCommand.GetTasks(WorkspaceId(workspaceId), projectId, pageable))
         }
 
+    /**
+     * 프로젝트 간 Task 이동
+     */
+    @PatchMapping("/{fromProjectId}/tasks/{taskId}/move/{toProjectId}/{userId}")
+    fun moveTask(
+        @PathVariable workspaceId: UUID,
+        @PathVariable fromProjectId: UUID,
+        @PathVariable toProjectId: UUID,
+        @PathVariable taskId: UUID,
+        @PathVariable userId: UUID,
+    ): ApiResponse<*> =
+        handleResult {
+            projectService.moveTask(
+                ProjectCommand.MoveTask(
+                    workspaceId = WorkspaceId(workspaceId),
+                    fromProjectId = fromProjectId,
+                    toProjectId = toProjectId,
+                    taskId = taskId,
+                    movedBy = userId,
+                ),
+            )
+        }
+
     @PatchMapping("/{projectId}")
     fun modifyProject(
         @PathVariable workspaceId: UUID,
@@ -109,6 +136,7 @@ class ProjectController(
                     message = "데이터 삭제에 성공하였습니다.",
                     data = ProjectResponse.Remove(result.count),
                 )
+
             is ProjectResult.RemoveWithTasks ->
                 responseOf(
                     message = "프로젝트 및 하위 태스크 삭제에 성공하였습니다.",
@@ -116,9 +144,9 @@ class ProjectController(
                 )
 
             is ProjectResult.Success -> responseOf(message = "데이터 수정에 성공하였습니다.", data = null)
-            is ProjectResult.Failure.IdNotFound -> throw DomainException("id not found")
-            is ProjectResult.Failure.TaskNotFound -> throw DomainException("task not found")
-            is ProjectResult.Failure.InvalidRequest -> throw DomainException("invalid request")
+            is ProjectResult.Failure.IdNotFound -> throw DomainException(PROJECT_ID_NULL, "id not found")
+            is ProjectResult.Failure.TaskNotFound -> throw DomainException(TASK_NOT_FOUND)
+            is ProjectResult.Failure.InvalidRequest -> throw DomainException(INVALID_REQUEST)
             is ProjectResult.Progress -> responseOf(data = result.toResponse())
         }
 

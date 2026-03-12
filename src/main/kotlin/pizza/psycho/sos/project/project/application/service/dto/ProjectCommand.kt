@@ -50,4 +50,15 @@ sealed interface ProjectCommand {
         val assigneeId: UUID? = null,
         val dueDate: Instant? = null,
     )
+
+    /**
+     * Task를 한 프로젝트에서 다른 프로젝트로 이동시키는 커맨드
+     */
+    data class MoveTask(
+        val workspaceId: WorkspaceId,
+        val fromProjectId: UUID,
+        val toProjectId: UUID,
+        val taskId: UUID,
+        val movedBy: UUID,
+    )
 }
