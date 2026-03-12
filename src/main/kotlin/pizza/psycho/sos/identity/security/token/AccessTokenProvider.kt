@@ -3,12 +3,9 @@ package pizza.psycho.sos.identity.security.token
 import io.jsonwebtoken.JwtException
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
-import org.springframework.security.core.Authentication
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.identity.account.domain.Account
 import pizza.psycho.sos.identity.security.config.JwtProperties
-import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.util.Date
@@ -35,7 +32,7 @@ class AccessTokenProvider(
             .compact()
     }
 
-    fun toAuthentication(token: String): Authentication? =
+    fun parse(token: String): AccessTokenClaims? =
         try {
             val claims =
                 Jwts
@@ -48,8 +45,7 @@ class AccessTokenProvider(
 
             val accountId = UUID.fromString(claims.subject)
             val email = claims["email"] as? String ?: return null
-            val principal = AuthenticatedAccountPrincipal(accountId = accountId, email = email)
-            UsernamePasswordAuthenticationToken(principal, null, emptyList())
+            AccessTokenClaims(accountId = accountId, email = email)
         } catch (_: IllegalArgumentException) {
             null
         } catch (_: JwtException) {

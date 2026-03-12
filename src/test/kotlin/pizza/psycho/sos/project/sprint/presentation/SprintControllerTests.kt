@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryService
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.application.service.SprintService
@@ -40,6 +41,9 @@ class SprintControllerTests {
 
     @MockitoBean
     private lateinit var accessTokenProvider: AccessTokenProvider
+
+    @MockitoBean
+    private lateinit var activeAccountPrincipalQueryService: ActiveAccountPrincipalQueryService
 
     @Test
     fun `스프린트 생성 시 생성된 정보가 반환된다`() {
