@@ -159,6 +159,7 @@ class TaskService(
             title = title,
             description = description,
             status = status,
+            priority = priority,
             assignee =
                 assigneeId.value?.let { id ->
                     Assignee(

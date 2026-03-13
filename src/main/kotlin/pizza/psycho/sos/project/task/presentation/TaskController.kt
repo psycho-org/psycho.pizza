@@ -132,6 +132,7 @@ class TaskController(
             title = title,
             description = description,
             status = status,
+            priority = priority,
             assignee = assignee?.let { TaskResponse.Assignee(it.id, it.name, it.email) },
             workspaceId = workspaceId,
             dueDate = dueDate,
