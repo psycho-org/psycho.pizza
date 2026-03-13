@@ -3,6 +3,8 @@ package pizza.psycho.sos.analysis.application.service
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.audit.application.service.AuditLogService
 import pizza.psycho.sos.common.support.log.loggerDelegate
+import pizza.psycho.sos.project.project.application.port.out.ProjectPort
+import pizza.psycho.sos.project.task.application.port.out.TaskPort
 import java.util.UUID
 
 /*
@@ -13,6 +15,9 @@ import java.util.UUID
 class AnalysisWorkerService(
     private val analysisLifecycleService: AnalysisLifecycleService,
     private val auditLogService: AuditLogService,
+//    private val sprintService: SprintPort,
+    private val projectService: ProjectPort,
+    private val taskService: TaskPort,
 //    private val sprintMetricsCalculator: SprintMetricsCalculator,
 //    private val relayServerClient: RelayServerClient, // FastAPI와 통신할 WebClient/RestTemplate
 ) {
@@ -27,11 +32,12 @@ class AnalysisWorkerService(
             // 1. QUEUE -> RUNNING
             analysisLifecycleService.markRunning(jobId)
 
-            // 2. 필요한 도메인 데이터 모두 수집 (Sprint, Tasks, AuditLogs)
+            // 2. 필요한 도메인 데이터 모두 수집 (Sprint, Projects, Tasks, AuditLogs)
             step = AnalysisStep.COLLECT_TARGET_DATA
             val analysisRequest = analysisLifecycleService.getAnalysisRequest(jobId)
-            // val sprint = sprintService.getSprint(...)
-            // val tasks = taskService.getTasks(...)
+//            val sprint = sprintService.findById(...)
+//            val projects = projectService.findByIdIn(...)
+//            val tasks = taskService.findByIdIn(...)
             val auditLogs = auditLogService.getAuditLogsForAnalysis(analysisRequest.targetId)
 
             // 2. 메트릭 계산 로직 호출 (JSON v1 페이로드 생성)
