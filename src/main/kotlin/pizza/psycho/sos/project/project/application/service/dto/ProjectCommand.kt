@@ -13,10 +13,11 @@ sealed interface ProjectCommand {
     data class Update(
         val workspaceId: WorkspaceId,
         val projectId: UUID,
-        val name: String?,
+        val name: String? = null,
         val addTaskIds: List<UUID> = emptyList(),
         val removeTaskIds: List<UUID> = emptyList(),
-    )
+        val updatedBy: UUID? = null,
+    ) : ProjectCommand
 
     data class Remove(
         val workspaceId: WorkspaceId,
@@ -37,7 +38,8 @@ sealed interface ProjectCommand {
         val description: String,
         val assigneeId: UUID? = null,
         val dueDate: Instant? = null,
-    )
+        val createdBy: UUID? = null,
+    ) : ProjectCommand
 
     /**
      * Task를 한 프로젝트에서 다른 프로젝트로 이동시키는 커맨드

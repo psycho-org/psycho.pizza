@@ -8,6 +8,7 @@ import pizza.psycho.sos.project.project.application.port.out.ProjectPort
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
+import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintResult
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
@@ -33,7 +34,7 @@ class SprintService(
      *          - 변경은 task에 넣고 검증을 sprint에?
      */
 
-    fun getSprint(command: SprintCommand.Get): SprintResult =
+    fun getSprint(command: SprintQuery.Find): SprintResult =
         Tx.readable {
             log.debug("getSprint: sprintId={}, workspaceId={}", command.sprintId, command.workspaceId)
 
@@ -49,7 +50,7 @@ class SprintService(
                 .also { log.info("getSprint success: sprintId=${command.sprintId}") }
         }
 
-    fun getProjectsInSprint(command: SprintCommand.GetProjects): SprintResult =
+    fun getProjectsInSprint(command: SprintQuery.FindProjectsInSprint): SprintResult =
         Tx.readable {
             log.debug("getProjectsInSprint: sprintId={}, workspaceId={}", command.sprintId, command.workspaceId)
 
@@ -95,6 +96,7 @@ class SprintService(
                     Sprint.create(
                         name = command.name,
                         workspaceId = command.workspaceId,
+                        goal = command.goal,
                         startDate = command.startDate,
                         endDate = command.endDate,
                     ),
@@ -193,7 +195,8 @@ class SprintService(
         command: SprintCommand.Update,
     ) = with(command) {
         name?.let { sprint.modify(it) }
-        sprint.changePeriod(startDate, endDate)
+        goal?.let { sprint.changeGoal(it, by) }
+        sprint.changePeriod(startDate, endDate, by)
 
         if (addProjectIds.isNotEmpty()) {
             sprint.addProjects(addProjectIds)
@@ -201,6 +204,11 @@ class SprintService(
         }
 
         if (removeProjectIds.isNotEmpty()) {
+            // 스프린트에서 프로젝트를 분리할 때, 해당 프로젝트 내 Task 들의 상태를 TO DO로 리셋
+            val projectSnapshots = loadProjectSnapshots(removeProjectIds, workspaceId)
+            val taskIds = projectSnapshots.flatMap { it.taskIds }.distinct()
+            taskPort.resetStatusToTodo(taskIds, by, workspaceId)
+
             sprint.removeProjects(removeProjectIds)
             log.info("update: projects removed. sprintId=$sprintId, projectIds=$removeProjectIds")
         }
@@ -275,6 +283,7 @@ class SprintService(
             workspaceId = workspaceId,
             sprintId = sprintId,
             name = name,
+            goal = goal,
             startDate = period.startDate,
             endDate = period.endDate,
         )

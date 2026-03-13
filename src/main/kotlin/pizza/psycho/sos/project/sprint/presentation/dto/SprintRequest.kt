@@ -9,6 +9,7 @@ sealed interface SprintRequest {
     data class Create(
         @field:NotBlank
         val name: String,
+        val goal: String? = null,
         @field:NotNull
         val startDate: Instant,
         @field:NotNull
@@ -21,6 +22,7 @@ sealed interface SprintRequest {
         val endDate: Instant? = null,
         val addProjectIds: List<UUID> = emptyList(),
         val removeProjectIds: List<UUID> = emptyList(),
+        val goal: String? = null,
     ) : SprintRequest
 
     data class CreateProject(

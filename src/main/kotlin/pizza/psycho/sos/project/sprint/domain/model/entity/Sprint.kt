@@ -12,6 +12,10 @@ import pizza.psycho.sos.common.event.AggregateRoot
 import pizza.psycho.sos.common.event.DomainEvent
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.sprint.domain.event.SprintDomainEvent
+import pizza.psycho.sos.project.sprint.domain.event.SprintGoalChangedEvent
+import pizza.psycho.sos.project.sprint.domain.event.SprintPeriodChangedEvent
+import pizza.psycho.sos.project.sprint.domain.exception.SprintErrorCode
 import pizza.psycho.sos.project.sprint.domain.model.vo.Period
 import java.time.Instant
 import java.util.UUID
@@ -21,6 +25,8 @@ import java.util.UUID
 class Sprint(
     @Column(name = "name", nullable = false)
     var name: String,
+    @Column(name = "goal")
+    var goal: String? = null,
     @Embedded
     val workspaceId: WorkspaceId,
     @Embedded
@@ -31,7 +37,7 @@ class Sprint(
     private val mappings: MutableSet<SprintProjectMapping> = mutableSetOf()
 
     val sprintId: UUID
-        get() = id ?: throw DomainException("Sprint ID is null")
+        get() = id ?: throw DomainException(SprintErrorCode.SPRINT_ID_NOT_FOUND, "Sprint ID is null")
 
     init {
         modify(name)
@@ -39,20 +45,55 @@ class Sprint(
 
     fun modify(name: String) {
         if (name.isBlank()) {
-            throw DomainException("Sprint name is blank")
+            throw DomainException(SprintErrorCode.SPRINT_NAME_NOT_VALID)
         }
         this.name = name
+    }
+
+    fun changeGoal(
+        goal: String? = null,
+        by: UUID,
+    ) {
+        val old = this.goal
+        if (old == goal) {
+            return
+        }
+
+        if (goal?.isBlank() == true) {
+            throw DomainException(SprintErrorCode.GOAL_NOT_EMPTY_OR_BLANK)
+        }
+        this.goal = goal
+
+        SprintGoalChangedEvent(
+            workspaceId = this.workspaceId.value,
+            actorId = by,
+            sprintId = this.sprintId,
+            fromGoal = old ?: "",
+            toGoal = goal ?: "",
+            eventId = UUID.randomUUID(),
+        ).register()
     }
 
     fun changePeriod(
         startDate: Instant? = null,
         endDate: Instant? = null,
+        by: UUID,
     ) {
+        val previousPeriod = this.period
         this.period =
             period.copy(
                 startDate = startDate ?: period.startDate,
                 endDate = endDate ?: period.endDate,
             )
+
+        SprintPeriodChangedEvent(
+            workspaceId = workspaceId.value,
+            sprintId = sprintId,
+            actorId = by,
+            fromPeriod = previousPeriod.toString(),
+            toPeriod = period.toString(),
+            eventId = UUID.randomUUID(),
+        ).register()
     }
 
     fun addProject(projectId: UUID) {
@@ -77,14 +118,18 @@ class Sprint(
 
     fun projectIds(): List<UUID> = mappings.map { it.projectId }
 
+    private fun SprintDomainEvent.register() = registerEvent(this)
+
     companion object {
         fun create(
             name: String,
             workspaceId: WorkspaceId,
+            goal: String?,
             startDate: Instant,
             endDate: Instant,
         ) = Sprint(
             name = name,
+            goal = goal,
             workspaceId = workspaceId,
             period = Period(startDate, endDate),
         )

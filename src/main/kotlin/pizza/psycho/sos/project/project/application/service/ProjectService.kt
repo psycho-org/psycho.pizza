@@ -90,7 +90,7 @@ class ProjectService(
                     assigneeId = command.assigneeId,
                     dueDate = command.dueDate,
                 )
-            project.addTask(task.id)
+            project.addTask(task.id, command.createdBy)
             log.info("createTask success: projectId=${command.projectId}, taskId=${task.id}")
             task.toResult()
         }
@@ -212,12 +212,12 @@ class ProjectService(
         name?.let { project.modify(it) }
 
         if (addTaskIds.isNotEmpty()) {
-            project.addTasks(addTaskIds)
+            project.addTasks(addTaskIds, updatedBy)
             log.info("update: tasks added. projectId=$projectId, taskIds=$addTaskIds")
         }
 
         if (removeTaskIds.isNotEmpty()) {
-            project.removeTasks(removeTaskIds)
+            project.removeTasks(removeTaskIds, updatedBy)
             log.info("update: tasks removed. projectId=$projectId, taskIds=$removeTaskIds")
         }
     }

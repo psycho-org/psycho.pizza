@@ -26,6 +26,14 @@ interface SprintRepository {
         workspaceId: WorkspaceId,
     ): Boolean
 
+    /**
+     * 주어진 Project가 속한 활성 스프린트 ID 목록을 조회한다.
+     */
+    fun findActiveSprintIdsByProjectId(
+        projectId: UUID,
+        workspaceId: WorkspaceId,
+    ): List<UUID>
+
     fun deleteById(
         sprintId: UUID,
         deletedBy: UUID,

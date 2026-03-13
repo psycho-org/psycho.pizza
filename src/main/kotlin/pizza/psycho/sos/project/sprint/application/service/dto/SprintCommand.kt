@@ -8,28 +8,21 @@ sealed interface SprintCommand {
     data class Create(
         val workspaceId: WorkspaceId,
         val name: String,
+        val goal: String?,
         val startDate: Instant,
         val endDate: Instant,
-    )
-
-    data class Get(
-        val workspaceId: WorkspaceId,
-        val sprintId: UUID,
-    )
-
-    data class GetProjects(
-        val workspaceId: WorkspaceId,
-        val sprintId: UUID,
     )
 
     data class Update(
         val workspaceId: WorkspaceId,
         val sprintId: UUID,
         val name: String? = null,
+        val goal: String? = null,
         val startDate: Instant? = null,
         val endDate: Instant? = null,
         val addProjectIds: List<UUID> = emptyList(),
         val removeProjectIds: List<UUID> = emptyList(),
+        val by: UUID,
     )
 
     data class Remove(

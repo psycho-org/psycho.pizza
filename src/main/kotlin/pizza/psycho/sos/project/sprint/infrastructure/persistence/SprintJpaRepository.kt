@@ -59,6 +59,21 @@ interface SprintJpaRepository :
         workspaceId: WorkspaceId,
     ): Boolean
 
+    @Query(
+        """
+        select s.id
+        from Sprint s
+            join SprintProjectMapping sp on sp.sprint = s
+        where s.workspaceId = :workspaceId
+          and s.deletedAt is null
+          and sp.projectId = :projectId
+        """,
+    )
+    override fun findActiveSprintIdsByProjectId(
+        projectId: UUID,
+        workspaceId: WorkspaceId,
+    ): List<UUID>
+
     fun findByIdAndWorkspaceIdValueAndDeletedAtIsNull(
         id: UUID,
         workspaceId: UUID,

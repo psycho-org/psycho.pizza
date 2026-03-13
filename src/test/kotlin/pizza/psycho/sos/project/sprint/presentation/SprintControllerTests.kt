@@ -21,6 +21,7 @@ import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.application.service.SprintService
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
+import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintResult
 import java.time.Instant
 import java.util.UUID
@@ -55,6 +56,7 @@ class SprintControllerTests {
                     name = "새 스프린트",
                     startDate = startDate,
                     endDate = endDate,
+                    goal = "새 목표",
                 ),
             ),
         ).thenReturn(
@@ -62,6 +64,7 @@ class SprintControllerTests {
                 workspaceId = WorkspaceId(workspaceId),
                 sprintId = sprintId,
                 name = "새 스프린트",
+                goal = "새 목표",
                 startDate = startDate,
                 endDate = endDate,
             ),
@@ -76,13 +79,15 @@ class SprintControllerTests {
                         {
                             "name": "새 스프린트",
                             "startDate": "$startDate",
-                            "endDate": "$endDate"
+                            "endDate": "$endDate",
+                            "goal": "새 목표"
                         }
                         """.trimIndent(),
                     ),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.sprintId").value(sprintId.toString()))
             .andExpect(jsonPath("$.data.name").value("새 스프린트"))
+            .andExpect(jsonPath("$.data.goal").value("새 목표"))
     }
 
     @Test
@@ -94,13 +99,14 @@ class SprintControllerTests {
 
         `when`(
             sprintService.getSprint(
-                SprintCommand.Get(WorkspaceId(workspaceId), sprintId),
+                SprintQuery.Find(WorkspaceId(workspaceId), sprintId),
             ),
         ).thenReturn(
             SprintResult.SprintInfo(
                 workspaceId = WorkspaceId(workspaceId),
                 sprintId = sprintId,
                 name = "조회 스프린트",
+                goal = "조회 목표",
                 startDate = startDate,
                 endDate = endDate,
             ),
@@ -111,6 +117,7 @@ class SprintControllerTests {
                 get("/api/v1/workspaces/$workspaceId/sprints/$sprintId"),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.name").value("조회 스프린트"))
+            .andExpect(jsonPath("$.data.goal").value("조회 목표"))
     }
 
     @Test
@@ -120,7 +127,7 @@ class SprintControllerTests {
         val projectId = UUID.randomUUID()
 
         `when`(
-            sprintService.getProjectsInSprint(SprintCommand.GetProjects(WorkspaceId(workspaceId), sprintId)),
+            sprintService.getProjectsInSprint(SprintQuery.FindProjectsInSprint(WorkspaceId(workspaceId), sprintId)),
         ).thenReturn(
             SprintResult.ProjectList(
                 listOf(
@@ -174,6 +181,7 @@ class SprintControllerTests {
         val workspaceId = UUID.randomUUID()
         val sprintId = UUID.randomUUID()
         val addProjectId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
 
         `when`(
             sprintService.modify(
@@ -185,6 +193,7 @@ class SprintControllerTests {
                     endDate = null,
                     addProjectIds = listOf(addProjectId),
                     removeProjectIds = emptyList(),
+                    by = accountId,
                 ),
             ),
         ).thenReturn(SprintResult.Success)
@@ -192,6 +201,7 @@ class SprintControllerTests {
         mockMvc
             .perform(
                 patch("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
+                    .param("account", accountId.toString())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
@@ -203,7 +213,7 @@ class SprintControllerTests {
                         """.trimIndent(),
                     ),
             ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.message").value("데이터 수정에 성공하였습니다."))
+            .andExpect(jsonPath("$.message").value("Data modification was successful."))
     }
 
     @Test
@@ -239,7 +249,8 @@ class SprintControllerTests {
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId/$userId/with-tasks"),
+                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId/with-tasks")
+                    .param("account", userId.toString()),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.projectCount").value(2))
             .andExpect(jsonPath("$.data.taskCount").value(5))

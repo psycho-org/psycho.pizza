@@ -8,6 +8,7 @@ sealed interface SprintResponse {
         val workspaceId: UUID,
         val sprintId: UUID,
         val name: String,
+        val goal: String? = null,
         val startDate: Instant,
         val endDate: Instant,
     ) : SprintResponse

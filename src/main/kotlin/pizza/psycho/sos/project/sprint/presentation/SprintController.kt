@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.response.ApiResponse
@@ -15,7 +16,9 @@ import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.application.service.SprintService
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
+import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintResult
+import pizza.psycho.sos.project.sprint.domain.exception.SprintErrorCode
 import pizza.psycho.sos.project.sprint.presentation.dto.SprintRequest
 import pizza.psycho.sos.project.sprint.presentation.dto.SprintResponse
 import java.util.UUID
@@ -40,7 +43,7 @@ class SprintController(
         @PathVariable sprintId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            sprintService.getSprint(SprintCommand.Get(WorkspaceId(workspaceId), sprintId))
+            sprintService.getSprint(SprintQuery.Find(WorkspaceId(workspaceId), sprintId))
         }
 
     @GetMapping("/{sprintId}/projects")
@@ -49,7 +52,7 @@ class SprintController(
         @PathVariable sprintId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            sprintService.getProjectsInSprint(SprintCommand.GetProjects(WorkspaceId(workspaceId), sprintId))
+            sprintService.getProjectsInSprint(SprintQuery.FindProjectsInSprint(WorkspaceId(workspaceId), sprintId))
         }
 
     @PostMapping("/{sprintId}/projects")
@@ -67,9 +70,10 @@ class SprintController(
         @PathVariable workspaceId: UUID,
         @PathVariable sprintId: UUID,
         @Valid @RequestBody request: SprintRequest.Update,
+        @RequestParam(value = "account") accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            sprintService.modify(request.toCommand(workspaceId, sprintId))
+            sprintService.modify(request.toCommand(workspaceId, sprintId, accountId))
         }
 
     @DeleteMapping("/{sprintId}/{userId}")
@@ -82,14 +86,14 @@ class SprintController(
             sprintService.remove(SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId))
         }
 
-    @DeleteMapping("/{sprintId}/{userId}/with-tasks")
+    @DeleteMapping("/{sprintId}/with-tasks")
     fun removeSprintWithTasks(
         @PathVariable workspaceId: UUID,
         @PathVariable sprintId: UUID,
-        @PathVariable userId: UUID,
+        @RequestParam(value = "account") accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            sprintService.removeWithTasks(SprintCommand.RemoveWithTasks(WorkspaceId(workspaceId), sprintId, userId))
+            sprintService.removeWithTasks(SprintCommand.RemoveWithTasks(WorkspaceId(workspaceId), sprintId, accountId))
         }
 
     // ------------------------------------------------------------------------------------------------
@@ -104,21 +108,24 @@ class SprintController(
                     message = "데이터 삭제에 성공하였습니다.",
                     data = SprintResponse.Remove(result.count),
                 )
+
             is SprintResult.RemoveWithTasks ->
                 responseOf(
                     message = "스프린트 및 하위 프로젝트, 태스크 삭제에 성공하였습니다.",
                     data = SprintResponse.RemoveWithTasks(result.sprintCount, result.projectCount, result.taskCount),
                 )
-            is SprintResult.Success -> responseOf<Unit>(message = "데이터 수정에 성공하였습니다.")
-            is SprintResult.Failure.IdNotFound -> throw DomainException("id not found")
-            is SprintResult.Failure.ProjectNotFound -> throw DomainException("project not found")
-            is SprintResult.Failure.InvalidRequest -> throw DomainException("invalid request")
+
+            is SprintResult.Success -> responseOf<Unit>(message = "Data modification was successful.")
+            is SprintResult.Failure.IdNotFound -> throw DomainException(SprintErrorCode.SPRINT_ID_NOT_FOUND)
+            is SprintResult.Failure.ProjectNotFound -> throw DomainException(SprintErrorCode.PROJECT_NOT_FOUND)
+            is SprintResult.Failure.InvalidRequest -> throw DomainException(SprintErrorCode.INVALID_REQUEST)
         }
 
     private fun SprintRequest.Create.toCommand(workspaceId: UUID) =
         SprintCommand.Create(
             workspaceId = WorkspaceId(workspaceId),
             name = name,
+            goal = goal,
             startDate = startDate,
             endDate = endDate,
         )
@@ -126,14 +133,17 @@ class SprintController(
     private fun SprintRequest.Update.toCommand(
         workspaceId: UUID,
         sprintId: UUID,
+        accountId: UUID,
     ) = SprintCommand.Update(
         workspaceId = WorkspaceId(workspaceId),
         sprintId = sprintId,
         name = name,
+        goal = goal,
         startDate = startDate,
         endDate = endDate,
         addProjectIds = addProjectIds,
         removeProjectIds = removeProjectIds,
+        by = accountId,
     )
 
     private fun SprintRequest.CreateProject.toCommand(
@@ -150,6 +160,7 @@ class SprintController(
             workspaceId = workspaceId.value,
             sprintId = sprintId,
             name = name,
+            goal = goal,
             startDate = startDate,
             endDate = endDate,
         )

@@ -17,6 +17,7 @@ import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectPort
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
+import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintResult
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
@@ -57,6 +58,7 @@ class SprintServiceTests {
                     workspaceId = workspaceId,
                     startDate = startDate,
                     endDate = endDate,
+                    goal = "Goal A",
                 ).withId(sprintId)
         val snapshot =
             ProjectSnapshot(
@@ -98,7 +100,7 @@ class SprintServiceTests {
 
         val result =
             sprintService.getProjectsInSprint(
-                SprintCommand.GetProjects(workspaceId, sprintId),
+                SprintQuery.FindProjectsInSprint(workspaceId, sprintId),
             )
 
         assertTrue(result is SprintResult.Failure.IdNotFound)
@@ -107,12 +109,12 @@ class SprintServiceTests {
     @Test
     fun `프로젝트 목록 조회 시 프로젝트가 없으면 빈 리스트를 반환한다`() {
         val sprint =
-            Sprint.create("Sprint A", workspaceId, startDate, endDate).withId(sprintId)
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId)
         every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns sprint
 
         val result =
             sprintService.getProjectsInSprint(
-                SprintCommand.GetProjects(workspaceId, sprintId),
+                SprintQuery.FindProjectsInSprint(workspaceId, sprintId),
             )
 
         assertTrue(result is SprintResult.ProjectList)
@@ -126,7 +128,7 @@ class SprintServiceTests {
         val projectId1 = UUID.randomUUID()
         val projectId2 = UUID.randomUUID()
         val sprint =
-            Sprint.create("Sprint A", workspaceId, startDate, endDate).withId(sprintId).apply {
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId).apply {
                 addProjects(listOf(projectId1, projectId2))
             }
         val snapshot1 =

@@ -18,7 +18,10 @@ class ProjectTests {
     private fun createProject(
         name: String = "Test Project",
         workspaceId: WorkspaceId = this.workspaceId,
-    ): Project = Project.create(name = name, workspaceId = workspaceId)
+    ): Project =
+        Project.create(name = name, workspaceId = workspaceId).apply {
+            id = UUID.randomUUID()
+        }
 
     // ------------------------------------------------------------------------------------------------
     // create
