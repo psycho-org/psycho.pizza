@@ -9,4 +9,9 @@ sealed interface AnalysisResponse {
         val status: String,
         val createdAt: Instant,
     ) : AnalysisResponse
+
+    data class CreateAnalysisReportResponse(
+        val reportId: UUID,
+        val status: String,
+    ) : AnalysisResponse
 }
