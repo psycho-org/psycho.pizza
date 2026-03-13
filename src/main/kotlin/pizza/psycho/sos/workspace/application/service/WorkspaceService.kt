@@ -4,19 +4,19 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import pizza.psycho.sos.common.handler.DomainException
-import pizza.psycho.sos.identity.account.application.service.WorkspaceOwnershipQueryService
+import pizza.psycho.sos.workspace.application.dto.ActiveWorkspaceMembership
 import pizza.psycho.sos.workspace.domain.model.membership.Membership
 import pizza.psycho.sos.workspace.domain.model.membership.Role
 import pizza.psycho.sos.workspace.domain.model.workspace.Workspace
-import pizza.psycho.sos.workspace.domain.repository.MembershipRepository
+import pizza.psycho.sos.workspace.domain.repository.WorkspaceMembershipQueryRepository
 import pizza.psycho.sos.workspace.domain.repository.WorkspaceRepository
 import java.util.UUID
 
 @Service
 class WorkspaceService(
     private val workspaceRepository: WorkspaceRepository,
-    private val membershipRepository: MembershipRepository,
-) : WorkspaceOwnershipQueryService {
+    private val workspaceMembershipQueryRepository: WorkspaceMembershipQueryRepository,
+) {
     @Transactional
     fun createWorkspace(
         name: String,
@@ -40,6 +40,12 @@ class WorkspaceService(
             }
     }
 
+    @Transactional(readOnly = true)
+    fun findActiveWorkspaceMembershipsByAccountId(accountId: UUID): List<ActiveWorkspaceMembership> {
+        logger.info("Fetching active workspace memberships. accountId={}", accountId)
+        return workspaceMembershipQueryRepository.findActiveWorkspaceMembershipsByAccountId(accountId)
+    }
+
     @Transactional
     fun transferOwnership(
         workspaceId: UUID,
@@ -54,7 +60,7 @@ class WorkspaceService(
         )
         val workspace = requireActiveWorkspace(workspaceId)
         val requesterRole =
-            membershipRepository.findRoleByWorkspaceIdAndAccountId(workspaceId, requesterAccountId)
+            workspaceMembershipQueryRepository.findRoleByWorkspaceIdAndAccountId(workspaceId, requesterAccountId)
                 ?: run {
                     logger.warn(
                         "Membership not found for transfer ownership. workspaceId={} requesterAccountId={}",
@@ -95,7 +101,7 @@ class WorkspaceService(
         logger.info("Deleting workspace. workspaceId={} requesterAccountId={}", workspaceId, requesterAccountId)
         val workspace = requireActiveWorkspace(workspaceId)
         val requesterRole =
-            membershipRepository.findRoleByWorkspaceIdAndAccountId(workspaceId, requesterAccountId)
+            workspaceMembershipQueryRepository.findRoleByWorkspaceIdAndAccountId(workspaceId, requesterAccountId)
                 ?: run {
                     logger.warn(
                         "Membership not found for delete. workspaceId={} requesterAccountId={}",
@@ -135,7 +141,7 @@ class WorkspaceService(
         )
         val workspace = requireActiveWorkspace(workspaceId)
         val requesterRole =
-            membershipRepository.findRoleByWorkspaceIdAndAccountId(workspaceId, requesterAccountId)
+            workspaceMembershipQueryRepository.findRoleByWorkspaceIdAndAccountId(workspaceId, requesterAccountId)
                 ?: run {
                     logger.warn(
                         "Membership not found for add member. workspaceId={} requesterAccountId={}",
@@ -182,7 +188,7 @@ class WorkspaceService(
         )
         val workspace = requireActiveWorkspace(workspaceId)
         val requesterRole =
-            membershipRepository.findRoleByWorkspaceIdAndAccountId(workspaceId, requesterAccountId)
+            workspaceMembershipQueryRepository.findRoleByWorkspaceIdAndAccountId(workspaceId, requesterAccountId)
                 ?: run {
                     logger.warn(
                         "Membership not found for remove member. workspaceId={} requesterAccountId={}",
@@ -232,10 +238,6 @@ class WorkspaceService(
             throw DomainException(ex.message ?: "failed to remove member", ex)
         }
     }
-
-    @Transactional(readOnly = true)
-    override fun existsActiveOwnerMembershipByAccountId(accountId: UUID): Boolean =
-        membershipRepository.existsActiveOwnerMembershipByAccountId(accountId)
 
     private fun requireActiveWorkspace(workspaceId: UUID): Workspace =
         workspaceRepository.findActiveByIdOrNull(workspaceId)
