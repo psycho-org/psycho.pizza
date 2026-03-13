@@ -15,7 +15,7 @@ abstract class BaseDeletableEntity protected constructor(
     val isDeleted: Boolean
         get() = deletedAt != null
 
-    fun delete(by: UUID) {
+    open fun delete(by: UUID) {
         this.deletedAt = Instant.now()
         this.deletedBy = by
     }

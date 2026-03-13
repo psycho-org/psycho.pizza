@@ -5,4 +5,4 @@ import pizza.psycho.sos.common.handler.DomainException
 class InvalidDueDateException(
     override val message: String,
     override val cause: Throwable? = null,
-) : DomainException(message, cause)
+) : DomainException(TaskErrorCode.INVALID_REQUEST, message, cause)

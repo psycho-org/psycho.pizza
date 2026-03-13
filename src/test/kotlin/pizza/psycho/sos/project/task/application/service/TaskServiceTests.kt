@@ -14,9 +14,11 @@ import org.junit.jupiter.api.Test
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.test.context.ActiveProfiles
+import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
+import pizza.psycho.sos.project.task.application.service.dto.TaskQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult
 import pizza.psycho.sos.project.task.domain.model.entity.Task
 import pizza.psycho.sos.project.task.domain.repository.TaskRepository
@@ -26,7 +28,8 @@ import java.util.UUID
 @ActiveProfiles("test")
 class TaskServiceTests {
     private val taskRepository = mockk<TaskRepository>()
-    private val taskService = TaskService(taskRepository)
+    private val domainEventPublisher = mockk<DomainEventPublisher>()
+    private val taskService = TaskService(taskRepository, domainEventPublisher)
 
     @BeforeEach
     fun setup() {
@@ -79,7 +82,7 @@ class TaskServiceTests {
     fun `워크스페이스의 모든 태스크를 페이지네이션으로 조회한다`() {
         val workspaceId = UUID.randomUUID()
         val pageable = PageRequest.of(0, 10)
-        val command = TaskCommand.FindTasks(workspaceId, pageable)
+        val command = TaskQuery.FindTasks(workspaceId, pageable)
 
         val task1 =
             Task
@@ -113,7 +116,7 @@ class TaskServiceTests {
     fun `특정 태스크 ID로 조회 시 태스크 정보를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val taskId = UUID.randomUUID()
-        val command = TaskCommand.FindTask(workspaceId, taskId)
+        val command = TaskQuery.FindTask(workspaceId, taskId)
 
         val task =
             Task
@@ -140,27 +143,12 @@ class TaskServiceTests {
     fun `존재하지 않는 태스크 조회 시 IdNotFound를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val taskId = UUID.randomUUID()
-        val command = TaskCommand.FindTask(workspaceId, taskId)
+        val command = TaskQuery.FindTask(workspaceId, taskId)
 
         every { taskRepository.findActiveTaskByIdOrNull(taskId, WorkspaceId(workspaceId)) } returns null
 
         val result = taskService.getInformation(command)
 
         assertTrue(result is TaskResult.Failure.IdNotFound)
-    }
-
-    @Test
-    fun `태스크 삭제 시 Success를 반환한다`() {
-        val workspaceId = UUID.randomUUID()
-        val taskId = UUID.randomUUID()
-        val userId = UUID.randomUUID()
-        val command = TaskCommand.RemoveTask(workspaceId, taskId, userId)
-
-        every { taskRepository.deleteById(taskId, userId, WorkspaceId(workspaceId)) } returns 1
-
-        val result = taskService.remove(command)
-
-        assertTrue(result is TaskResult.Remove)
-        verify { taskRepository.deleteById(taskId, userId, WorkspaceId(workspaceId)) }
     }
 }

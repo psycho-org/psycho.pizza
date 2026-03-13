@@ -23,6 +23,7 @@ import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryS
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import pizza.psycho.sos.project.task.application.service.TaskService
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
+import pizza.psycho.sos.project.task.application.service.dto.TaskQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult
 import pizza.psycho.sos.project.task.domain.model.vo.Status
 import java.util.UUID
@@ -134,7 +135,7 @@ class TaskControllerTests {
 
         `when`(
             taskService.getAll(
-                TaskCommand.FindTasks(workspaceId, pageable),
+                TaskQuery.FindTasks(workspaceId, pageable),
             ),
         ).thenReturn(TaskResult.TaskList(page))
 
@@ -146,7 +147,7 @@ class TaskControllerTests {
             ).andExpect(status().isOk)
 
         verify(taskService).getAll(
-            TaskCommand.FindTasks(workspaceId, pageable),
+            TaskQuery.FindTasks(workspaceId, pageable),
         )
     }
 
@@ -157,7 +158,7 @@ class TaskControllerTests {
 
         `when`(
             taskService.getInformation(
-                TaskCommand.FindTask(workspaceId, taskId),
+                TaskQuery.FindTask(workspaceId, taskId),
             ),
         ).thenReturn(
             TaskResult.TaskInformation(
@@ -187,7 +188,7 @@ class TaskControllerTests {
 
         `when`(
             taskService.getInformation(
-                TaskCommand.FindTask(workspaceId, taskId),
+                TaskQuery.FindTask(workspaceId, taskId),
             ),
         ).thenReturn(TaskResult.Failure.IdNotFound)
 

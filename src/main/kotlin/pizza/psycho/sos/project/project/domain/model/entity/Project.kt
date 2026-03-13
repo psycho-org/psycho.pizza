@@ -9,9 +9,12 @@ import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 import pizza.psycho.sos.common.entity.BaseDeletableEntity
 import pizza.psycho.sos.common.event.AggregateRoot
-import pizza.psycho.sos.common.event.DomainEventDelegate
+import pizza.psycho.sos.common.event.DomainEvent
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.project.domain.event.ProjectDomainEvent
+import pizza.psycho.sos.project.project.domain.event.TaskProjectChangedEvent
+import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode
 import java.util.UUID
 
 @Entity
@@ -22,12 +25,12 @@ class Project(
     @Embedded
     val workspaceId: WorkspaceId,
 ) : BaseDeletableEntity(),
-    AggregateRoot by DomainEventDelegate() {
+    AggregateRoot {
     @OneToMany(mappedBy = "project", fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)
     private val mappings: MutableSet<ProjectTaskMapping> = mutableSetOf()
 
     val projectId: UUID
-        get() = id ?: throw DomainException("Project ID is null")
+        get() = id ?: throw DomainException(ProjectErrorCode.PROJECT_ID_NULL)
 
     init {
         modify(name)
@@ -35,7 +38,7 @@ class Project(
 
     fun modify(name: String) {
         if (name.isBlank()) {
-            throw DomainException("Project name is blank")
+            throw DomainException(ProjectErrorCode.PROJECT_NAME_NULL)
         }
         this.name = name
     }
@@ -58,9 +61,36 @@ class Project(
         mappings.removeIf { it.taskId == taskId }
     }
 
+    fun moveTaskTo(
+        taskId: UUID,
+        to: Project,
+        by: UUID,
+    ) {
+        if (!this.hasTask(taskId)) {
+            throw DomainException(ProjectErrorCode.TASK_NOT_FOUND)
+        }
+        if (this.projectId == to.projectId) {
+            throw DomainException(ProjectErrorCode.SAME_PROJECT)
+        }
+
+        this.removeTask(taskId)
+        to.addTask(taskId)
+
+        TaskProjectChangedEvent(
+            workspaceId = this.workspaceId.value,
+            actorId = by,
+            taskId = taskId,
+            fromProjectId = this.projectId,
+            toProjectId = to.projectId,
+            eventId = UUID.randomUUID(),
+        ).register()
+    }
+
     fun hasTask(taskId: UUID): Boolean = mappings.any { it.taskId == taskId }
 
     fun taskIds(): List<UUID> = mappings.map { it.taskId }
+
+    private fun ProjectDomainEvent.register() = registerEvent(this)
 
     companion object {
         fun create(
@@ -72,4 +102,24 @@ class Project(
                 workspaceId = workspaceId,
             )
     }
+
+    // 이벤트 관련 ---------------------------------------------------------------------
+
+    @Transient
+    private var events: MutableSet<DomainEvent>? = null
+
+    private fun ensureEvents(): MutableSet<DomainEvent> {
+        if (events == null) {
+            events = mutableSetOf()
+        }
+        return events!!
+    }
+
+    override fun registerEvent(event: DomainEvent) {
+        ensureEvents() += event
+    }
+
+    override fun domainEvents(): List<DomainEvent> = events?.toList() ?: emptyList()
+
+    override fun pullDomainEvents(): List<DomainEvent> = domainEvents().also { events?.clear() }
 }

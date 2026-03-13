@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.test.context.ActiveProfiles
+import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
@@ -27,7 +28,8 @@ import java.util.UUID
 class ProjectServiceTests {
     private val projectRepository = mockk<ProjectRepository>()
     private val taskPort = mockk<TaskPort>()
-    private val projectService = ProjectService(projectRepository, taskPort)
+    private val eventPublisher = mockk<DomainEventPublisher>()
+    private val projectService = ProjectService(projectRepository, taskPort, eventPublisher)
 
     @BeforeEach
     fun setUp() {

@@ -26,6 +26,7 @@ import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.service.ProjectService
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
+import pizza.psycho.sos.project.project.application.service.dto.ProjectQuery
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.task.domain.model.vo.Status
 import java.time.Instant
@@ -109,7 +110,7 @@ class ProjectControllerTests {
 
         `when`(
             projectService.getProject(
-                ProjectCommand.Get(WorkspaceId(workspaceId), projectId),
+                ProjectQuery.Find(WorkspaceId(workspaceId), projectId),
             ),
         ).thenReturn(
             ProjectResult.ProjectInfo(
@@ -137,7 +138,7 @@ class ProjectControllerTests {
 
         `when`(
             projectService.getProject(
-                ProjectCommand.Get(WorkspaceId(workspaceId), projectId),
+                ProjectQuery.Find(WorkspaceId(workspaceId), projectId),
             ),
         ).thenReturn(ProjectResult.Failure.IdNotFound)
 
@@ -180,7 +181,7 @@ class ProjectControllerTests {
 
         `when`(
             projectService.getTasksInProject(
-                ProjectCommand.GetTasks(WorkspaceId(workspaceId), projectId, pageable),
+                ProjectQuery.FindTasksInProject(WorkspaceId(workspaceId), projectId, pageable),
             ),
         ).thenReturn(ProjectResult.TaskList(page))
 
@@ -192,7 +193,7 @@ class ProjectControllerTests {
             ).andExpect(status().isOk)
 
         verify(projectService).getTasksInProject(
-            ProjectCommand.GetTasks(WorkspaceId(workspaceId), projectId, pageable),
+            ProjectQuery.FindTasksInProject(WorkspaceId(workspaceId), projectId, pageable),
         )
     }
 
@@ -204,7 +205,7 @@ class ProjectControllerTests {
 
         `when`(
             projectService.getTasksInProject(
-                ProjectCommand.GetTasks(WorkspaceId(workspaceId), projectId, pageable),
+                ProjectQuery.FindTasksInProject(WorkspaceId(workspaceId), projectId, pageable),
             ),
         ).thenReturn(ProjectResult.Failure.IdNotFound)
 
@@ -304,7 +305,8 @@ class ProjectControllerTests {
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/projects/$projectId/$userId"),
+                delete("/api/v1/workspaces/$workspaceId/projects/$projectId")
+                    .param("account", "$userId"),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.message").value("데이터 삭제에 성공하였습니다."))
             .andExpect(jsonPath("$.data.count").value(1))
@@ -328,7 +330,8 @@ class ProjectControllerTests {
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/projects/$projectId/$userId/with-tasks"),
+                delete("/api/v1/workspaces/$workspaceId/projects/$projectId/with-tasks")
+                    .param("account", "$userId"),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.message").value("프로젝트 및 하위 태스크 삭제에 성공하였습니다."))
             .andExpect(jsonPath("$.data.projectCount").value(1))
@@ -349,7 +352,8 @@ class ProjectControllerTests {
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/projects/$projectId/$userId/with-tasks"),
+                delete("/api/v1/workspaces/$workspaceId/projects/$projectId/with-tasks")
+                    .param("account", "$userId"),
             ).andExpect(status().is4xxClientError)
     }
 }

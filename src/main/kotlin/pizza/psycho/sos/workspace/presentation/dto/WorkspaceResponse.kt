@@ -1,6 +1,12 @@
 package pizza.psycho.sos.workspace.presentation.dto
 
 sealed interface WorkspaceResponse {
+    data class ListItem(
+        val id: String,
+        val title: String,
+        val role: String,
+    )
+
     data class Detail(
         val id: String,
         val name: String,
