@@ -13,6 +13,7 @@ import pizza.psycho.sos.common.message.channel.mail.template.domain.data.OtpTemp
 import pizza.psycho.sos.common.message.channel.mail.template.domain.data.WorkspaceInviteTemplateData
 import pizza.psycho.sos.common.message.domain.MessageChannel
 import pizza.psycho.sos.common.message.domain.MessageType
+import pizza.psycho.sos.common.message.domain.exception.MessageErrorCode
 import pizza.psycho.sos.common.message.token.application.service.MailAuthTokenService
 import pizza.psycho.sos.common.message.token.infrastructure.config.MailTokenProperties
 import java.time.Instant
@@ -46,7 +47,10 @@ class MailSendService(
         expiresInMinutes: Long = DEFAULT_OTP_EXPIRES_IN_MINUTES,
     ): MailSendStatus {
         if (expiresInMinutes <= 0) {
-            throw DomainException("expiresInMinutes must be positive")
+            throw DomainException(
+                MessageErrorCode.MESSAGE_POSITIVE_NUMBER_REQUIRED,
+                "expiresInMinutes must be positive",
+            )
         }
         return send(
             MailSendCommand.Otp(
@@ -63,8 +67,18 @@ class MailSendService(
 
     private fun sendGeneral(command: MailSendCommand.General): MailSendStatus {
         val normalizedEmail = command.to.trim().lowercase()
-        val subject = command.subject.trim().takeIf { it.isNotEmpty() } ?: throw DomainException("subject is required")
-        val htmlContent = command.htmlContent.trim().takeIf { it.isNotEmpty() } ?: throw DomainException("htmlContent is required")
+        val subject =
+            command.subject.trim().takeIf { it.isNotEmpty() }
+                ?: throw DomainException(
+                    MessageErrorCode.MESSAGE_REQUIRED_FIELD_MISSING,
+                    "subject is required",
+                )
+        val htmlContent =
+            command.htmlContent.trim().takeIf { it.isNotEmpty() }
+                ?: throw DomainException(
+                    MessageErrorCode.MESSAGE_REQUIRED_FIELD_MISSING,
+                    "htmlContent is required",
+                )
         val from = command.from?.trim()?.takeIf { it.isNotEmpty() }
 
         logger.info("Sending general mail. to={}", normalizedEmail)
@@ -84,10 +98,16 @@ class MailSendService(
         logger.info("Sending OTP mail. to={}", normalizedEmail)
         val template = mailTemplateService.getActiveTemplate(command.mailType)
         if (!command.mailType.supportedChannels.contains(MessageChannel.EMAIL)) {
-            throw DomainException("channel EMAIL is not supported for mailType=${command.mailType}")
+            throw DomainException(
+                MessageErrorCode.MESSAGE_CHANNEL_NOT_SUPPORTED,
+                "channel EMAIL is not supported for mailType=${command.mailType}",
+            )
         }
         if (template.tokenAuthEnabled) {
-            throw DomainException("token auth is not supported for mailType=${command.mailType}")
+            throw DomainException(
+                MessageErrorCode.MESSAGE_TOKEN_AUTH_NOT_SUPPORTED,
+                "token auth is not supported for mailType=${command.mailType}",
+            )
         }
 
         val rendered = mailTemplateService.render(command.templateData)
@@ -106,7 +126,10 @@ class MailSendService(
         logger.info("Sending mail. mailType={} to={}", command.mailType, normalizedEmail)
         val template = mailTemplateService.getActiveTemplate(command.mailType)
         if (!command.mailType.supportedChannels.contains(MessageChannel.EMAIL)) {
-            throw DomainException("channel EMAIL is not supported for mailType=${command.mailType}")
+            throw DomainException(
+                MessageErrorCode.MESSAGE_CHANNEL_NOT_SUPPORTED,
+                "channel EMAIL is not supported for mailType=${command.mailType}",
+            )
         }
         var inviteLink = command.templateData.inviteLink.trim()
         if (template.tokenAuthEnabled) {
@@ -119,9 +142,22 @@ class MailSendService(
             val baseLink =
                 inviteLink.takeIf { it.isNotEmpty() }
                     ?: mailTokenProperties.verifyBaseUrl.trim().takeIf { it.isNotEmpty() }
-                    ?: throw DomainException("mail.token.verifyBaseUrl is required")
-            val expireHours = template.tokenExpireHours ?: throw DomainException("tokenExpireHours is required")
-            val actionType = template.actionType ?: throw DomainException("actionType is required for token auth")
+                    ?: throw DomainException(
+                        MessageErrorCode.MESSAGE_MAIL_VERIFY_URL_REQUIRED,
+                        "mail.token.verifyBaseUrl is required",
+                    )
+            val expireHours =
+                template.tokenExpireHours
+                    ?: throw DomainException(
+                        MessageErrorCode.MESSAGE_MAIL_TOKEN_EXPIRE_HOURS_REQUIRED,
+                        "tokenExpireHours is required",
+                    )
+            val actionType =
+                template.actionType
+                    ?: throw DomainException(
+                        MessageErrorCode.MESSAGE_MAIL_ACTION_TYPE_REQUIRED,
+                        "actionType is required for token auth",
+                    )
             val token =
                 mailAuthTokenService.issue(
                     mailType = command.mailType,
@@ -180,22 +216,36 @@ class MailSendService(
 
     private fun Map<String, String?>.required(key: String): String =
         this[key]?.trim()?.takeIf { it.isNotEmpty() }
-            ?: throw DomainException("param '$key' is required")
+            ?: throw DomainException(
+                MessageErrorCode.MESSAGE_REQUIRED_FIELD_MISSING,
+                "param '$key' is required",
+            )
 
     private fun Map<String, String?>.requiredAny(vararg keys: String): String =
         keys
             .asSequence()
             .mapNotNull { key -> this[key]?.trim()?.takeIf { it.isNotEmpty() } }
             .firstOrNull()
-            ?: throw DomainException("one of params [${keys.joinToString()}] is required")
+            ?: throw DomainException(
+                MessageErrorCode.MESSAGE_REQUIRED_FIELD_MISSING,
+                "one of params [${keys.joinToString()}] is required",
+            )
 
     private fun Map<String, String?>.optional(key: String): String? = this[key]?.trim()?.takeIf { it.isNotEmpty() }
 
     private fun Map<String, String?>.optionalPositiveLong(key: String): Long? =
         optional(key)?.let {
-            val value = it.toLongOrNull() ?: throw DomainException("param '$key' must be a valid number")
+            val value =
+                it.toLongOrNull()
+                    ?: throw DomainException(
+                        MessageErrorCode.MESSAGE_INVALID_NUMBER_PARAM,
+                        "param '$key' must be a valid number",
+                    )
             if (value <= 0) {
-                throw DomainException("param '$key' must be positive")
+                throw DomainException(
+                    MessageErrorCode.MESSAGE_POSITIVE_NUMBER_REQUIRED,
+                    "param '$key' must be positive",
+                )
             }
             value
         }
@@ -204,7 +254,11 @@ class MailSendService(
         try {
             UUID.fromString(required(key))
         } catch (ex: IllegalArgumentException) {
-            throw DomainException("param '$key' must be a valid UUID")
+            throw DomainException(
+                MessageErrorCode.MESSAGE_INVALID_UUID_PARAM,
+                "param '$key' must be a valid UUID",
+                ex,
+            )
         }
 
     private fun appendToken(
