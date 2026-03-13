@@ -22,7 +22,7 @@ import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
 import pizza.psycho.sos.project.project.application.service.dto.ProjectQuery
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.INVALID_REQUEST
-import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.PROJECT_ID_NULL
+import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.PROJECT_NOT_FOUND
 import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.TASK_NOT_FOUND
 import pizza.psycho.sos.project.project.presentation.dto.ProjectRequest
 import pizza.psycho.sos.project.project.presentation.dto.ProjectResponse
@@ -158,7 +158,7 @@ class ProjectController(
                 )
 
             is ProjectResult.Success -> responseOf(message = "데이터 수정에 성공하였습니다.", data = null)
-            is ProjectResult.Failure.IdNotFound -> throw DomainException(PROJECT_ID_NULL, "id not found")
+            is ProjectResult.Failure.IdNotFound -> throw DomainException(PROJECT_NOT_FOUND, "project not found")
             is ProjectResult.Failure.TaskNotFound -> throw DomainException(TASK_NOT_FOUND)
             is ProjectResult.Failure.InvalidRequest -> throw DomainException(INVALID_REQUEST)
             is ProjectResult.Progress -> responseOf(data = result.toResponse())
