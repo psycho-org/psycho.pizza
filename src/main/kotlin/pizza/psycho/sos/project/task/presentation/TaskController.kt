@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.common.handler.DomainException
-import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.common.response.ApiResponse
 import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.common.support.pagination.PageInfoSupport
@@ -109,12 +108,12 @@ class TaskController(
         TaskCommand.UpdateTask(
             workspaceId = workspaceId,
             id = taskId,
-            title = title?.let { Patch.Value(it) } ?: Patch.Unchanged,
-            description = description?.let { Patch.Value(it) } ?: Patch.Unchanged,
-            status = status?.let { Patch.Value(it) } ?: Patch.Unchanged,
-            assigneeId = assigneeId?.let { Patch.Value(assigneeId) } ?: Patch.Clear,
-            dueDate = dueDate?.let { Patch.Value(dueDate) } ?: Patch.Clear,
-            priority = priority?.let { Patch.Value(it) } ?: Patch.Clear,
+            title = title,
+            description = description,
+            status = status,
+            assigneeId = assigneeId,
+            dueDate = dueDate,
+            priority = priority,
             actorId = actorId,
         )
 
