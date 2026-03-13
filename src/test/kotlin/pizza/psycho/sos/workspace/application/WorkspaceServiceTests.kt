@@ -6,6 +6,7 @@ import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.workspace.application.dto.ActiveWorkspaceMembership
 import pizza.psycho.sos.workspace.application.service.WorkspaceService
+import pizza.psycho.sos.workspace.domain.exception.WorkspaceErrorCode
 import pizza.psycho.sos.workspace.domain.model.membership.Role
 import pizza.psycho.sos.workspace.domain.model.workspace.Workspace
 import pizza.psycho.sos.workspace.domain.repository.WorkspaceMembershipQueryRepository
@@ -37,9 +38,12 @@ class WorkspaceServiceTests {
     fun `getWorkspace - throws when workspace missing`() {
         val workspaceId = UUID.randomUUID()
 
-        assertFailsWith<DomainException> {
-            service.getWorkspace(workspaceId)
-        }
+        val exception =
+            assertFailsWith<DomainException> {
+                service.getWorkspace(workspaceId)
+            }
+
+        assertEquals(WorkspaceErrorCode.WORKSPACE_NOT_FOUND, exception.errorCode)
     }
 
     @Test
