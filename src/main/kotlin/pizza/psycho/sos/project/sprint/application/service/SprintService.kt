@@ -32,6 +32,13 @@ class SprintService(
      *          - ui에 줄 때 sprint 기간 내에 있는지 dto에 담아서 보내줄 것
      *      2. sprint 내의 프로젝트에 task의 기간 변경 또는 task 추가 시 sprint와의 기간 검증
      *          - 변경은 task에 넣고 검증을 sprint에?
+     *
+     * 정책
+     * 1. sprint에 속하지 않는 task는 backlog로 칭함
+     * 2. sprint에서 task를 제거하여 backlog로 전환할 때는 to do로 전환한 후 이벤트를 발송합니다.
+     * 3. sprint에 연결된 project에 task를 추가할 때 dueDate가 추가되어 있는 경우 sprint의 기간 이내에 있어야 합니다.
+     * 4. sprint에 연결된 project에 존재하는 task에서 dueDate를 수정하는 경우 sprint의 기간 이내에 있어야 합니다.
+     * 5. sprint의 기간을 변경하는 경우 sprint 내의 project에서 task의 목록을 반환할 때, sprint의 기간 이내에 존재하는지 dto로 반환합니다.
      */
 
     fun getSprint(command: SprintQuery.Find): SprintResult =
@@ -207,7 +214,7 @@ class SprintService(
             // 스프린트에서 프로젝트를 분리할 때, 해당 프로젝트 내 Task 들의 상태를 TO DO로 리셋
             val projectSnapshots = loadProjectSnapshots(removeProjectIds, workspaceId)
             val taskIds = projectSnapshots.flatMap { it.taskIds }.distinct()
-            taskPort.resetStatusToTodo(taskIds, by, workspaceId)
+            taskPort.resetStatusToTodo(taskIds, by, workspaceId, emitEvent = true)
 
             sprint.removeProjects(removeProjectIds)
             log.info("update: projects removed. sprintId=$sprintId, projectIds=$removeProjectIds")

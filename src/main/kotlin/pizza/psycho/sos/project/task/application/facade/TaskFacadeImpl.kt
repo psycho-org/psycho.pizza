@@ -60,7 +60,8 @@ class TaskFacadeImpl(
         ids: Collection<UUID>,
         actorId: UUID,
         workspaceId: WorkspaceId,
-    ) = taskService.resetStatusToTodo(ids, workspaceId, actorId)
+        emitEvent: Boolean,
+    ) = taskService.resetStatusToTodo(ids, workspaceId, actorId, emitEvent)
 
     private fun Task.toSnapshot(): TaskSnapshot =
         TaskSnapshot(

@@ -43,5 +43,6 @@ interface TaskFacade {
         ids: Collection<UUID>,
         actorId: UUID,
         workspaceId: WorkspaceId,
+        emitEvent: Boolean = false,
     )
 }
