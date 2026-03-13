@@ -1,6 +1,7 @@
 package pizza.psycho.sos.analysis.application.service
 
 import org.springframework.stereotype.Service
+import pizza.psycho.sos.analysis.application.port.RelayServerClient
 import pizza.psycho.sos.audit.application.service.AuditLogService
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.project.project.application.port.out.ProjectPort
@@ -19,7 +20,7 @@ class AnalysisWorkerService(
     private val projectService: ProjectPort,
     private val taskService: TaskPort,
 //    private val sprintMetricsCalculator: SprintMetricsCalculator,
-//    private val relayServerClient: RelayServerClient, // FastAPI와 통신할 WebClient/RestTemplate
+    private val relayServerClient: RelayServerClient, // FastAPI와 통신할 WebClient/RestTemplate
 ) {
     private val log by loggerDelegate()
 
@@ -44,11 +45,9 @@ class AnalysisWorkerService(
             step = AnalysisStep.CALCULATE_METRICS
             // val payload = sprintMetricsCalculator.calculate(sprint, tasks, auditLogs)
 
+            // 3. 릴레이 서버로 데이터 전송
             step = AnalysisStep.SEND_TO_RELAY_SERVER
-            // 3. 릴레이 서버(FastAPI)로 데이터 전송 (이때 메인서버의 Webhook URL을 함께 넘겨줌)
-            // val callbackUrl = "https://relay.psycho-pizza.com/api/v1/internal/analysis/$jobId/callback"
-            // https://relay.psycho.pizza/callback?token={token value}&job_id={job id value}
-            // relayServerClient.send(payload, callbackUrl)
+//            relayServerClient.send(jobId, "workspace_id", payload)
 
             log.info("🚀 Successfully sent analysis job to Relay Server: $jobId")
         } catch (e: Exception) {
