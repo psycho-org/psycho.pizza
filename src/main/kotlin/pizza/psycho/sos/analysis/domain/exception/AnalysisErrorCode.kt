@@ -7,6 +7,11 @@ enum class AnalysisErrorCode(
     override val status: HttpStatus,
     override val message: String,
 ) : BaseErrorCode {
+    ANALYSIS_REQUEST_NOT_FOUND(
+        HttpStatus.NOT_FOUND,
+        "해당 분석 요청 정보를 찾을 수 없거나 식별자가 존재하지 않습니다.",
+    ),
+
     // 릴레이 서버 연동 관련 에러
     RELAY_SERVER_BAD_REQUEST(
         HttpStatus.BAD_REQUEST,

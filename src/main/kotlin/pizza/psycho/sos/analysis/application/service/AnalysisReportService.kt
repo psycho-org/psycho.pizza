@@ -5,8 +5,9 @@ import org.springframework.stereotype.Service
 import pizza.psycho.sos.analysis.application.service.dto.ParsedAnalysisResult
 import pizza.psycho.sos.analysis.domain.entity.AnalysisReport
 import pizza.psycho.sos.analysis.domain.entity.AnalysisRequest
-import pizza.psycho.sos.analysis.domain.exception.AnalysisRequestNotFoundException
+import pizza.psycho.sos.analysis.domain.exception.AnalysisErrorCode
 import pizza.psycho.sos.analysis.infrastructure.persistence.AnalysisReportRepository
+import pizza.psycho.sos.common.handler.DomainException
 
 @Service
 class AnalysisReportService(
@@ -20,7 +21,7 @@ class AnalysisReportService(
         // 1. AnalysisReport 엔티티 생성
         val report =
             AnalysisReport(
-                analysisRequestId = analysisRequest.id ?: throw AnalysisRequestNotFoundException(),
+                analysisRequestId = analysisRequest.id ?: throw DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_NOT_FOUND),
                 workspaceId = analysisRequest.workspaceId,
                 targetType = analysisRequest.targetType,
                 targetId = analysisRequest.targetId,
