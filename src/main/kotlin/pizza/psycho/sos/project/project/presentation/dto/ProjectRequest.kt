@@ -24,4 +24,11 @@ sealed interface ProjectRequest {
         val addTaskIds: List<UUID> = emptyList(),
         val removeTaskIds: List<UUID> = emptyList(),
     ) : ProjectRequest
+
+    /**
+     * 프로젝트 간 Task 이동 요청
+     */
+    data class MoveTask(
+        val toProjectId: UUID,
+    ) : ProjectRequest
 }
