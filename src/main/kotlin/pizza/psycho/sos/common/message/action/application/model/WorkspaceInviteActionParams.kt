@@ -1,6 +1,7 @@
 package pizza.psycho.sos.common.message.action.application.model
 
 import pizza.psycho.sos.common.handler.DomainException
+import pizza.psycho.sos.common.message.domain.exception.MessageErrorCode
 import java.util.UUID
 
 data class WorkspaceInviteActionParams(
@@ -25,19 +26,29 @@ data class WorkspaceInviteActionParams(
 
         private fun Map<String, String?>.required(key: String): String =
             this[key]?.trim()?.takeIf { it.isNotEmpty() }
-                ?: throw DomainException("param '$key' is required")
+                ?: throw DomainException(
+                    MessageErrorCode.MESSAGE_REQUIRED_FIELD_MISSING,
+                    "param '$key' is required",
+                )
 
         private fun Map<String, String?>.requiredUuid(key: String): UUID =
             try {
                 UUID.fromString(required(key))
             } catch (ex: IllegalArgumentException) {
-                throw DomainException("param '$key' must be a valid UUID")
+                throw DomainException(
+                    MessageErrorCode.MESSAGE_INVALID_UUID_PARAM,
+                    "param '$key' must be a valid UUID",
+                    ex,
+                )
             }
 
         private fun Map<String, String?>.requiredEmail(key: String): String {
             val email = required(key).lowercase()
             if (!email.contains("@")) {
-                throw DomainException("param '$key' must be a valid email")
+                throw DomainException(
+                    MessageErrorCode.MESSAGE_INVALID_EMAIL_PARAM,
+                    "param '$key' must be a valid email",
+                )
             }
             return email
         }

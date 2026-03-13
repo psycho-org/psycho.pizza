@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.workspace.application.dto.ActiveWorkspaceMembership
+import pizza.psycho.sos.workspace.domain.exception.WorkspaceErrorCode
 import pizza.psycho.sos.workspace.domain.model.membership.Membership
 import pizza.psycho.sos.workspace.domain.model.membership.Role
 import pizza.psycho.sos.workspace.domain.model.workspace.Workspace
@@ -36,7 +37,7 @@ class WorkspaceService(
         return workspaceRepository.findActiveByIdOrNull(workspaceId)
             ?: run {
                 logger.warn("Workspace not found. workspaceId={}", workspaceId)
-                throw DomainException("workspace not found. workspaceId=$workspaceId")
+                throw DomainException(WorkspaceErrorCode.WORKSPACE_NOT_FOUND)
             }
     }
 
@@ -67,7 +68,7 @@ class WorkspaceService(
                         workspaceId,
                         requesterAccountId,
                     )
-                    throw DomainException("membership not found for requesterAccountId=$requesterAccountId")
+                    throw DomainException(WorkspaceErrorCode.WORKSPACE_MEMBERSHIP_NOT_FOUND)
                 }
         if (!requesterRole.isOwner()) {
             logger.warn(
@@ -75,7 +76,7 @@ class WorkspaceService(
                 workspaceId,
                 requesterAccountId,
             )
-            throw DomainException("only owner can transfer ownership")
+            throw DomainException(WorkspaceErrorCode.WORKSPACE_OWNER_REQUIRED)
         }
         try {
             workspace.transferOwnership(requesterAccountId, newOwnerAccountId)
@@ -87,7 +88,13 @@ class WorkspaceService(
                 newOwnerAccountId,
                 ex.message,
             )
-            throw DomainException(ex.message ?: "failed to transfer ownership", ex)
+            val errorCode =
+                if (ex.message?.startsWith("membership not found") == true) {
+                    WorkspaceErrorCode.WORKSPACE_MEMBERSHIP_NOT_FOUND
+                } else {
+                    WorkspaceErrorCode.WORKSPACE_TRANSFER_OWNERSHIP_FAILED
+                }
+            throw DomainException(errorCode, ex.message ?: errorCode.message, ex)
         }
         logger.info("Ownership transferred. workspaceId={}", workspaceId)
         return workspace
@@ -108,7 +115,7 @@ class WorkspaceService(
                         workspaceId,
                         requesterAccountId,
                     )
-                    throw DomainException("membership not found for requesterAccountId=$requesterAccountId")
+                    throw DomainException(WorkspaceErrorCode.WORKSPACE_MEMBERSHIP_NOT_FOUND)
                 }
 
         if (!requesterRole.isOwner()) {
@@ -117,7 +124,7 @@ class WorkspaceService(
                 workspaceId,
                 requesterAccountId,
             )
-            throw DomainException("only owner can delete workspace")
+            throw DomainException(WorkspaceErrorCode.WORKSPACE_OWNER_REQUIRED)
         }
 
         workspace.removeAllMemberships(requesterAccountId)
@@ -148,7 +155,7 @@ class WorkspaceService(
                         workspaceId,
                         requesterAccountId,
                     )
-                    throw DomainException("membership not found for requesterAccountId=$requesterAccountId")
+                    throw DomainException(WorkspaceErrorCode.WORKSPACE_MEMBERSHIP_NOT_FOUND)
                 }
         if (!requesterRole.isOwner()) {
             logger.warn(
@@ -156,7 +163,7 @@ class WorkspaceService(
                 workspaceId,
                 requesterAccountId,
             )
-            throw DomainException("only owner can add member")
+            throw DomainException(WorkspaceErrorCode.WORKSPACE_OWNER_REQUIRED)
         }
 
         return try {
@@ -170,7 +177,13 @@ class WorkspaceService(
                 role,
                 ex.message,
             )
-            throw DomainException(ex.message ?: "failed to add member", ex)
+            val errorCode =
+                if (ex.message?.startsWith("membership already exists") == true) {
+                    WorkspaceErrorCode.WORKSPACE_MEMBER_ALREADY_EXISTS
+                } else {
+                    WorkspaceErrorCode.WORKSPACE_ADD_MEMBER_FAILED
+                }
+            throw DomainException(errorCode, ex.message ?: errorCode.message, ex)
         }
     }
 
@@ -195,7 +208,7 @@ class WorkspaceService(
                         workspaceId,
                         requesterAccountId,
                     )
-                    throw DomainException("membership not found for requesterAccountId=$requesterAccountId")
+                    throw DomainException(WorkspaceErrorCode.WORKSPACE_MEMBERSHIP_NOT_FOUND)
                 }
         if (!requesterRole.isOwner()) {
             logger.warn(
@@ -203,7 +216,7 @@ class WorkspaceService(
                 workspaceId,
                 requesterAccountId,
             )
-            throw DomainException("only owner can remove member")
+            throw DomainException(WorkspaceErrorCode.WORKSPACE_OWNER_REQUIRED)
         }
 
         val targetMembership =
@@ -214,7 +227,7 @@ class WorkspaceService(
                         workspaceId,
                         targetAccountId,
                     )
-                    throw DomainException("membership not found for accountId=$targetAccountId")
+                    throw DomainException(WorkspaceErrorCode.WORKSPACE_MEMBERSHIP_NOT_FOUND)
                 }
         if (targetMembership.role.isOwner()) {
             logger.warn(
@@ -222,7 +235,7 @@ class WorkspaceService(
                 workspaceId,
                 targetAccountId,
             )
-            throw DomainException("cannot remove owner")
+            throw DomainException(WorkspaceErrorCode.WORKSPACE_OWNER_REMOVAL_FORBIDDEN)
         }
 
         try {
@@ -235,7 +248,13 @@ class WorkspaceService(
                 targetAccountId,
                 ex.message,
             )
-            throw DomainException(ex.message ?: "failed to remove member", ex)
+            val errorCode =
+                if (ex.message?.startsWith("membership not found") == true) {
+                    WorkspaceErrorCode.WORKSPACE_MEMBERSHIP_NOT_FOUND
+                } else {
+                    WorkspaceErrorCode.WORKSPACE_REMOVE_MEMBER_FAILED
+                }
+            throw DomainException(errorCode, ex.message ?: errorCode.message, ex)
         }
     }
 
@@ -243,7 +262,7 @@ class WorkspaceService(
         workspaceRepository.findActiveByIdOrNull(workspaceId)
             ?: run {
                 logger.warn("Workspace not found. workspaceId={}", workspaceId)
-                throw DomainException("workspace not found. workspaceId=$workspaceId")
+                throw DomainException(WorkspaceErrorCode.WORKSPACE_NOT_FOUND)
             }
 
     companion object {
