@@ -5,4 +5,7 @@ enum class Status {
     IN_PROGRESS,
     DONE,
     CANCELLED,
+    ;
+
+    fun isTransitionableTo(newStatus: Status): Boolean = this != newStatus
 }

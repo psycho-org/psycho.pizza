@@ -5,10 +5,12 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.response.ApiResponse
@@ -16,11 +18,14 @@ import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.common.support.pagination.PageInfoSupport
 import pizza.psycho.sos.project.task.application.service.TaskService
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
+import pizza.psycho.sos.project.task.application.service.dto.TaskQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult
+import pizza.psycho.sos.project.task.domain.exception.TaskErrorCode
 import pizza.psycho.sos.project.task.presentation.dto.TaskRequest
 import pizza.psycho.sos.project.task.presentation.dto.TaskResponse
 import java.util.UUID
 
+// todo: accountId AuthenticationPrincipal에서 받아오도록 변경
 @RestController
 @RequestMapping("/api/v1/workspaces/{workspaceId}/tasks")
 class TaskController(
@@ -39,10 +44,10 @@ class TaskController(
     @GetMapping
     fun findAllTasks(
         @PathVariable workspaceId: UUID,
-        @PageableDefault(size = 10) pageable: Pageable,
+        @PageableDefault(page = 1, size = 10) pageable: Pageable,
     ): ApiResponse<*> =
         handleResult {
-            taskService.getAll(TaskCommand.FindTasks(workspaceId, pageable))
+            taskService.getAll(TaskQuery.FindTasks(workspaceId, pageable))
         }
 
     @GetMapping("/{id}")
@@ -51,28 +56,39 @@ class TaskController(
         @PathVariable id: UUID,
     ): ApiResponse<*> =
         handleResult {
-            taskService.getInformation(TaskCommand.FindTask(workspaceId, id))
+            taskService.getInformation(TaskQuery.FindTask(workspaceId, id))
         }
 
-    @DeleteMapping("/{id}/{userId}")
+    @DeleteMapping("/{id}")
     fun remove(
         @PathVariable workspaceId: UUID,
         @PathVariable id: UUID,
-        @PathVariable userId: UUID,
+        @RequestParam(name = "account") accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            taskService.remove(TaskCommand.RemoveTask(workspaceId, id, userId))
+            taskService.remove(TaskCommand.RemoveTask(workspaceId, id, accountId))
+        }
+
+    @PatchMapping("/{id}")
+    fun update(
+        @PathVariable workspaceId: UUID,
+        @PathVariable id: UUID,
+        @RequestParam(name = "account") accountId: UUID,
+        @Valid @RequestBody request: TaskRequest.Update,
+    ): ApiResponse<*> =
+        handleResult {
+            taskService.update(request.toCommand(workspaceId, id, accountId))
         }
 
     // ------------------------------------------------------------------------------------------------
 
     private fun handleResult(function: () -> TaskResult): ApiResponse<*> =
         when (val result: TaskResult = function()) {
-            is TaskResult.Remove -> responseOf(message = "데이터 삭제에 성공하였습니다.", data = TaskResponse.Remove(result.count))
+            is TaskResult.Remove -> responseOf(message = "Data deletion was successful.", data = TaskResponse.Remove(result.count))
             is TaskResult.TaskInformation -> responseOf(data = result.toResponse())
             is TaskResult.TaskList -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
-            is TaskResult.Failure.IdNotFound -> throw DomainException("id not found")
-            is TaskResult.Failure.TaskInformationNotFound -> throw DomainException("task information not found")
+            is TaskResult.Failure.IdNotFound -> throw DomainException(TaskErrorCode.TASK_NOT_FOUND)
+            is TaskResult.Failure.TaskInformationNotFound -> throw DomainException(TaskErrorCode.TASK_INFO_NOT_FOUND)
         }
 
     private fun TaskRequest.Create.toCommand(spaceId: UUID) =
@@ -82,6 +98,23 @@ class TaskController(
             description = description,
             assigneeId = assigneeId,
             dueDate = dueDate,
+        )
+
+    private fun TaskRequest.Update.toCommand(
+        workspaceId: UUID,
+        taskId: UUID,
+        actorId: UUID,
+    ): TaskCommand.UpdateTask =
+        TaskCommand.UpdateTask(
+            workspaceId = workspaceId,
+            id = taskId,
+            title = title,
+            description = description,
+            status = status,
+            assigneeId = assigneeId,
+            dueDate = dueDate,
+            priority = priority,
+            actorId = actorId,
         )
 
     private fun TaskResult.TaskListInfo.toResponse(): TaskResponse.List =
@@ -99,6 +132,7 @@ class TaskController(
             title = title,
             description = description,
             status = status,
+            priority = priority,
             assignee = assignee?.let { TaskResponse.Assignee(it.id, it.name, it.email) },
             workspaceId = workspaceId,
             dueDate = dueDate,

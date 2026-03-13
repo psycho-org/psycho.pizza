@@ -9,7 +9,7 @@ import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 import pizza.psycho.sos.common.entity.BaseDeletableEntity
 import pizza.psycho.sos.common.event.AggregateRoot
-import pizza.psycho.sos.common.event.DomainEventDelegate
+import pizza.psycho.sos.common.event.DomainEvent
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import java.util.UUID
@@ -22,7 +22,7 @@ class Project(
     @Embedded
     val workspaceId: WorkspaceId,
 ) : BaseDeletableEntity(),
-    AggregateRoot by DomainEventDelegate() {
+    AggregateRoot {
     @OneToMany(mappedBy = "project", fetch = FetchType.LAZY, cascade = [CascadeType.ALL], orphanRemoval = true)
     private val mappings: MutableSet<ProjectTaskMapping> = mutableSetOf()
 
@@ -72,4 +72,24 @@ class Project(
                 workspaceId = workspaceId,
             )
     }
+
+    // 이벤트 관련 ---------------------------------------------------------------------
+
+    @Transient
+    private var events: MutableSet<DomainEvent>? = null
+
+    private fun ensureEvents(): MutableSet<DomainEvent> {
+        if (events == null) {
+            events = mutableSetOf()
+        }
+        return events!!
+    }
+
+    override fun registerEvent(event: DomainEvent) {
+        ensureEvents() += event
+    }
+
+    override fun domainEvents(): List<DomainEvent> = events?.toList() ?: emptyList()
+
+    override fun pullDomainEvents(): List<DomainEvent> = domainEvents().also { events?.clear() }
 }
