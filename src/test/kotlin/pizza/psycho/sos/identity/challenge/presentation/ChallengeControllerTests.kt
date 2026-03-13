@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.context.annotation.Import
+import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication
@@ -23,7 +24,9 @@ import pizza.psycho.sos.identity.challenge.application.service.dto.VerifyOtpResu
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import pizza.psycho.sos.identity.security.config.SecurityConfig
 import pizza.psycho.sos.identity.security.filter.JwtAuthenticationFilter
+import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryService
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
+import pizza.psycho.sos.identity.security.token.AccessTokenClaims
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import java.util.UUID
 
@@ -40,6 +43,9 @@ class ChallengeControllerTests {
 
     @MockitoBean
     private lateinit var accessTokenProvider: AccessTokenProvider
+
+    @MockitoBean
+    private lateinit var activeAccountPrincipalQueryService: ActiveAccountPrincipalQueryService
 
     @Test
     fun `register request endpoint returns challenge id`() {
@@ -188,6 +194,39 @@ class ChallengeControllerTests {
             .perform(
                 post("/api/v1/accounts/me/password/requests")
                     .with(authentication(authentication))
+                    .contentType(MediaType.APPLICATION_JSON),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.challengeId").value(challengeId.toString()))
+    }
+
+    @Test
+    fun `me password request endpoint uses database-backed principal email instead of jwt claim`() {
+        val principal =
+            AuthenticatedAccountPrincipal(
+                accountId = UUID.fromString("00000000-0000-0000-0000-000000000107"),
+                email = "db@psycho.pizza",
+            )
+        val challengeId = UUID.fromString("00000000-0000-0000-0000-000000000108")
+        `when`(accessTokenProvider.parse("access-token")).thenReturn(
+            AccessTokenClaims(
+                accountId = principal.accountId,
+                email = "tampered@psycho.pizza",
+            ),
+        )
+        `when`(activeAccountPrincipalQueryService.findActivePrincipalByAccountId(principal.accountId)).thenReturn(principal)
+        `when`(
+            challengeService.createChallenge(
+                ChallengeCommand.Request(
+                    email = "db@psycho.pizza",
+                    operationType = OperationType.CHANGE_PASSWORD,
+                ),
+            ),
+        ).thenReturn(RequestChallengeResult.Success(challengeId))
+
+        mockMvc
+            .perform(
+                post("/api/v1/accounts/me/password/requests")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer access-token")
                     .contentType(MediaType.APPLICATION_JSON),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.challengeId").value(challengeId.toString()))

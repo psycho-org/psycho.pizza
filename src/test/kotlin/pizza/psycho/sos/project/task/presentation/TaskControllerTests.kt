@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.common.config.PageableProperties
 import pizza.psycho.sos.common.support.pagination.PageInfoSupport
+import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryService
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import pizza.psycho.sos.project.task.application.service.TaskService
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
@@ -48,6 +49,9 @@ class TaskControllerTests {
 
     @MockitoBean
     private lateinit var accessTokenProvider: AccessTokenProvider
+
+    @MockitoBean
+    private lateinit var activeAccountPrincipalQueryService: ActiveAccountPrincipalQueryService
 
     @Test
     fun `태스크 생성 시 201 상태코드와 생성된 태스크 정보를 반환한다`() {
