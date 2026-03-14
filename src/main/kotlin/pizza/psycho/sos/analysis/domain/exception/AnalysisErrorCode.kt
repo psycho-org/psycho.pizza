@@ -7,6 +7,10 @@ enum class AnalysisErrorCode(
     override val status: HttpStatus,
     override val message: String,
 ) : BaseErrorCode {
+    SPRINT_NOT_FOUND(
+        HttpStatus.NOT_FOUND,
+        "분석할 스프린트가 없습니다.",
+    ),
     ANALYSIS_REQUEST_ID_NOT_GENERATED(
         HttpStatus.INTERNAL_SERVER_ERROR,
         "저장 후 ID가 생성되어야 합니다.",

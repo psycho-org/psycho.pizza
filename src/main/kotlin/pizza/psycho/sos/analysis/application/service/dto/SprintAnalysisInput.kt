@@ -19,7 +19,6 @@ data class SprintAnalysisInput(
             val id: UUID,
             val name: String,
             val periodDays: Int,
-            val activeMembersCount: Int,
             val totalTasksCount: Int,
         )
     }
