@@ -40,10 +40,10 @@ class AnalysisWorkerRunner(
 
                 while (running.get()) {
                     try {
-                        val jobId = queueConsumer.take()
-                        log.info("2️⃣ worker-$idx dequeued job: $jobId")
+                        val job = queueConsumer.take()
+                        log.info("2️⃣ worker-$idx dequeued job: workspaceId=${job.workspaceId}, jobId=${job.jobId}")
 
-                        analysisWorkerService.processAnalysisJob(jobId)
+                        analysisWorkerService.processAnalysisJob(job.workspaceId, job.jobId)
                     } catch (e: InterruptedException) {
                         if (!running.get()) {
                             log.info("🛑 Analysis worker-$idx stopping")

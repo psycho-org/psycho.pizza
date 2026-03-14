@@ -17,7 +17,10 @@ class AnalysisWorkerService(
 ) {
     private val log by loggerDelegate()
 
-    fun processAnalysisJob(jobId: UUID) {
+    fun processAnalysisJob(
+        workspaceId: UUID,
+        jobId: UUID,
+    ) {
         log.info("🍕 Start analysis job: $jobId")
 
         var step = AnalysisStep.MARK_RUNNING
