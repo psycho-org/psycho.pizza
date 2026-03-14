@@ -58,10 +58,8 @@ class Sprint(
         if (old == goal) {
             return
         }
+        requireGoalNotBlank(goal)
 
-        if (goal?.isBlank() == true) {
-            throw DomainException(SprintErrorCode.GOAL_NOT_EMPTY_OR_BLANK)
-        }
         this.goal = goal
 
         SprintGoalChangedEvent(
@@ -127,12 +125,21 @@ class Sprint(
             goal: String?,
             startDate: Instant,
             endDate: Instant,
-        ) = Sprint(
-            name = name,
-            goal = goal,
-            workspaceId = workspaceId,
-            period = Period(startDate, endDate),
-        )
+        ): Sprint {
+            requireGoalNotBlank(goal)
+            return Sprint(
+                name = name,
+                goal = goal,
+                workspaceId = workspaceId,
+                period = Period(startDate, endDate),
+            )
+        }
+
+        private fun requireGoalNotBlank(goal: String?) {
+            if (goal?.isBlank() == true) {
+                throw DomainException(SprintErrorCode.GOAL_NOT_EMPTY_OR_BLANK)
+            }
+        }
     }
 
     // 이벤트 관련 ---------------------------------------------------------------------

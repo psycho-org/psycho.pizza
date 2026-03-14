@@ -48,6 +48,13 @@ class SprintTests {
     }
 
     @Test
+    fun `goal 이 공백이면 생성에 실패한다`() {
+        assertThrows(DomainException::class.java) {
+            createSprint(goal = "   ")
+        }
+    }
+
+    @Test
     fun `빈 문자열로 modify 호출 시 DomainException이 발생한다`() {
         val sprint = createSprint()
 
