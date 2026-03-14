@@ -1,5 +1,7 @@
 package pizza.psycho.sos.project.sprint.infrastructure.persistence
 
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Component
@@ -93,8 +95,18 @@ interface SprintJpaRepository :
         workspaceId: WorkspaceId,
     ): Boolean
 
+    override fun findActiveSprints(
+        workspaceId: WorkspaceId,
+        pageable: Pageable,
+    ): Page<Sprint> = findAllByWorkspaceIdValueAndDeletedAtIsNull(workspaceId.value, pageable)
+
     fun findByIdAndWorkspaceIdValueAndDeletedAtIsNull(
         id: UUID,
         workspaceId: UUID,
     ): Sprint?
+
+    fun findAllByWorkspaceIdValueAndDeletedAtIsNull(
+        workspaceId: UUID,
+        pageable: Pageable,
+    ): Page<Sprint>
 }

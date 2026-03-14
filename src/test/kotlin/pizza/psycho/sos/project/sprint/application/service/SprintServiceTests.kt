@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.common.entity.BaseEntity
 import pizza.psycho.sos.common.patch.Patch
@@ -122,6 +124,20 @@ class SprintServiceTests {
         assertTrue(result is SprintResult.ProjectList)
         result as SprintResult.ProjectList
         assertTrue(result.projects.isEmpty())
+    }
+
+    @Test
+    fun `스프린트 목록을 페이지로 반환한다`() {
+        val sprint = Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId)
+        val pageable = PageRequest.of(0, 10)
+        every { sprintRepository.findActiveSprints(workspaceId, pageable) } returns PageImpl(listOf(sprint))
+
+        val result =
+            sprintService.getSprints(SprintQuery.FindAll(workspaceId, pageable))
+
+        assertTrue(result is SprintResult.SprintPage)
+        result as SprintResult.SprintPage
+        assertEquals(1, result.page.totalElements)
     }
 
     @Test

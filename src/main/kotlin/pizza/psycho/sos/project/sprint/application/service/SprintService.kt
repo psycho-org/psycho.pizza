@@ -58,6 +58,15 @@ class SprintService(
                 .also { log.info("getSprint success: sprintId=${command.sprintId}") }
         }
 
+    fun getSprints(command: SprintQuery.FindAll): SprintResult =
+        Tx.readable {
+            log.debug("getSprints: workspaceId={}, pageable={}", command.workspaceId, command.pageable)
+            val page = sprintRepository.findActiveSprints(command.workspaceId, command.pageable)
+            SprintResult
+                .SprintPage(page.map { it.toResult() })
+                .also { log.info("getSprints success: workspaceId={}", command.workspaceId) }
+        }
+
     fun getProjectsInSprint(command: SprintQuery.FindProjectsInSprint): SprintResult =
         Tx.readable {
             log.debug("getProjectsInSprint: sprintId={}, workspaceId={}", command.sprintId, command.workspaceId)
@@ -332,7 +341,7 @@ class SprintService(
         workspaceId: WorkspaceId,
     ): Int = sprintRepository.deleteById(sprintId, deletedBy, workspaceId)
 
-    private fun Sprint.toResult(): SprintResult =
+    private fun Sprint.toResult(): SprintResult.SprintInfo =
         SprintResult.SprintInfo(
             workspaceId = workspaceId,
             sprintId = sprintId,
