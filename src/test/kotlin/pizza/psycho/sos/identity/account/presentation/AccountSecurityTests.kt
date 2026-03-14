@@ -11,6 +11,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.identity.account.application.service.AccountService
@@ -45,6 +46,13 @@ class AccountSecurityTests {
 
     @MockitoBean
     private lateinit var challengeService: ChallengeService
+
+    @Test
+    fun `password policy is accessible without authentication`() {
+        mockMvc
+            .perform(get("/api/v1/accounts/policies/password"))
+            .andExpect(status().isOk)
+    }
 
     @Test
     fun `update name requires authentication`() {

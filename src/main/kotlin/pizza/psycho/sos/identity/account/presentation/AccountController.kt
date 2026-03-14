@@ -2,6 +2,7 @@ package pizza.psycho.sos.identity.account.presentation
 
 import jakarta.validation.Valid
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -12,6 +13,7 @@ import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.identity.account.application.service.AccountService
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
 import pizza.psycho.sos.identity.account.domain.exception.AccountErrorCode
+import pizza.psycho.sos.identity.account.domain.policy.PasswordValidator
 import pizza.psycho.sos.identity.account.presentation.dto.AccountRequest
 import pizza.psycho.sos.identity.account.presentation.dto.AccountResponse
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
@@ -25,6 +27,15 @@ import pizza.psycho.sos.identity.account.application.service.dto.WithdrawAccount
 class AccountController(
     private val accountService: AccountService,
 ) {
+    @GetMapping("/policies/password")
+    fun getPasswordPolicy(): ApiResponse<AccountResponse.Policy.Password> =
+        responseOf(
+            data =
+                AccountResponse.Policy.Password(
+                    regex = PasswordValidator.PATTERN,
+                ),
+        )
+
     @PostMapping("/register")
     fun register(
         @Valid @RequestBody request: AccountRequest.Register,
@@ -127,6 +138,7 @@ class AccountController(
             Withdraw.Failure.InvalidCredentials -> throw DomainException(AccountErrorCode.ACCOUNT_INVALID_CREDENTIALS)
             Withdraw.Failure.OwnerWorkspaceExists ->
                 throw DomainException(AccountErrorCode.ACCOUNT_WITHDRAWAL_BLOCKED_BY_OWNED_WORKSPACE)
+
             Withdraw.Failure.InvalidConfirmationToken -> throw DomainException(AccountErrorCode.ACCOUNT_INVALID_CONFIRMATION_TOKEN)
         }
 }
