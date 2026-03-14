@@ -11,10 +11,8 @@ sealed interface AnalysisRequest {
         var sprintId: UUID,
     ) : AnalysisRequest
 
-    data class CreateAnalysisReport(
+    data class CompleteAnalysisReport(
         @field:NotNull
         var jobId: UUID,
-        @field:NotNull
-        var reportContent: String,
     )
 }

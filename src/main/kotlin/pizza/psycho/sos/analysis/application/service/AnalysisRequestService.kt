@@ -50,4 +50,16 @@ class AnalysisRequestService(
             .orElseThrow {
                 DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_NOT_FOUND)
             }
+
+    @Transactional
+    fun complete(id: UUID) {
+        val analysisRequest =
+            analysisRequestRepository
+                .findById(id)
+                .orElseThrow {
+                    DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_NOT_FOUND)
+                }
+
+        analysisRequest.markAsDone()
+    }
 }
