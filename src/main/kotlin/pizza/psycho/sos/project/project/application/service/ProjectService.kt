@@ -1,16 +1,18 @@
 package pizza.psycho.sos.project.project.application.service
 
-import org.springframework.data.domain.Page
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
+import pizza.psycho.sos.project.project.application.port.out.ProjectSprintParticipationQuery
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
 import pizza.psycho.sos.project.project.application.service.dto.ProjectQuery
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.model.entity.Project
+import pizza.psycho.sos.project.sprint.domain.model.vo.Period
+import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 
@@ -19,6 +21,8 @@ class ProjectService(
     private val projectRepository: ProjectRepository,
     private val eventPublisher: DomainEventPublisher,
     private val taskPort: TaskPort,
+    private val projectSprintParticipationQuery: ProjectSprintParticipationQuery,
+    private val sprintTaskPeriodPolicy: SprintTaskPeriodPolicy,
 ) {
     private val log by loggerDelegate()
 
@@ -57,13 +61,36 @@ class ProjectService(
                         return@readable ProjectResult.Failure.IdNotFound
                     }
 
+            val sprintPeriods =
+                projectSprintParticipationQuery.findActiveSprintPeriodsByProjectId(
+                    projectId = command.projectId,
+                    workspaceId = command.workspaceId.value,
+                )
+
             taskPort
                 .findByIdIn(
                     ids = project.taskIds(),
                     workspaceId = command.workspaceId,
                     pageable = command.pageable,
-                ).let { ProjectResult.TaskList(it.toResult()) }
-                .also { log.info("getTasksInProject success: projectId=${command.projectId}") }
+                ).let { page ->
+                    val mapped =
+                        page.map { snapshot ->
+                            val within =
+                                if (sprintPeriods.isEmpty()) {
+                                    null
+                                } else {
+                                    val dueDate = snapshot.dueDate
+                                    sprintPeriods.any { snapshotPeriod ->
+                                        sprintTaskPeriodPolicy.isTaskDueDateWithinSprint(
+                                            Period(snapshotPeriod.startDate, snapshotPeriod.endDate),
+                                            dueDate,
+                                        )
+                                    }
+                                }
+                            snapshot.toResult(isWithinSprintPeriod = within)
+                        }
+                    ProjectResult.TaskList(mapped)
+                }.also { log.info("getTasksInProject success: projectId=${command.projectId}") }
         }
 
     fun create(command: ProjectCommand.Create): ProjectResult =
@@ -81,6 +108,31 @@ class ProjectService(
                         log.warn("createTask: project not found. projectId={}", command.projectId)
                         return@writable ProjectResult.Failure.IdNotFound
                     }
+            if (command.dueDate != null) {
+                val sprintPeriods =
+                    projectSprintParticipationQuery.findActiveSprintPeriodsByProjectId(
+                        projectId = command.projectId,
+                        workspaceId = command.workspaceId.value,
+                    )
+
+                val violatesSprint =
+                    sprintPeriods.any { snapshot ->
+                        !sprintTaskPeriodPolicy.isTaskDueDateWithinSprint(
+                            Period(snapshot.startDate, snapshot.endDate),
+                            command.dueDate,
+                        )
+                    }
+
+                if (violatesSprint) {
+                    log.warn(
+                        "createTask: dueDate outside sprint period. projectId={}, dueDate={}, sprintIds={}",
+                        command.projectId,
+                        command.dueDate,
+                        sprintPeriods.map { it.sprintId },
+                    )
+                    return@writable ProjectResult.Failure.InvalidRequest
+                }
+            }
 
             val task =
                 taskPort.createTask(
@@ -241,9 +293,7 @@ class ProjectService(
 
     // ----------------------------------------------------------------------------------------------
 
-    private fun Page<TaskSnapshot>.toResult(): Page<ProjectResult.Task> = map { it.toResult() }
-
-    private fun TaskSnapshot.toResult(): ProjectResult.Task =
+    private fun TaskSnapshot.toResult(isWithinSprintPeriod: Boolean? = null): ProjectResult.Task =
         ProjectResult.Task(
             id = id,
             title = title,
@@ -253,6 +303,7 @@ class ProjectService(
                     ProjectResult.Assignee(id = id, name = "", email = "")
                 },
             dueDate = dueDate,
+            isWithinSprintPeriod = isWithinSprintPeriod,
         )
 
     private fun Project.toResult(progress: ProjectProgress = ProjectProgress(projectId, 0L, 0L)): ProjectResult =

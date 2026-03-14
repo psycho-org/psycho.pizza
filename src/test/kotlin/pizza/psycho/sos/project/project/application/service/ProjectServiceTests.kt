@@ -16,10 +16,12 @@ import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
+import pizza.psycho.sos.project.project.application.port.out.ProjectSprintParticipationQuery
 import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.model.entity.Project
+import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 import pizza.psycho.sos.project.task.domain.model.vo.Status
@@ -31,7 +33,16 @@ class ProjectServiceTests {
     private val projectRepository = mockk<ProjectRepository>()
     private val taskPort = mockk<TaskPort>()
     private val eventPublisher = mockk<DomainEventPublisher>()
-    private val projectService = ProjectService(projectRepository, eventPublisher, taskPort)
+    private val projectSprintParticipationQuery = mockk<ProjectSprintParticipationQuery>()
+    private val sprintTaskPeriodPolicy = mockk<SprintTaskPeriodPolicy>()
+    private val projectService =
+        ProjectService(
+            projectRepository,
+            eventPublisher,
+            taskPort,
+            projectSprintParticipationQuery,
+            sprintTaskPeriodPolicy,
+        )
 
     @BeforeEach
     fun setUp() {
@@ -43,6 +54,14 @@ class ProjectServiceTests {
         justRun { eventPublisher.publishAndClear(any()) }
         justRun { eventPublisher.publishAndClearAll(any()) }
         every { projectRepository.findActiveProjectIdsByTaskIds(any(), any()) } returns emptyList()
+        every {
+            projectSprintParticipationQuery.findActiveSprintPeriodsByProjectId(any(), any())
+        } returns emptyList()
+        every {
+            sprintTaskPeriodPolicy.isTaskDueDateWithinSprint(any(), any())
+        } returns true
+        justRun { eventPublisher.publishAndClear(any()) }
+        justRun { eventPublisher.publishAndClearAll(any()) }
     }
 
     @AfterEach

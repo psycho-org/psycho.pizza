@@ -17,6 +17,8 @@ import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
+import pizza.psycho.sos.project.task.application.port.out.TaskSprintParticipationQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
 import pizza.psycho.sos.project.task.application.service.dto.TaskQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult
@@ -29,7 +31,9 @@ import java.util.UUID
 class TaskServiceTests {
     private val taskRepository = mockk<TaskRepository>()
     private val domainEventPublisher = mockk<DomainEventPublisher>()
-    private val taskService = TaskService(taskRepository, domainEventPublisher)
+    private val taskSprintParticipationQuery = mockk<TaskSprintParticipationQuery>()
+    private val sprintTaskPeriodPolicy = mockk<SprintTaskPeriodPolicy>()
+    private val taskService = TaskService(taskRepository, domainEventPublisher, taskSprintParticipationQuery, sprintTaskPeriodPolicy)
 
     @BeforeEach
     fun setup() {

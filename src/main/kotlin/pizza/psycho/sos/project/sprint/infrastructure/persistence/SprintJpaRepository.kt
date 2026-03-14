@@ -93,6 +93,38 @@ interface SprintJpaRepository :
         workspaceId: WorkspaceId,
     ): Boolean
 
+    @Query(
+        """
+        select s
+        from Sprint s
+            join SprintProjectMapping sp on sp.sprint = s
+        where s.workspaceId = :workspaceId
+          and s.deletedAt is null
+          and sp.projectId = :projectId
+        """,
+    )
+    override fun findActiveSprintsByProjectId(
+        projectId: UUID,
+        workspaceId: WorkspaceId,
+    ): List<Sprint>
+
+    @Query(
+        """
+        select s
+        from Sprint s
+            join SprintProjectMapping sp on sp.sprint = s
+            join pizza.psycho.sos.project.project.domain.model.entity.ProjectTaskMapping ptm
+                on ptm.project.id = sp.projectId
+        where s.workspaceId = :workspaceId
+          and s.deletedAt is null
+          and ptm.taskId = :taskId
+        """,
+    )
+    override fun findActiveSprintsByTaskId(
+        taskId: UUID,
+        workspaceId: WorkspaceId,
+    ): List<Sprint>
+
     fun findByIdAndWorkspaceIdValueAndDeletedAtIsNull(
         id: UUID,
         workspaceId: UUID,
