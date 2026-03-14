@@ -25,7 +25,7 @@ echo "Loading environment variables from SSM..."
 # .env 파일 생성 (systemd EnvironmentFile 형식: KEY=VALUE)
 cat > ${ENV_FILE} <<EOF
 SPRING_PROFILES_ACTIVE=prod
-SPRING_DATASOURCE_URL=$(get_param db-url)
+SPRING_DATASOURCE_URL=jdbc:postgresql://$(get_param db-host):$(get_param db-port)/$(get_param db-name)
 SPRING_DATASOURCE_USERNAME=$(get_param db-username)
 SPRING_DATASOURCE_PASSWORD=$(get_param db-password)
 JWT_ISSUER=$(get_param jwt-issuer)
