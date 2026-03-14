@@ -1,4 +1,4 @@
-package pizza.psycho.sos.analysis.application.event
+package pizza.psycho.sos.analysis.application.listener
 
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
