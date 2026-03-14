@@ -223,7 +223,9 @@ class SprintService(
     ) = with(command) {
         name?.let { sprint.modify(it) }
         goal?.let { sprint.changeGoal(it, by) }
-        sprint.changePeriod(startDate, endDate, by)
+        if (startDate != null || endDate != null) {
+            sprint.changePeriod(startDate, endDate, by)
+        }
 
         if (addProjectIds.isNotEmpty()) {
             sprint.addProjects(addProjectIds)

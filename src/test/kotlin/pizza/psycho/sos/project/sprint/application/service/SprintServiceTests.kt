@@ -19,6 +19,7 @@ import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintResult
+import pizza.psycho.sos.project.sprint.domain.event.SprintPeriodChangedEvent
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
@@ -120,6 +121,26 @@ class SprintServiceTests {
         assertTrue(result is SprintResult.ProjectList)
         result as SprintResult.ProjectList
         assertTrue(result.projects.isEmpty())
+    }
+
+    @Test
+    fun `modify - 기간 입력이 없으면 changePeriod를 호출하지 않는다`() {
+        val sprint =
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId)
+        val actorId = UUID.randomUUID()
+        every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns sprint
+
+        val result =
+            sprintService.modify(
+                SprintCommand.Update(
+                    workspaceId = workspaceId,
+                    sprintId = sprintId,
+                    by = actorId,
+                ),
+            )
+
+        assertTrue(result is SprintResult.Success)
+        assertTrue(sprint.domainEvents().none { it is SprintPeriodChangedEvent })
     }
 
     @Test

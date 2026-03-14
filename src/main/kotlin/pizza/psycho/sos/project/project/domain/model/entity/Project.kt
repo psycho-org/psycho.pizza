@@ -104,8 +104,8 @@ class Project(
         if (this.projectId == to.projectId) {
             throw DomainException(ProjectErrorCode.SAME_PROJECT)
         }
-
-        this.removeTask(taskId)
+        this.removeTask(taskId, by)
+        to.addTask(taskId, by)
         to.addTask(taskId)
 
         TaskProjectChangedEvent(

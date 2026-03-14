@@ -74,6 +74,25 @@ interface SprintJpaRepository :
         workspaceId: WorkspaceId,
     ): List<UUID>
 
+    @Query(
+        """
+        select case when count(s) > 0 then true else false end
+        from Sprint s
+            join SprintProjectMapping sp on sp.sprint = s
+            join pizza.psycho.sos.project.project.domain.model.entity.ProjectTaskMapping ptm
+                on ptm.project.id = sp.projectId
+        where s.workspaceId = :workspaceId
+          and s.deletedAt is null
+          and s.id = :sprintId
+          and ptm.taskId = :taskId
+        """,
+    )
+    override fun existsActiveSprintByTaskIdAndSprintId(
+        taskId: UUID,
+        sprintId: UUID,
+        workspaceId: WorkspaceId,
+    ): Boolean
+
     fun findByIdAndWorkspaceIdValueAndDeletedAtIsNull(
         id: UUID,
         workspaceId: UUID,
