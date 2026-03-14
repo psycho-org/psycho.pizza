@@ -6,6 +6,6 @@ import java.util.UUID
 
 data class AnalysisRequestCreatedEvent(
     val workspaceId: UUID,
-    val jobId: UUID,
+    val analysisRequestId: UUID,
     override val occurredAt: Instant = Instant.now(),
 ) : DomainEvent
