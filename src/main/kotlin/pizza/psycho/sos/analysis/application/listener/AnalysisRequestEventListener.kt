@@ -23,11 +23,10 @@ class AnalysisRequestEventListener(
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handleAnalysisRequestCreated(event: AnalysisRequestCreatedEvent) {
-        log.info("🍕 Analysis Request Created: workspaceId=${event.workspaceId}, jobId=${event.jobId}")
+        log.info("🍕 Analysis Request Created: workspaceId=${event.workspaceId}, jobId=${event.analysisRequestId}")
         jobProducer.enqueue(
             AnalysisJobQueueItem(
-                workspaceId = event.workspaceId,
-                jobId = event.jobId,
+                jobId = event.analysisRequestId,
             ),
         )
     }
@@ -42,7 +41,6 @@ class AnalysisRequestEventListener(
         jobs.forEach { job ->
             jobProducer.enqueue(
                 AnalysisJobQueueItem(
-                    workspaceId = job.workspaceId,
                     jobId = job.jobId,
                 ),
             )
