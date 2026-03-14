@@ -142,6 +142,7 @@ class ProjectService(
 
             validateTaskIds(command)?.let { return@writable it }
             applyUpdates(project, command)
+            eventPublisher.publishAndClear(project)
 
             log.info("update success: projectId=${command.projectId}")
             ProjectResult.Success
@@ -176,6 +177,7 @@ class ProjectService(
 
             fromProject.moveTaskTo(command.taskId, toProject, command.movedBy)
             eventPublisher.publishAndClear(fromProject)
+            eventPublisher.publishAndClear(toProject)
 
             log.info(
                 "moveTask success: taskId={}, fromProjectId={}, toProjectId={}",

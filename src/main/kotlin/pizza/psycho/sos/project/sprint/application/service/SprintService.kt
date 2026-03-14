@@ -233,8 +233,28 @@ class SprintService(
         if (removeProjectIds.isNotEmpty()) {
             // 스프린트에서 프로젝트를 분리할 때, 해당 프로젝트 내 Task 들의 상태를 TO DO로 리셋
             val projectSnapshots = loadProjectSnapshots(removeProjectIds, workspaceId)
-            val taskIds = projectSnapshots.flatMap { it.taskIds }.distinct()
-            taskPort.resetStatusToTodo(taskIds, by, workspaceId, emitEvent = true)
+            val removingTaskIds = projectSnapshots.flatMap { it.taskIds }
+
+            val remainingProjectIds = sprint.projectIds().filterNot { removeProjectIds.contains(it) }
+            val remainingTaskIds =
+                loadProjectSnapshots(remainingProjectIds, workspaceId)
+                    .flatMap { it.taskIds }
+                    .toSet()
+
+            val taskIdsToReset =
+                removingTaskIds
+                    .filterNot { remainingTaskIds.contains(it) }
+                    .distinct()
+
+            if (taskIdsToReset.isNotEmpty()) {
+                taskPort.resetStatusToTodo(taskIdsToReset, by, workspaceId, emitEvent = true)
+            } else {
+                log.debug(
+                    "update: no tasks need reset when removing projects. sprintId={}, removeProjectIds={}",
+                    sprint.sprintId,
+                    removeProjectIds,
+                )
+            }
 
             sprint.removeProjects(removeProjectIds)
             log.info("update: projects removed. sprintId=$sprintId, projectIds=$removeProjectIds")
