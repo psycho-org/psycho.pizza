@@ -29,14 +29,14 @@ class AnalysisRequestService(
                 ),
             )
 
-        val sprintId = saved.id ?: throw DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_ID_NOT_GENERATED)
+        val analysisRequestId = saved.id ?: throw DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_ID_NOT_GENERATED)
         val createdAt = saved.createdAt ?: throw DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_CREATED_AT_NOT_GENERATED)
 
         // NOTE: commit 단계에서 실패 시 DB와 큐가 불일치할 수 있으므로 이벤트로 처리합니다.
-        domainEventPublisher.publish(AnalysisRequestCreatedEvent(command.workspaceId, sprintId))
+        domainEventPublisher.publish(AnalysisRequestCreatedEvent(command.workspaceId, analysisRequestId))
 
         return AnalysisResult.Created(
-            id = sprintId,
+            id = analysisRequestId,
             status = saved.status.name,
             createdAt = createdAt,
         )
