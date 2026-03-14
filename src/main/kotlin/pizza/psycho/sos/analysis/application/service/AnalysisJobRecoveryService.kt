@@ -29,11 +29,7 @@ class AnalysisJobRecoveryService(
             analysisRequestRepository
                 .findAllByStatus(AnalysisRequestStatus.QUEUED)
                 .mapNotNull { request ->
-                    val jobId = request.id ?: return@mapNotNull null
-                    AnalysisJobQueueItem(
-                        workspaceId = request.workspaceId,
-                        jobId = jobId,
-                    )
+                    request.id?.let { AnalysisJobQueueItem(it) }
                 }
 
         log.info("♻️ Recovered RUNNING jobs: ${runningJobs.size}, queued jobs: ${queuedJobs.size}")

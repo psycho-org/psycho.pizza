@@ -1,7 +1,7 @@
 package pizza.psycho.sos.analysis.application.service
 
-import jakarta.transaction.Transactional
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import pizza.psycho.sos.analysis.application.service.dto.AnalysisCommand
 import pizza.psycho.sos.analysis.application.service.dto.AnalysisResult
 import pizza.psycho.sos.analysis.domain.entity.AnalysisRequest
@@ -10,6 +10,7 @@ import pizza.psycho.sos.analysis.domain.exception.AnalysisErrorCode
 import pizza.psycho.sos.analysis.infrastructure.persistence.AnalysisRequestRepository
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.handler.DomainException
+import java.util.UUID
 
 @Service
 class AnalysisRequestService(
@@ -41,4 +42,12 @@ class AnalysisRequestService(
             createdAt = createdAt,
         )
     }
+
+    @Transactional(readOnly = true)
+    fun getAnalysisRequest(id: UUID): AnalysisRequest =
+        analysisRequestRepository
+            .findById(id)
+            .orElseThrow {
+                DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_NOT_FOUND)
+            }
 }

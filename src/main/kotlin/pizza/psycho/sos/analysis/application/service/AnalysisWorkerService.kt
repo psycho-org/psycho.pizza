@@ -1,7 +1,6 @@
 package pizza.psycho.sos.analysis.application.service
 
 import org.springframework.stereotype.Service
-import pizza.psycho.sos.analysis.application.port.RelayServerClient
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import java.util.UUID
 
@@ -11,33 +10,34 @@ import java.util.UUID
  */
 @Service
 class AnalysisWorkerService(
-    private val analysisLifecycleService: AnalysisLifecycleService,
-    private val sprintAnalysisMetricService: SprintAnalysisMetricService,
-    private val relayServerClient: RelayServerClient,
+    val analysisLifecycleService: AnalysisLifecycleService,
+//    private val sprintAnalysisMetricService: SprintAnalysisMetricService,
+    private val analysisRequestService: AnalysisRequestService,
 ) {
     private val log by loggerDelegate()
 
-    fun processAnalysisJob(
-        workspaceId: UUID,
-        jobId: UUID,
-    ) {
+    fun processAnalysisJob(jobId: UUID) {
         log.info("🍕 Start analysis job: $jobId")
 
         var step = AnalysisStep.MARK_RUNNING
 
         try {
-            // 1. QUEUE -> RUNNING
             analysisLifecycleService.markRunning(jobId)
 
-            // 2. 메트릭 계산 로직 호출 (JSON v2 페이로드 생성)
+            step = AnalysisStep.LOAD_ANALYSIS_REQUEST
+            val analysisRequest = analysisRequestService.getAnalysisRequest(jobId)
+
             step = AnalysisStep.CALCULATE_METRICS
-            sprintAnalysisMetricService.buildInput(workspaceId, jobId)
+            // FIXME: 빌드를 위해 sprint service 연결로 임시로 주석 처리했습니다.
+//            sprintAnalysisMetricService.buildInput(
+//                workspaceId = analysisRequest.workspaceId,
+//                sprintId = analysisRequest.targetId,
+//            )
 
-            // 3. 릴레이 서버로 데이터 전송(x) -> AWS SQS?
-            step = AnalysisStep.SEND_TO_RELAY_SERVER
-//            relayServerClient.send(jobId, "workspace_id", payload)
+            step = AnalysisStep.SEND_MESSAGE_TO_SQS
+            // TODO: sqs client 호출 -> 다음 PR로 끊어가겠습니다
 
-            log.info("🚀 Successfully sent analysis job to Relay Server: $jobId")
+            log.info("🚀 Successfully sent analysis job to SQS: $jobId")
         } catch (e: Exception) {
             log.error("❌ Analysis job failed: $jobId, step=$step", e)
 
@@ -52,7 +52,8 @@ class AnalysisWorkerService(
 
     private enum class AnalysisStep {
         MARK_RUNNING,
+        LOAD_ANALYSIS_REQUEST,
         CALCULATE_METRICS,
-        SEND_TO_RELAY_SERVER,
+        SEND_MESSAGE_TO_SQS,
     }
 }
