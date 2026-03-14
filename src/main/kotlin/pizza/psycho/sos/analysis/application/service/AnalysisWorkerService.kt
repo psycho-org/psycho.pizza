@@ -31,7 +31,7 @@ class AnalysisWorkerService(
 
             // 2. 메트릭 계산 로직 호출 (JSON v2 페이로드 생성)
             step = AnalysisStep.CALCULATE_METRICS
-            sprintAnalysisMetricService.buildInput(jobId)
+            sprintAnalysisMetricService.buildInput(workspaceId, jobId)
 
             // 3. 릴레이 서버로 데이터 전송(x) -> AWS SQS?
             step = AnalysisStep.SEND_TO_RELAY_SERVER
