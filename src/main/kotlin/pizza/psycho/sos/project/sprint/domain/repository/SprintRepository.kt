@@ -1,5 +1,7 @@
 package pizza.psycho.sos.project.sprint.domain.repository
 
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import java.util.UUID
@@ -26,6 +28,20 @@ interface SprintRepository {
         workspaceId: WorkspaceId,
     ): Boolean
 
+    /**
+     * 주어진 Project가 속한 활성 스프린트 ID 목록을 조회한다.
+     */
+    fun findActiveSprintIdsByProjectId(
+        projectId: UUID,
+        workspaceId: WorkspaceId,
+    ): List<UUID>
+
+    fun existsActiveSprintByTaskIdAndSprintId(
+        taskId: UUID,
+        sprintId: UUID,
+        workspaceId: WorkspaceId,
+    ): Boolean
+
     fun deleteById(
         sprintId: UUID,
         deletedBy: UUID,
@@ -33,4 +49,9 @@ interface SprintRepository {
     ): Int
 
     fun save(sprint: Sprint): Sprint
+
+    fun findActiveSprints(
+        workspaceId: WorkspaceId,
+        pageable: Pageable,
+    ): Page<Sprint>
 }

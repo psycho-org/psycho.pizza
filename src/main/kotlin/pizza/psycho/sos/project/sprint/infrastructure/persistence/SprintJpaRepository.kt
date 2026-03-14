@@ -1,5 +1,7 @@
 package pizza.psycho.sos.project.sprint.infrastructure.persistence
 
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Component
@@ -59,8 +61,52 @@ interface SprintJpaRepository :
         workspaceId: WorkspaceId,
     ): Boolean
 
+    @Query(
+        """
+        select s.id
+        from Sprint s
+            join SprintProjectMapping sp on sp.sprint = s
+        where s.workspaceId = :workspaceId
+          and s.deletedAt is null
+          and sp.projectId = :projectId
+        """,
+    )
+    override fun findActiveSprintIdsByProjectId(
+        projectId: UUID,
+        workspaceId: WorkspaceId,
+    ): List<UUID>
+
+    @Query(
+        """
+        select case when count(s) > 0 then true else false end
+        from Sprint s
+            join SprintProjectMapping sp on sp.sprint = s
+            join pizza.psycho.sos.project.project.domain.model.entity.ProjectTaskMapping ptm
+                on ptm.project.id = sp.projectId
+        where s.workspaceId = :workspaceId
+          and s.deletedAt is null
+          and s.id = :sprintId
+          and ptm.taskId = :taskId
+        """,
+    )
+    override fun existsActiveSprintByTaskIdAndSprintId(
+        taskId: UUID,
+        sprintId: UUID,
+        workspaceId: WorkspaceId,
+    ): Boolean
+
+    override fun findActiveSprints(
+        workspaceId: WorkspaceId,
+        pageable: Pageable,
+    ): Page<Sprint> = findAllByWorkspaceIdValueAndDeletedAtIsNull(workspaceId.value, pageable)
+
     fun findByIdAndWorkspaceIdValueAndDeletedAtIsNull(
         id: UUID,
         workspaceId: UUID,
     ): Sprint?
+
+    fun findAllByWorkspaceIdValueAndDeletedAtIsNull(
+        workspaceId: UUID,
+        pageable: Pageable,
+    ): Page<Sprint>
 }

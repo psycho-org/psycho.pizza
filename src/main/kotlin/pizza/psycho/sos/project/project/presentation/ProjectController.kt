@@ -23,6 +23,7 @@ import pizza.psycho.sos.project.project.application.service.dto.ProjectQuery
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.INVALID_REQUEST
 import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.PROJECT_NOT_FOUND
+import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.TASK_ALREADY_ASSIGNED
 import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.TASK_NOT_FOUND
 import pizza.psycho.sos.project.project.presentation.dto.ProjectRequest
 import pizza.psycho.sos.project.project.presentation.dto.ProjectResponse
@@ -67,7 +68,7 @@ class ProjectController(
     fun findTasksInProject(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,
-        @PageableDefault(size = 10) pageable: Pageable,
+        @PageableDefault(page = 0, size = 10) pageable: Pageable,
     ): ApiResponse<*> =
         handleResult {
             projectService.getTasksInProject(
@@ -161,6 +162,7 @@ class ProjectController(
             is ProjectResult.Failure.IdNotFound -> throw DomainException(PROJECT_NOT_FOUND, "project not found")
             is ProjectResult.Failure.TaskNotFound -> throw DomainException(TASK_NOT_FOUND)
             is ProjectResult.Failure.InvalidRequest -> throw DomainException(INVALID_REQUEST)
+            is ProjectResult.Failure.TaskAlreadyAssigned -> throw DomainException(TASK_ALREADY_ASSIGNED)
             is ProjectResult.Progress -> responseOf(data = result.toResponse())
         }
 

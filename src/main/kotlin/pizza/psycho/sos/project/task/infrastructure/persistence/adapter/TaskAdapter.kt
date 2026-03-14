@@ -56,5 +56,6 @@ class TaskAdapter(
         ids: Collection<UUID>,
         actorId: UUID,
         workspaceId: WorkspaceId,
-    ) = taskFacade.resetStatusToTodo(ids, actorId, workspaceId)
+        emitEvent: Boolean,
+    ) = taskFacade.resetStatusToTodo(ids, actorId, workspaceId, emitEvent)
 }

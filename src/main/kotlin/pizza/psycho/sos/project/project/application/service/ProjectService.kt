@@ -17,8 +17,8 @@ import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 @Service
 class ProjectService(
     private val projectRepository: ProjectRepository,
-    private val taskPort: TaskPort,
     private val eventPublisher: DomainEventPublisher,
+    private val taskPort: TaskPort,
 ) {
     private val log by loggerDelegate()
 
@@ -90,7 +90,8 @@ class ProjectService(
                     assigneeId = command.assigneeId,
                     dueDate = command.dueDate,
                 )
-            project.addTask(task.id)
+            project.addTask(task.id, command.createdBy)
+            eventPublisher.publishAndClear(project)
             log.info("createTask success: projectId=${command.projectId}, taskId=${task.id}")
             task.toResult()
         }
@@ -141,6 +142,7 @@ class ProjectService(
 
             validateTaskIds(command)?.let { return@writable it }
             applyUpdates(project, command)
+            eventPublisher.publishAndClear(project)
 
             log.info("update success: projectId=${command.projectId}")
             ProjectResult.Success
@@ -175,6 +177,7 @@ class ProjectService(
 
             fromProject.moveTaskTo(command.taskId, toProject, command.movedBy)
             eventPublisher.publishAndClear(fromProject)
+            eventPublisher.publishAndClear(toProject)
 
             log.info(
                 "moveTask success: taskId={}, fromProjectId={}, toProjectId={}",
@@ -200,6 +203,20 @@ class ProjectService(
                     log.warn("update: some taskIds not found. addTaskIds={}", addTaskIds)
                     return@with ProjectResult.Failure.TaskNotFound
                 }
+
+                val assignments =
+                    projectRepository
+                        .findActiveProjectIdsByTaskIds(addTaskIds, workspaceId)
+                        .filter { it.projectId != projectId }
+
+                if (assignments.isNotEmpty()) {
+                    log.warn(
+                        "update: tasks already assigned to other projects. projectId={}, conflicts={}",
+                        projectId,
+                        assignments,
+                    )
+                    return@with ProjectResult.Failure.TaskAlreadyAssigned
+                }
             }
 
             null
@@ -212,12 +229,12 @@ class ProjectService(
         name?.let { project.modify(it) }
 
         if (addTaskIds.isNotEmpty()) {
-            project.addTasks(addTaskIds)
+            project.addTasks(addTaskIds, updatedBy)
             log.info("update: tasks added. projectId=$projectId, taskIds=$addTaskIds")
         }
 
         if (removeTaskIds.isNotEmpty()) {
-            project.removeTasks(removeTaskIds)
+            project.removeTasks(removeTaskIds, updatedBy)
             log.info("update: tasks removed. projectId=$projectId, taskIds=$removeTaskIds")
         }
     }

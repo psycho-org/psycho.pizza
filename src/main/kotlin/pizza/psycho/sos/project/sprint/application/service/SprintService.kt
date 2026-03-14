@@ -1,6 +1,7 @@
 package pizza.psycho.sos.project.sprint.application.service
 
 import org.springframework.stereotype.Service
+import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
@@ -8,6 +9,7 @@ import pizza.psycho.sos.project.project.application.port.out.ProjectPort
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
+import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintResult
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
@@ -31,9 +33,16 @@ class SprintService(
      *          - ui에 줄 때 sprint 기간 내에 있는지 dto에 담아서 보내줄 것
      *      2. sprint 내의 프로젝트에 task의 기간 변경 또는 task 추가 시 sprint와의 기간 검증
      *          - 변경은 task에 넣고 검증을 sprint에?
+     *
+     * 정책
+     * 1. sprint에 속하지 않는 task는 backlog로 칭함
+     * 2. sprint에서 task를 제거하여 backlog로 전환할 때는 to do로 전환한 후 이벤트를 발송합니다.
+     * 3. sprint에 연결된 project에 task를 추가할 때 dueDate가 추가되어 있는 경우 sprint의 기간 이내에 있어야 합니다.
+     * 4. sprint에 연결된 project에 존재하는 task에서 dueDate를 수정하는 경우 sprint의 기간 이내에 있어야 합니다.
+     * 5. sprint의 기간을 변경하는 경우 sprint 내의 project에서 task의 목록을 반환할 때, sprint의 기간 이내에 존재하는지 dto로 반환합니다.
      */
 
-    fun getSprint(command: SprintCommand.Get): SprintResult =
+    fun getSprint(command: SprintQuery.Find): SprintResult =
         Tx.readable {
             log.debug("getSprint: sprintId={}, workspaceId={}", command.sprintId, command.workspaceId)
 
@@ -49,7 +58,16 @@ class SprintService(
                 .also { log.info("getSprint success: sprintId=${command.sprintId}") }
         }
 
-    fun getProjectsInSprint(command: SprintCommand.GetProjects): SprintResult =
+    fun getSprints(command: SprintQuery.FindAll): SprintResult =
+        Tx.readable {
+            log.debug("getSprints: workspaceId={}, pageable={}", command.workspaceId, command.pageable)
+            val page = sprintRepository.findActiveSprints(command.workspaceId, command.pageable)
+            SprintResult
+                .SprintPage(page.map { it.toResult() })
+                .also { log.info("getSprints success: workspaceId={}", command.workspaceId) }
+        }
+
+    fun getProjectsInSprint(command: SprintQuery.FindProjectsInSprint): SprintResult =
         Tx.readable {
             log.debug("getProjectsInSprint: sprintId={}, workspaceId={}", command.sprintId, command.workspaceId)
 
@@ -95,6 +113,7 @@ class SprintService(
                     Sprint.create(
                         name = command.name,
                         workspaceId = command.workspaceId,
+                        goal = command.goal,
                         startDate = command.startDate,
                         endDate = command.endDate,
                     ),
@@ -163,6 +182,7 @@ class SprintService(
                     ?: return@writable SprintResult.Failure.IdNotFound
 
             validateProjectIds(command)?.let { return@writable it }
+            validateRemoveProjectIds(sprint, command)?.let { return@writable it }
             applyUpdates(sprint, command)
 
             log.info("update success: sprintId=${command.sprintId}")
@@ -188,12 +208,38 @@ class SprintService(
             null
         }
 
+    private fun validateRemoveProjectIds(
+        sprint: Sprint,
+        command: SprintCommand.Update,
+    ): SprintResult.Failure? {
+        if (command.removeProjectIds.isEmpty()) {
+            return null
+        }
+
+        val currentProjects = sprint.projectIds().toSet()
+        val invalidIds = command.removeProjectIds.filterNot { currentProjects.contains(it) }
+
+        if (invalidIds.isNotEmpty()) {
+            log.warn("update: removeProjectIds contain projects not in sprint. invalid={}", invalidIds)
+            return SprintResult.Failure.ProjectNotFound
+        }
+
+        return null
+    }
+
     private fun applyUpdates(
         sprint: Sprint,
         command: SprintCommand.Update,
     ) = with(command) {
         name?.let { sprint.modify(it) }
-        sprint.changePeriod(startDate, endDate)
+        when (goal) {
+            is Patch.Value -> sprint.changeGoal(goal.value, by)
+            Patch.Clear -> sprint.changeGoal(null, by)
+            Patch.Unchanged -> Unit
+        }
+        if (startDate != null || endDate != null) {
+            sprint.changePeriod(startDate, endDate, by)
+        }
 
         if (addProjectIds.isNotEmpty()) {
             sprint.addProjects(addProjectIds)
@@ -201,6 +247,31 @@ class SprintService(
         }
 
         if (removeProjectIds.isNotEmpty()) {
+            // 스프린트에서 프로젝트를 분리할 때, 해당 프로젝트 내 Task 들의 상태를 TO DO로 리셋
+            val projectSnapshots = loadProjectSnapshots(removeProjectIds, workspaceId)
+            val removingTaskIds = projectSnapshots.flatMap { it.taskIds }
+
+            val remainingProjectIds = sprint.projectIds().filterNot { removeProjectIds.contains(it) }
+            val remainingTaskIds =
+                loadProjectSnapshots(remainingProjectIds, workspaceId)
+                    .flatMap { it.taskIds }
+                    .toSet()
+
+            val taskIdsToReset =
+                removingTaskIds
+                    .filterNot { remainingTaskIds.contains(it) }
+                    .distinct()
+
+            if (taskIdsToReset.isNotEmpty()) {
+                taskPort.resetStatusToTodo(taskIdsToReset, by, workspaceId, emitEvent = true)
+            } else {
+                log.debug(
+                    "update: no tasks need reset when removing projects. sprintId={}, removeProjectIds={}",
+                    sprint.sprintId,
+                    removeProjectIds,
+                )
+            }
+
             sprint.removeProjects(removeProjectIds)
             log.info("update: projects removed. sprintId=$sprintId, projectIds=$removeProjectIds")
         }
@@ -270,11 +341,12 @@ class SprintService(
         workspaceId: WorkspaceId,
     ): Int = sprintRepository.deleteById(sprintId, deletedBy, workspaceId)
 
-    private fun Sprint.toResult(): SprintResult =
+    private fun Sprint.toResult(): SprintResult.SprintInfo =
         SprintResult.SprintInfo(
             workspaceId = workspaceId,
             sprintId = sprintId,
             name = name,
+            goal = goal,
             startDate = period.startDate,
             endDate = period.endDate,
         )

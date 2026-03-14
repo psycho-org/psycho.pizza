@@ -12,6 +12,26 @@ sealed interface ProjectDomainEvent : DomainEvent {
     override val occurredAt: Instant
 }
 
+// 프로젝트에 Task 추가
+data class TaskAddedToProjectEvent(
+    override val workspaceId: UUID,
+    override val actorId: UUID?,
+    val taskId: UUID,
+    val projectId: UUID,
+    override val eventId: UUID,
+    override val occurredAt: Instant = Instant.now(),
+) : ProjectDomainEvent
+
+// 프로젝트에서 Task 제거
+data class TaskRemovedFromProjectEvent(
+    override val workspaceId: UUID,
+    override val actorId: UUID?,
+    val taskId: UUID,
+    val projectId: UUID,
+    override val eventId: UUID,
+    override val occurredAt: Instant = Instant.now(),
+) : ProjectDomainEvent
+
 // 프로젝트 간 Task 이동
 data class TaskProjectChangedEvent(
     override val workspaceId: UUID,

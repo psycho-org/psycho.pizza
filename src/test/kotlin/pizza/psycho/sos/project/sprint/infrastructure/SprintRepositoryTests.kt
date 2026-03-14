@@ -28,7 +28,7 @@ class SprintRepositoryTests {
 
     @Test
     fun `findActiveSprintByIdOrNull returns active sprint`() {
-        val sprint = sprintRepository.save(Sprint.create("Sprint A", workspaceId, startDate, endDate))
+        val sprint = sprintRepository.save(Sprint.create("Sprint A", workspaceId, "goal", startDate, endDate))
 
         val found = sprintRepository.findActiveSprintByIdOrNull(sprint.sprintId, workspaceId)
 
@@ -38,7 +38,7 @@ class SprintRepositoryTests {
 
     @Test
     fun `findActiveSprintByIdOrNull returns null for deleted sprint`() {
-        val sprint = sprintRepository.save(Sprint.create("Sprint Deleted", workspaceId, startDate, endDate))
+        val sprint = sprintRepository.save(Sprint.create("Sprint Deleted", workspaceId, "goal", startDate, endDate))
         sprint.delete(UUID.fromString("00000000-0000-0000-0000-000000000999"))
         sprintRepository.save(sprint)
 
@@ -49,7 +49,7 @@ class SprintRepositoryTests {
 
     @Test
     fun `findActiveSprintByIdOrNull returns null for different workspace`() {
-        val sprint = sprintRepository.save(Sprint.create("Sprint Workspace", workspaceId, startDate, endDate))
+        val sprint = sprintRepository.save(Sprint.create("Sprint Workspace", workspaceId, "goal", startDate, endDate))
 
         val found = sprintRepository.findActiveSprintByIdOrNull(sprint.sprintId, otherWorkspaceId)
 
@@ -58,7 +58,7 @@ class SprintRepositoryTests {
 
     @Test
     fun `save persists sprint and assigns id`() {
-        val sprint = sprintRepository.save(Sprint.create("New Sprint", workspaceId, startDate, endDate))
+        val sprint = sprintRepository.save(Sprint.create("New Sprint", workspaceId, "goal", startDate, endDate))
 
         assertNotNull(sprint.id)
         assertEquals("New Sprint", sprint.name)
@@ -66,7 +66,7 @@ class SprintRepositoryTests {
 
     @Test
     fun `deleteById soft deletes sprint and returns 1`() {
-        val sprint = sprintRepository.save(Sprint.create("Delete Sprint", workspaceId, startDate, endDate))
+        val sprint = sprintRepository.save(Sprint.create("Delete Sprint", workspaceId, "goal", startDate, endDate))
         val deletedBy = UUID.fromString("00000000-0000-0000-0000-000000000999")
 
         val count = sprintRepository.deleteById(sprint.sprintId, deletedBy, workspaceId)

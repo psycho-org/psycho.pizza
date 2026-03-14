@@ -10,14 +10,19 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.common.entity.BaseEntity
+import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectPort
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
+import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintResult
+import pizza.psycho.sos.project.sprint.domain.event.SprintPeriodChangedEvent
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
@@ -57,6 +62,7 @@ class SprintServiceTests {
                     workspaceId = workspaceId,
                     startDate = startDate,
                     endDate = endDate,
+                    goal = "Goal A",
                 ).withId(sprintId)
         val snapshot =
             ProjectSnapshot(
@@ -98,7 +104,7 @@ class SprintServiceTests {
 
         val result =
             sprintService.getProjectsInSprint(
-                SprintCommand.GetProjects(workspaceId, sprintId),
+                SprintQuery.FindProjectsInSprint(workspaceId, sprintId),
             )
 
         assertTrue(result is SprintResult.Failure.IdNotFound)
@@ -107,12 +113,12 @@ class SprintServiceTests {
     @Test
     fun `프로젝트 목록 조회 시 프로젝트가 없으면 빈 리스트를 반환한다`() {
         val sprint =
-            Sprint.create("Sprint A", workspaceId, startDate, endDate).withId(sprintId)
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId)
         every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns sprint
 
         val result =
             sprintService.getProjectsInSprint(
-                SprintCommand.GetProjects(workspaceId, sprintId),
+                SprintQuery.FindProjectsInSprint(workspaceId, sprintId),
             )
 
         assertTrue(result is SprintResult.ProjectList)
@@ -121,12 +127,67 @@ class SprintServiceTests {
     }
 
     @Test
+    fun `스프린트 목록을 페이지로 반환한다`() {
+        val sprint = Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId)
+        val pageable = PageRequest.of(0, 10)
+        every { sprintRepository.findActiveSprints(workspaceId, pageable) } returns PageImpl(listOf(sprint))
+
+        val result =
+            sprintService.getSprints(SprintQuery.FindAll(workspaceId, pageable))
+
+        assertTrue(result is SprintResult.SprintPage)
+        result as SprintResult.SprintPage
+        assertEquals(1, result.page.totalElements)
+    }
+
+    @Test
+    fun `modify - 기간 입력이 없으면 changePeriod를 호출하지 않는다`() {
+        val sprint =
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId)
+        val actorId = UUID.randomUUID()
+        every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns sprint
+
+        val result =
+            sprintService.modify(
+                SprintCommand.Update(
+                    workspaceId = workspaceId,
+                    sprintId = sprintId,
+                    by = actorId,
+                ),
+            )
+
+        assertTrue(result is SprintResult.Success)
+        assertTrue(sprint.domainEvents().none { it is SprintPeriodChangedEvent })
+    }
+
+    @Test
+    fun `modify - goal을 null로 초기화할 수 있다`() {
+        val sprint =
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId)
+        val actorId = UUID.randomUUID()
+        every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns sprint
+
+        val result =
+            sprintService.modify(
+                SprintCommand.Update(
+                    workspaceId = workspaceId,
+                    sprintId = sprintId,
+                    goal = Patch.Clear,
+                    by = actorId,
+                ),
+            )
+
+        assertTrue(result is SprintResult.Success)
+        assertEquals(null, sprint.goal)
+    }
+
+    @Test
     fun `스프린트 삭제 시 프로젝트와 태스크 삭제 개수를 반환한다`() {
         val deletedBy = UUID.randomUUID()
         val projectId1 = UUID.randomUUID()
         val projectId2 = UUID.randomUUID()
         val sprint =
-            Sprint.create("Sprint A", workspaceId, startDate, endDate).withId(sprintId).apply {
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId).apply {
                 addProjects(listOf(projectId1, projectId2))
             }
         val snapshot1 =

@@ -97,6 +97,7 @@ class TaskService(
         ids: Collection<UUID>,
         workspaceId: WorkspaceId,
         actorId: UUID,
+        emitEvent: Boolean,
     ) = Tx.writable {
         if (ids.isEmpty()) return@writable
 
@@ -108,7 +109,7 @@ class TaskService(
                 task.changeStatus(
                     status = Status.TODO,
                     by = actorId,
-                    emitEvent = false,
+                    emitEvent = emitEvent,
                 )
             }
         }
