@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Component
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
+import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import java.util.UUID
@@ -97,6 +98,34 @@ interface ProjectJpaRepository :
         projectIds: List<UUID>,
         workspaceId: UUID,
     ): List<ProjectProgress>
+
+    @Query(
+        """
+        select new pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment(
+            ptm.taskId,
+            p.id
+        )
+        from ProjectTaskMapping ptm
+            join ptm.project p
+        where ptm.taskId in :taskIds
+          and p.workspaceId.value = :workspaceId
+          and p.deletedAt is null
+        """,
+    )
+    fun findAssignmentsByTaskIds(
+        taskIds: Collection<UUID>,
+        workspaceId: UUID,
+    ): List<TaskAssignment>
+
+    override fun findActiveProjectIdsByTaskIds(
+        taskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<TaskAssignment> =
+        if (taskIds.isEmpty()) {
+            emptyList()
+        } else {
+            findAssignmentsByTaskIds(taskIds, workspaceId.value)
+        }
 
     fun findByIdAndWorkspaceIdValueAndDeletedAtIsNull(
         id: UUID,

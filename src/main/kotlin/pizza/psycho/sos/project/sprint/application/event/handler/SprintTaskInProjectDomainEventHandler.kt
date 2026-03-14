@@ -60,6 +60,21 @@ class SprintTaskInProjectDomainEventHandler(
                 )
                 return@forEach
             }
+            val alreadyInSprint =
+                sprintRepository.existsActiveSprintByTaskIdAndSprintId(
+                    taskId = event.taskId,
+                    sprintId = sprintId,
+                    workspaceId = workspaceId,
+                )
+            if (alreadyInSprint) {
+                log.debug(
+                    "Skip TaskAddedToSprintEvent (task already in sprint). taskId={}, sprintId={}, projectId={}",
+                    event.taskId,
+                    sprintId,
+                    event.projectId,
+                )
+                return@forEach
+            }
             eventPublisher.publish(
                 TaskAddedToSprintEvent(
                     workspaceId = event.workspaceId,
