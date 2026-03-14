@@ -3,6 +3,7 @@ package pizza.psycho.sos.analysis.infrastructure.messaging
 import org.springframework.stereotype.Component
 import pizza.psycho.sos.analysis.application.port.AnalysisJobQueueConsumer
 import pizza.psycho.sos.analysis.application.port.AnalysisJobQueueProducer
+import pizza.psycho.sos.analysis.domain.exception.AnalysisErrorCode
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import java.util.UUID
@@ -27,7 +28,7 @@ class InMemoryAnalysisJobQueue :
         log.info("1️⃣ Enqueue analysis job: $jobId")
 
         if (!queue.offer(jobId)) {
-            throw DomainException("Analysis queue is full")
+            throw DomainException(AnalysisErrorCode.ANALYSIS_JOB_QUEUE_FULL)
         }
     }
 
