@@ -60,6 +60,33 @@ object MailTemplateSpecRegistry {
                             ),
                         ),
                 ),
+            MessageType.EMAIL_ALREADY_EXISTS to
+                MailTemplateSpec(
+                    mailType = MessageType.EMAIL_ALREADY_EXISTS,
+                    variables =
+                        listOf(
+                            MailTemplateVariableSpec(
+                                name = "email",
+                                required = true,
+                                description = "이미 가입된 이메일 주소",
+                            ),
+                            MailTemplateVariableSpec(
+                                name = "name",
+                                required = true,
+                                description = "가입자 이름",
+                            ),
+                            MailTemplateVariableSpec(
+                                name = "joinedAt",
+                                required = true,
+                                description = "가입 일자",
+                            ),
+                            MailTemplateVariableSpec(
+                                name = "url",
+                                required = true,
+                                description = "로그인 페이지 URL",
+                            ),
+                        ),
+                ),
         )
 
     fun get(mailType: MessageType): MailTemplateSpec =

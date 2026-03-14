@@ -9,6 +9,7 @@ import pizza.psycho.sos.common.message.channel.mail.send.application.model.MailS
 import pizza.psycho.sos.common.message.channel.mail.send.application.port.MailSender
 import pizza.psycho.sos.common.message.channel.mail.send.presentation.dto.MailSendStatus
 import pizza.psycho.sos.common.message.channel.mail.template.application.service.MailTemplateService
+import pizza.psycho.sos.common.message.channel.mail.template.domain.data.EmailAlreadyExistsTemplateData
 import pizza.psycho.sos.common.message.channel.mail.template.domain.data.OtpTemplateData
 import pizza.psycho.sos.common.message.channel.mail.template.domain.data.WorkspaceInviteTemplateData
 import pizza.psycho.sos.common.message.domain.MessageChannel
@@ -32,6 +33,7 @@ class MailSendService(
             is MailSendCommand.General -> sendGeneral(command)
             is MailSendCommand.Otp -> sendOtp(command)
             is MailSendCommand.WorkspaceInvite -> sendWorkspaceInvite(command)
+            is MailSendCommand.EmailAlreadyExists -> sendEmailAlreadyExists(command)
         }
 
     fun send(
@@ -182,6 +184,34 @@ class MailSendService(
         return MailSendStatus.SUCCESS
     }
 
+    private fun sendEmailAlreadyExists(command: MailSendCommand.EmailAlreadyExists): MailSendStatus {
+        val normalizedEmail = command.to.trim().lowercase()
+        logger.info("Sending mail. mailType={} to={}", command.mailType, normalizedEmail)
+        val template = mailTemplateService.getActiveTemplate(command.mailType)
+        if (!command.mailType.supportedChannels.contains(MessageChannel.EMAIL)) {
+            throw DomainException(
+                MessageErrorCode.MESSAGE_CHANNEL_NOT_SUPPORTED,
+                "channel EMAIL is not supported for mailType=${command.mailType}",
+            )
+        }
+        if (template.tokenAuthEnabled) {
+            throw DomainException(
+                MessageErrorCode.MESSAGE_TOKEN_AUTH_NOT_SUPPORTED,
+                "token auth is not supported for mailType=${command.mailType}",
+            )
+        }
+
+        val rendered = mailTemplateService.render(command.templateData)
+        mailSender.send(
+            MailSendRequest(
+                to = normalizedEmail,
+                subject = rendered.title,
+                htmlContent = rendered.htmlContent,
+            ),
+        )
+        return MailSendStatus.SUCCESS
+    }
+
     private fun toCommand(
         mailType: MessageType,
         to: String,
@@ -211,6 +241,18 @@ class MailSendService(
                         ),
                     workspaceId = params.requiredUuid("workspaceId"),
                     requesterAccountId = params.requiredUuid("inviterAccountId"),
+                )
+
+            MessageType.EMAIL_ALREADY_EXISTS ->
+                MailSendCommand.EmailAlreadyExists(
+                    to = to,
+                    templateData =
+                        EmailAlreadyExistsTemplateData(
+                            email = params.required("email"),
+                            name = params.required("name"),
+                            joinedAt = params.required("joinedAt"),
+                            url = params.required("url"),
+                        ),
                 )
         }
 
