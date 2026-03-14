@@ -6,11 +6,14 @@ import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
+import pizza.psycho.sos.project.project.application.port.out.ProjectSprintParticipationQuery
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
 import pizza.psycho.sos.project.project.application.service.dto.ProjectQuery
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.model.entity.Project
+import pizza.psycho.sos.project.sprint.domain.model.vo.Period
+import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 
@@ -19,6 +22,8 @@ class ProjectService(
     private val projectRepository: ProjectRepository,
     private val eventPublisher: DomainEventPublisher,
     private val taskPort: TaskPort,
+    private val projectSprintParticipationQuery: ProjectSprintParticipationQuery,
+    private val sprintTaskPeriodPolicy: SprintTaskPeriodPolicy,
 ) {
     private val log by loggerDelegate()
 
@@ -81,6 +86,31 @@ class ProjectService(
                         log.warn("createTask: project not found. projectId={}", command.projectId)
                         return@writable ProjectResult.Failure.IdNotFound
                     }
+            if (command.dueDate != null) {
+                val sprintPeriods =
+                    projectSprintParticipationQuery.findActiveSprintPeriodsByProjectId(
+                        projectId = command.projectId,
+                        workspaceId = command.workspaceId.value,
+                    )
+
+                val violatesSprint =
+                    sprintPeriods.any { snapshot ->
+                        !sprintTaskPeriodPolicy.isTaskDueDateWithinSprint(
+                            Period(snapshot.startDate, snapshot.endDate),
+                            command.dueDate,
+                        )
+                    }
+
+                if (violatesSprint) {
+                    log.warn(
+                        "createTask: dueDate outside sprint period. projectId={}, dueDate={}, sprintIds={}",
+                        command.projectId,
+                        command.dueDate,
+                        sprintPeriods.map { it.sprintId },
+                    )
+                    return@writable ProjectResult.Failure.InvalidRequest
+                }
+            }
 
             val task =
                 taskPort.createTask(

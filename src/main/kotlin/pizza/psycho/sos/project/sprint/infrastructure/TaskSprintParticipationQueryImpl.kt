@@ -2,6 +2,7 @@ package pizza.psycho.sos.project.sprint.infrastructure
 
 import org.springframework.stereotype.Component
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.sprint.application.port.out.dto.SprintPeriodSnapshot
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
 import pizza.psycho.sos.project.task.application.port.out.TaskSprintParticipationQuery
 import java.util.UUID
@@ -18,4 +19,21 @@ class TaskSprintParticipationQueryImpl(
             taskId = taskId,
             workspaceId = WorkspaceId(workspaceId),
         )
+
+    override fun findActiveSprintPeriodsByTaskId(
+        taskId: UUID,
+        workspaceId: UUID,
+    ): List<SprintPeriodSnapshot> =
+        sprintRepository
+            .findActiveSprintsByTaskId(
+                taskId = taskId,
+                workspaceId = WorkspaceId(workspaceId),
+            ).map { sprint ->
+                SprintPeriodSnapshot(
+                    sprintId = sprint.sprintId,
+                    workspaceId = sprint.workspaceId.value,
+                    startDate = sprint.period.startDate,
+                    endDate = sprint.period.endDate,
+                )
+            }
 }

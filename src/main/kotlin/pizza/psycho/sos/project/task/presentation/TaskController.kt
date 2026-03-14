@@ -89,6 +89,7 @@ class TaskController(
             is TaskResult.TaskList -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
             is TaskResult.Failure.IdNotFound -> throw DomainException(TaskErrorCode.TASK_NOT_FOUND)
             is TaskResult.Failure.TaskInformationNotFound -> throw DomainException(TaskErrorCode.TASK_INFO_NOT_FOUND)
+            is TaskResult.Failure.InvalidRequest -> throw DomainException(TaskErrorCode.INVALID_REQUEST)
         }
 
     private fun TaskRequest.Create.toCommand(spaceId: UUID) =

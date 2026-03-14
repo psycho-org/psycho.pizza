@@ -44,5 +44,7 @@ sealed interface TaskResult {
         data object IdNotFound : Failure
 
         data object TaskInformationNotFound : Failure
+
+        data object InvalidRequest : Failure
     }
 }
