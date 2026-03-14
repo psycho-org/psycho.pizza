@@ -1,5 +1,6 @@
 package pizza.psycho.sos.project.sprint.application.service.dto
 
+import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import java.time.Instant
 import java.util.UUID
@@ -17,7 +18,7 @@ sealed interface SprintCommand {
         val workspaceId: WorkspaceId,
         val sprintId: UUID,
         val name: String? = null,
-        val goal: String? = null,
+        val goal: Patch<String> = Patch.Unchanged,
         val startDate: Instant? = null,
         val endDate: Instant? = null,
         val addProjectIds: List<UUID> = emptyList(),

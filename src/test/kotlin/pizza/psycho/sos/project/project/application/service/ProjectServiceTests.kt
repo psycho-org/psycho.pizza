@@ -17,6 +17,7 @@ import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
 import pizza.psycho.sos.project.project.application.port.out.ProjectSprintParticipationQuery
+import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.model.entity.Project
@@ -50,6 +51,9 @@ class ProjectServiceTests {
         every { Tx.readable(any<() -> Any>()) } answers { firstArg<() -> Any>().invoke() }
         justRun { eventPublisher.publishAndClear(any()) }
         justRun { eventPublisher.publishAndClearAll(any()) }
+        justRun { eventPublisher.publishAndClear(any()) }
+        justRun { eventPublisher.publishAndClearAll(any()) }
+        every { projectRepository.findActiveProjectIdsByTaskIds(any(), any()) } returns emptyList()
         every {
             projectSprintParticipationQuery.findActiveSprintPeriodsByProjectId(any(), any())
         } returns emptyList()
@@ -185,5 +189,39 @@ class ProjectServiceTests {
         val result = projectService.removeWithTasks(command)
 
         assertTrue(result is ProjectResult.Failure.IdNotFound)
+    }
+
+    @Test
+    fun `다른 프로젝트에 속한 태스크를 추가하려 하면 TaskAlreadyAssigned를 반환한다`() {
+        val workspaceId = WorkspaceId(UUID.randomUUID())
+        val projectId = UUID.randomUUID()
+        val otherProjectId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val project = Project.create(workspaceId = workspaceId, name = "프로젝트").apply { id = projectId }
+
+        every { projectRepository.findActiveProjectByIdOrNull(projectId, workspaceId) } returns project
+        every { taskPort.findByIdIn(listOf(taskId), workspaceId) } returns
+            listOf(
+                TaskSnapshot(
+                    id = taskId,
+                    title = "태스크",
+                    status = Status.TODO,
+                ),
+            )
+        every {
+            projectRepository.findActiveProjectIdsByTaskIds(listOf(taskId), workspaceId)
+        } returns listOf(TaskAssignment(taskId, otherProjectId))
+
+        val result =
+            projectService.modify(
+                ProjectCommand.Update(
+                    workspaceId = workspaceId,
+                    projectId = projectId,
+                    addTaskIds = listOf(taskId),
+                ),
+            )
+
+        assertTrue(result is ProjectResult.Failure.TaskAlreadyAssigned)
+        verify(exactly = 0) { eventPublisher.publishAndClear(any()) }
     }
 }

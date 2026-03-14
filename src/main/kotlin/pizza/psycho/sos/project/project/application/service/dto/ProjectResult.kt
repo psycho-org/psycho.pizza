@@ -63,5 +63,7 @@ sealed interface ProjectResult {
         data object TaskNotFound : Failure
 
         data object InvalidRequest : Failure
+
+        data object TaskAlreadyAssigned : Failure
     }
 }

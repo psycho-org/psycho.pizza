@@ -255,6 +255,20 @@ class ProjectService(
                     log.warn("update: some taskIds not found. addTaskIds={}", addTaskIds)
                     return@with ProjectResult.Failure.TaskNotFound
                 }
+
+                val assignments =
+                    projectRepository
+                        .findActiveProjectIdsByTaskIds(addTaskIds, workspaceId)
+                        .filter { it.projectId != projectId }
+
+                if (assignments.isNotEmpty()) {
+                    log.warn(
+                        "update: tasks already assigned to other projects. projectId={}, conflicts={}",
+                        projectId,
+                        assignments,
+                    )
+                    return@with ProjectResult.Failure.TaskAlreadyAssigned
+                }
             }
 
             null
