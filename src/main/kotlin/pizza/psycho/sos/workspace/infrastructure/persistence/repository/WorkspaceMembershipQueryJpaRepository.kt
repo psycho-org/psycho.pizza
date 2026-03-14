@@ -31,6 +31,21 @@ interface WorkspaceMembershipQueryJpaRepository :
 
     @Query(
         """
+        select count(m) > 0
+        from Membership m
+        join m.workspace w
+        where m.accountId = :accountId
+          and m.role = pizza.psycho.sos.workspace.domain.model.membership.Role.OWNER
+          and m.deletedAt is null
+          and w.deletedAt is null
+        """,
+    )
+    override fun existsActiveOwnerMembershipByAccountId(
+        @Param("accountId") accountId: UUID,
+    ): Boolean
+
+    @Query(
+        """
         select new pizza.psycho.sos.workspace.application.dto.ActiveWorkspaceMembership(
             w.id,
             w.name,

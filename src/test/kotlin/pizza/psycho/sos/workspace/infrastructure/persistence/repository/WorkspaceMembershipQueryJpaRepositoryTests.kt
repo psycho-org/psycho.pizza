@@ -1,6 +1,7 @@
 package pizza.psycho.sos.workspace.infrastructure.persistence.repository
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
@@ -61,6 +62,35 @@ class WorkspaceMembershipQueryJpaRepositoryTests {
         assertEquals(1, memberships.size)
         assertEquals("Iota", memberships.first().workspaceTitle)
         assertEquals(Role.OWNER, memberships.first().role)
+    }
+
+    @Test
+    fun `existsActiveOwnerMembershipByAccountId returns true only for active owner membership`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000912")
+        workspaceJpaRepository.save(Workspace.create("Kappa", "desc", accountId))
+        workspaceJpaRepository.save(
+            Workspace.create("Lambda", "desc", UUID.fromString("00000000-0000-0000-0000-000000000913")).also {
+                it.addMembership(accountId, role = Role.CREW)
+            },
+        )
+
+        val result = workspaceMembershipQueryJpaRepository.existsActiveOwnerMembershipByAccountId(accountId)
+
+        assertEquals(true, result)
+    }
+
+    @Test
+    fun `existsActiveOwnerMembershipByAccountId returns false when only non-owner memberships exist`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000916")
+        workspaceJpaRepository.save(
+            Workspace.create("Nu", "desc", UUID.fromString("00000000-0000-0000-0000-000000000917")).also {
+                it.addMembership(accountId, role = Role.CREW)
+            },
+        )
+
+        val result = workspaceMembershipQueryJpaRepository.existsActiveOwnerMembershipByAccountId(accountId)
+
+        assertFalse(result)
     }
 
     @Test

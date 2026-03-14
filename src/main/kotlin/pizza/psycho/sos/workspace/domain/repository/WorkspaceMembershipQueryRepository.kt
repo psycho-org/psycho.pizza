@@ -11,6 +11,8 @@ interface WorkspaceMembershipQueryRepository {
         accountId: UUID,
     ): Role?
 
+    fun existsActiveOwnerMembershipByAccountId(accountId: UUID): Boolean
+
     fun findActiveWorkspaceMembershipsByAccountId(accountId: UUID): List<ActiveWorkspaceMembership>
 
     fun findActiveMembersByWorkspaceId(workspaceId: UUID): List<WorkspaceMemberListItem>
