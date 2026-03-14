@@ -287,8 +287,7 @@ class WorkspaceService(
                 throw DomainException(WorkspaceErrorCode.WORKSPACE_NOT_FOUND)
             }
 
-    private fun resolveDisplayName(accountId: UUID): String =
-        accountDisplayNamePort.findActiveDisplayNameByAccountIdOrNull(accountId).orEmpty()
+    private fun resolveDisplayName(accountId: UUID): String = accountDisplayNamePort.findActiveDisplayNameByAccountIdOrNull(accountId)
 
     companion object {
         private val logger = LoggerFactory.getLogger(WorkspaceService::class.java)
