@@ -17,8 +17,8 @@ import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 @Service
 class ProjectService(
     private val projectRepository: ProjectRepository,
-    private val taskPort: TaskPort,
     private val eventPublisher: DomainEventPublisher,
+    private val taskPort: TaskPort,
 ) {
     private val log by loggerDelegate()
 
@@ -91,6 +91,7 @@ class ProjectService(
                     dueDate = command.dueDate,
                 )
             project.addTask(task.id, command.createdBy)
+            eventPublisher.publishAndClear(project)
             log.info("createTask success: projectId=${command.projectId}, taskId=${task.id}")
             task.toResult()
         }

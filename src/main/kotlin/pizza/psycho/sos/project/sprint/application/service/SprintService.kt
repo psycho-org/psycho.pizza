@@ -172,6 +172,7 @@ class SprintService(
                     ?: return@writable SprintResult.Failure.IdNotFound
 
             validateProjectIds(command)?.let { return@writable it }
+            validateRemoveProjectIds(sprint, command)?.let { return@writable it }
             applyUpdates(sprint, command)
 
             log.info("update success: sprintId=${command.sprintId}")
@@ -196,6 +197,25 @@ class SprintService(
 
             null
         }
+
+    private fun validateRemoveProjectIds(
+        sprint: Sprint,
+        command: SprintCommand.Update,
+    ): SprintResult.Failure? {
+        if (command.removeProjectIds.isEmpty()) {
+            return null
+        }
+
+        val currentProjects = sprint.projectIds().toSet()
+        val invalidIds = command.removeProjectIds.filterNot { currentProjects.contains(it) }
+
+        if (invalidIds.isNotEmpty()) {
+            log.warn("update: removeProjectIds contain projects not in sprint. invalid={}", invalidIds)
+            return SprintResult.Failure.ProjectNotFound
+        }
+
+        return null
+    }
 
     private fun applyUpdates(
         sprint: Sprint,
