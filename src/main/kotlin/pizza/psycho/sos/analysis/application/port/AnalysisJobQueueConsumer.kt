@@ -1,7 +1,7 @@
 package pizza.psycho.sos.analysis.application.port
 
-import java.util.UUID
+import pizza.psycho.sos.analysis.application.port.dto.AnalysisJobQueueItem
 
 interface AnalysisJobQueueConsumer {
-    fun take(): UUID
+    fun take(): AnalysisJobQueueItem
 }

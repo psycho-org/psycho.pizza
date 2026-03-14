@@ -1,4 +1,4 @@
-package pizza.psycho.sos.analysis.application.event
+package pizza.psycho.sos.analysis.application.listener
 
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
 import pizza.psycho.sos.analysis.application.port.AnalysisJobQueueProducer
+import pizza.psycho.sos.analysis.application.port.dto.AnalysisJobQueueItem
 import pizza.psycho.sos.analysis.application.service.AnalysisJobRecoveryService
 import pizza.psycho.sos.analysis.domain.event.AnalysisRequestCreatedEvent
 import pizza.psycho.sos.common.support.log.loggerDelegate
@@ -22,8 +23,12 @@ class AnalysisRequestEventListener(
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handleAnalysisRequestCreated(event: AnalysisRequestCreatedEvent) {
-        log.info("🍕 Analysis Request Created: ${event.jobId}")
-        jobProducer.enqueue(event.jobId)
+        log.info("🍕 Analysis Request Created: jobId=${event.analysisRequestId}")
+        jobProducer.enqueue(
+            AnalysisJobQueueItem(
+                jobId = event.analysisRequestId,
+            ),
+        )
     }
 
     /*
@@ -31,10 +36,16 @@ class AnalysisRequestEventListener(
      */
     @EventListener(ApplicationReadyEvent::class)
     fun requeueJobs() {
-        val jobIds = analysisRecoveryService.recoverJobs()
+        val jobs = analysisRecoveryService.recoverJobs()
 
-        jobIds.forEach(jobProducer::enqueue)
+        jobs.forEach { job ->
+            jobProducer.enqueue(
+                AnalysisJobQueueItem(
+                    jobId = job.jobId,
+                ),
+            )
+        }
 
-        log.info("🍕 Requeued ${jobIds.size} jobs")
+        log.info("🍕 Requeued ${jobs.size} jobs")
     }
 }

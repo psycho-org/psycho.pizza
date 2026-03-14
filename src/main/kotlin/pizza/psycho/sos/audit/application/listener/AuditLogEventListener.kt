@@ -1,8 +1,7 @@
 package pizza.psycho.sos.audit.application.listener
 
+import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
-import org.springframework.transaction.event.TransactionPhase
-import org.springframework.transaction.event.TransactionalEventListener
 import pizza.psycho.sos.audit.application.listener.event.SprintGoalChangedEvent
 import pizza.psycho.sos.audit.application.listener.event.SprintPeriodChangedEvent
 import pizza.psycho.sos.audit.application.listener.event.TaskAddedToSprintEvent
@@ -22,7 +21,7 @@ class AuditLogEventListener(
 ) {
     // --- 🔥 Sprint 관련 이벤트 리스너 ---
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     fun handle(event: SprintGoalChangedEvent) {
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
@@ -37,7 +36,7 @@ class AuditLogEventListener(
         )
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     fun handle(event: SprintPeriodChangedEvent) {
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
@@ -52,7 +51,7 @@ class AuditLogEventListener(
         )
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     fun handle(event: TaskAddedToSprintEvent) {
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
@@ -67,7 +66,7 @@ class AuditLogEventListener(
         )
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     fun handle(event: TaskRemovedFromSprintEvent) {
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
@@ -84,7 +83,7 @@ class AuditLogEventListener(
 
     // --- 🔥 Task 관련 이벤트 리스너 ---
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     fun handle(event: TaskStatusChangedEvent) {
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
@@ -99,7 +98,7 @@ class AuditLogEventListener(
         )
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     fun handle(event: TaskAssigneeChangedEvent) {
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
@@ -114,7 +113,7 @@ class AuditLogEventListener(
         )
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     fun handle(event: TaskDueDateChangedEvent) {
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
@@ -129,7 +128,7 @@ class AuditLogEventListener(
         )
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     fun handle(event: TaskProjectChangedEvent) {
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
@@ -144,7 +143,7 @@ class AuditLogEventListener(
         )
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     fun handle(event: TaskDeletedEvent) {
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
