@@ -7,6 +7,14 @@ enum class AnalysisErrorCode(
     override val status: HttpStatus,
     override val message: String,
 ) : BaseErrorCode {
+    ANALYSIS_REQUEST_ID_NOT_GENERATED(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "저장 후 ID가 생성되어야 합니다.",
+    ),
+    ANALYSIS_REQUEST_CREATED_AT_NOT_GENERATED(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "저장 후 생성 시간이 기록되어야 합니다.",
+    ),
     ANALYSIS_JOB_QUEUE_FULL(
         HttpStatus.SERVICE_UNAVAILABLE,
         "Analysis queue is full",
