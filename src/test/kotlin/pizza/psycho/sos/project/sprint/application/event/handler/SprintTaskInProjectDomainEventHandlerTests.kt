@@ -80,9 +80,6 @@ class SprintTaskInProjectDomainEventHandlerTests {
         every {
             sprintRepository.existsActiveSprintByTaskIdAndSprintId(taskId, sprintFrom, WorkspaceId(workspaceId))
         } returns false
-        every {
-            sprintRepository.existsActiveSprintByTaskIdAndSprintId(taskId, sprintTo, WorkspaceId(workspaceId))
-        } returns false
 
         handler.handle(
             TaskRemovedFromProjectEvent(
@@ -121,7 +118,7 @@ class SprintTaskInProjectDomainEventHandlerTests {
     }
 
     @Test
-    fun `adding task to another project in same sprint does not emit duplicate sprint add`() {
+    fun `duplicate task added events only emit sprint add once`() {
         val workspaceId = UUID.randomUUID()
         val sprintId = UUID.randomUUID()
         val projectId = UUID.randomUUID()
@@ -130,20 +127,17 @@ class SprintTaskInProjectDomainEventHandlerTests {
         every {
             sprintRepository.findActiveSprintIdsByProjectId(projectId, WorkspaceId(workspaceId))
         } returns listOf(sprintId)
-        every {
-            sprintRepository.existsActiveSprintByTaskIdAndSprintId(taskId, sprintId, WorkspaceId(workspaceId))
-        } returns true
-
-        handler.handle(
+        val event =
             TaskAddedToProjectEvent(
                 workspaceId = workspaceId,
                 actorId = UUID.randomUUID(),
                 taskId = taskId,
                 projectId = projectId,
                 eventId = UUID.randomUUID(),
-            ),
-        )
+            )
 
-        verify(exactly = 0) { eventPublisher.publish(any<TaskAddedToSprintEvent>()) }
+        handler.handle(event)
+        handler.handle(event.copy(eventId = UUID.randomUUID()))
+        verify(exactly = 1) { eventPublisher.publish(any<TaskAddedToSprintEvent>()) }
     }
 }
