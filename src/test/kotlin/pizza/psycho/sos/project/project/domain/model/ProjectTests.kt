@@ -3,6 +3,9 @@ package pizza.psycho.sos.project.project.domain.model
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.project.domain.event.TaskAddedToProjectEvent
+import pizza.psycho.sos.project.project.domain.event.TaskProjectChangedEvent
+import pizza.psycho.sos.project.project.domain.event.TaskRemovedFromProjectEvent
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import java.util.UUID
 import kotlin.test.Test
@@ -202,5 +205,33 @@ class ProjectTests {
 
         assertEquals(2, ids.size)
         assertTrue(ids.containsAll(listOf(taskId1, taskId2)))
+    }
+
+    @Test
+    fun `moveTaskTo - actorId가 추가 제거 이벤트에 전달된다`() {
+        val from = createProject()
+        val to =
+            createProject(name = "Target Project").apply {
+                id = UUID.randomUUID()
+            }
+        val taskId = UUID.randomUUID()
+        val actorId = UUID.randomUUID()
+
+        from.addTask(taskId)
+        from.pullDomainEvents()
+        to.pullDomainEvents()
+
+        from.moveTaskTo(taskId, to, actorId)
+
+        val removedEvent =
+            from.domainEvents().filterIsInstance<TaskRemovedFromProjectEvent>().single()
+        val changedEvent =
+            from.domainEvents().filterIsInstance<TaskProjectChangedEvent>().single()
+        val addedEvent =
+            to.domainEvents().filterIsInstance<TaskAddedToProjectEvent>().single()
+
+        assertEquals(actorId, removedEvent.actorId)
+        assertEquals(actorId, addedEvent.actorId)
+        assertEquals(actorId, changedEvent.actorId)
     }
 }

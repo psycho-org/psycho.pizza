@@ -1,0 +1,119 @@
+package pizza.psycho.sos.project.sprint.application.event.handler
+
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import org.junit.jupiter.api.Test
+import pizza.psycho.sos.common.event.DomainEventPublisher
+import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.project.domain.event.TaskAddedToProjectEvent
+import pizza.psycho.sos.project.project.domain.event.TaskRemovedFromProjectEvent
+import pizza.psycho.sos.project.sprint.domain.event.TaskAddedToSprintEvent
+import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
+import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
+import java.util.UUID
+
+class SprintTaskInProjectDomainEventHandlerTests {
+    private val sprintRepository = mockk<SprintRepository>()
+    private val eventPublisher = mockk<DomainEventPublisher>(relaxed = true)
+    private val handler = SprintTaskInProjectDomainEventHandler(sprintRepository, eventPublisher)
+
+    @Test
+    fun `task move inside same sprint does not emit sprint add or remove`() {
+        val workspaceId = UUID.randomUUID()
+        val sprintId = UUID.randomUUID()
+        val fromProjectId = UUID.randomUUID()
+        val toProjectId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val actorId = UUID.randomUUID()
+
+        every {
+            sprintRepository.findActiveSprintIdsByProjectId(fromProjectId, WorkspaceId(workspaceId))
+        } returns listOf(sprintId)
+        every {
+            sprintRepository.findActiveSprintIdsByProjectId(toProjectId, WorkspaceId(workspaceId))
+        } returns listOf(sprintId)
+        every {
+            sprintRepository.existsActiveSprintByTaskIdAndSprintId(taskId, sprintId, WorkspaceId(workspaceId))
+        } returns true
+
+        handler.handle(
+            TaskRemovedFromProjectEvent(
+                workspaceId = workspaceId,
+                actorId = actorId,
+                taskId = taskId,
+                projectId = fromProjectId,
+                eventId = UUID.randomUUID(),
+            ),
+        )
+
+        handler.handle(
+            TaskAddedToProjectEvent(
+                workspaceId = workspaceId,
+                actorId = actorId,
+                taskId = taskId,
+                projectId = toProjectId,
+                eventId = UUID.randomUUID(),
+            ),
+        )
+
+        verify(exactly = 0) { eventPublisher.publish(any<TaskRemovedFromSprintEvent>()) }
+        verify(exactly = 0) { eventPublisher.publish(any<TaskAddedToSprintEvent>()) }
+    }
+
+    @Test
+    fun `task move to different sprint emits removal and addition`() {
+        val workspaceId = UUID.randomUUID()
+        val sprintFrom = UUID.randomUUID()
+        val sprintTo = UUID.randomUUID()
+        val fromProjectId = UUID.randomUUID()
+        val toProjectId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val actorId = UUID.randomUUID()
+
+        every {
+            sprintRepository.findActiveSprintIdsByProjectId(fromProjectId, WorkspaceId(workspaceId))
+        } returns listOf(sprintFrom)
+        every {
+            sprintRepository.findActiveSprintIdsByProjectId(toProjectId, WorkspaceId(workspaceId))
+        } returns listOf(sprintTo)
+        every {
+            sprintRepository.existsActiveSprintByTaskIdAndSprintId(taskId, sprintFrom, WorkspaceId(workspaceId))
+        } returns false
+
+        handler.handle(
+            TaskRemovedFromProjectEvent(
+                workspaceId = workspaceId,
+                actorId = actorId,
+                taskId = taskId,
+                projectId = fromProjectId,
+                eventId = UUID.randomUUID(),
+            ),
+        )
+
+        handler.handle(
+            TaskAddedToProjectEvent(
+                workspaceId = workspaceId,
+                actorId = actorId,
+                taskId = taskId,
+                projectId = toProjectId,
+                eventId = UUID.randomUUID(),
+            ),
+        )
+
+        verify(exactly = 1) {
+            eventPublisher.publish(
+                match<TaskRemovedFromSprintEvent> {
+                    it.sprintId == sprintFrom && it.taskId == taskId
+                },
+            )
+        }
+        verify(exactly = 1) {
+            eventPublisher.publish(
+                match<TaskAddedToSprintEvent> {
+                    it.sprintId == sprintTo && it.taskId == taskId
+                },
+            )
+        }
+    }
+}

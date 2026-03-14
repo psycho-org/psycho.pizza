@@ -14,6 +14,7 @@ import pizza.psycho.sos.project.sprint.domain.event.TaskAddedToSprintEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 프로젝트에 Task가 추가/제거될 때, 해당 프로젝트가 속한 Sprint들에 대해
@@ -28,6 +29,7 @@ class SprintTaskInProjectDomainEventHandler(
     private val eventPublisher: DomainEventPublisher,
 ) {
     private val log by loggerDelegate()
+    private val suppressedMoveKeys = ConcurrentHashMap.newKeySet<TaskSprintKey>()
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handle(event: ProjectDomainEvent) {
@@ -48,6 +50,16 @@ class SprintTaskInProjectDomainEventHandler(
         }
 
         sprintIds.forEach { sprintId ->
+            val key = TaskSprintKey(event.workspaceId, sprintId, event.taskId)
+            if (suppressedMoveKeys.remove(key)) {
+                log.debug(
+                    "Skip TaskAddedToSprintEvent (move within sprint). taskId={}, sprintId={}, projectId={}",
+                    event.taskId,
+                    sprintId,
+                    event.projectId,
+                )
+                return@forEach
+            }
             eventPublisher.publish(
                 TaskAddedToSprintEvent(
                     workspaceId = event.workspaceId,
@@ -78,6 +90,25 @@ class SprintTaskInProjectDomainEventHandler(
         }
 
         sprintIds.forEach { sprintId ->
+            val key = TaskSprintKey(event.workspaceId, sprintId, event.taskId)
+            val stillInSprint =
+                sprintRepository.existsActiveSprintByTaskIdAndSprintId(
+                    taskId = event.taskId,
+                    sprintId = sprintId,
+                    workspaceId = workspaceId,
+                )
+            if (stillInSprint) {
+                suppressedMoveKeys.add(key)
+                log.debug(
+                    "Skip TaskRemovedFromSprintEvent (task still in sprint). taskId={}, sprintId={}, projectId={}",
+                    event.taskId,
+                    sprintId,
+                    event.projectId,
+                )
+                return@forEach
+            } else {
+                suppressedMoveKeys.remove(key)
+            }
             eventPublisher.publish(
                 TaskRemovedFromSprintEvent(
                     workspaceId = event.workspaceId,
@@ -97,4 +128,10 @@ class SprintTaskInProjectDomainEventHandler(
             event.workspaceId,
         )
     }
+
+    private data class TaskSprintKey(
+        val workspaceId: UUID,
+        val sprintId: UUID,
+        val taskId: UUID,
+    )
 }
