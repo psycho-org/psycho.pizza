@@ -2,10 +2,7 @@ package pizza.psycho.sos.analysis.application.service
 
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.analysis.application.port.RelayServerClient
-import pizza.psycho.sos.audit.application.service.AuditLogService
 import pizza.psycho.sos.common.support.log.loggerDelegate
-import pizza.psycho.sos.project.project.application.port.out.ProjectPort
-import pizza.psycho.sos.project.task.application.port.out.TaskPort
 import java.util.UUID
 
 /*
@@ -15,12 +12,8 @@ import java.util.UUID
 @Service
 class AnalysisWorkerService(
     private val analysisLifecycleService: AnalysisLifecycleService,
-    private val auditLogService: AuditLogService,
-//    private val sprintService: SprintPort,
-    private val projectService: ProjectPort,
-    private val taskService: TaskPort,
-//    private val sprintMetricsCalculator: SprintMetricsCalculator,
-    private val relayServerClient: RelayServerClient, // FastAPI와 통신할 WebClient/RestTemplate
+    private val sprintAnalysisMetricService: SprintAnalysisMetricService,
+    private val relayServerClient: RelayServerClient,
 ) {
     private val log by loggerDelegate()
 
@@ -33,19 +26,11 @@ class AnalysisWorkerService(
             // 1. QUEUE -> RUNNING
             analysisLifecycleService.markRunning(jobId)
 
-            // 2. 필요한 도메인 데이터 모두 수집 (Sprint, Projects, Tasks, AuditLogs)
-            step = AnalysisStep.COLLECT_TARGET_DATA
-            val analysisRequest = analysisLifecycleService.getAnalysisRequest(jobId)
-//            val sprint = sprintService.findById(...)
-//            val projects = projectService.findByIdIn(...)
-//            val tasks = taskService.findByIdIn(...)
-            val auditLogs = auditLogService.getAuditLogsForAnalysis(analysisRequest.targetId)
-
-            // 2. 메트릭 계산 로직 호출 (JSON v1 페이로드 생성)
+            // 2. 메트릭 계산 로직 호출 (JSON v2 페이로드 생성)
             step = AnalysisStep.CALCULATE_METRICS
-            // val payload = sprintMetricsCalculator.calculate(sprint, tasks, auditLogs)
+            sprintAnalysisMetricService.buildInput(jobId)
 
-            // 3. 릴레이 서버로 데이터 전송
+            // 3. 릴레이 서버로 데이터 전송(x) -> AWS SQS?
             step = AnalysisStep.SEND_TO_RELAY_SERVER
 //            relayServerClient.send(jobId, "workspace_id", payload)
 
@@ -64,7 +49,6 @@ class AnalysisWorkerService(
 
     private enum class AnalysisStep {
         MARK_RUNNING,
-        COLLECT_TARGET_DATA,
         CALCULATE_METRICS,
         SEND_TO_RELAY_SERVER,
     }
