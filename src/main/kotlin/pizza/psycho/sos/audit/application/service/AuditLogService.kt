@@ -1,7 +1,6 @@
 package pizza.psycho.sos.audit.application.service
 
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import pizza.psycho.sos.audit.domain.entity.AuditLog
 import pizza.psycho.sos.audit.domain.vo.AuditEventType
@@ -14,9 +13,7 @@ import java.util.UUID
 class AuditLogService(
     private val auditLogRepository: AuditLogRepository,
 ) {
-    fun getAuditLogsForAnalysis(targetId: UUID) = auditLogRepository.findByTargetId(targetId)
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     fun createAuditLog(
         workspaceId: UUID,
         actorId: UUID?,
