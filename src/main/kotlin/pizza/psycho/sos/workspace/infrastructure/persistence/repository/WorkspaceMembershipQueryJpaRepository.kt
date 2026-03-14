@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 import pizza.psycho.sos.workspace.application.dto.ActiveWorkspaceMembership
+import pizza.psycho.sos.workspace.application.dto.WorkspaceMemberListItem
 import pizza.psycho.sos.workspace.domain.model.membership.Membership
 import pizza.psycho.sos.workspace.domain.model.membership.Role
 import pizza.psycho.sos.workspace.domain.repository.WorkspaceMembershipQueryRepository
@@ -30,6 +31,21 @@ interface WorkspaceMembershipQueryJpaRepository :
 
     @Query(
         """
+        select count(m) > 0
+        from Membership m
+        join m.workspace w
+        where m.accountId = :accountId
+          and m.role = pizza.psycho.sos.workspace.domain.model.membership.Role.OWNER
+          and m.deletedAt is null
+          and w.deletedAt is null
+        """,
+    )
+    override fun existsActiveOwnerMembershipByAccountId(
+        @Param("accountId") accountId: UUID,
+    ): Boolean
+
+    @Query(
+        """
         select new pizza.psycho.sos.workspace.application.dto.ActiveWorkspaceMembership(
             w.id,
             w.name,
@@ -45,4 +61,23 @@ interface WorkspaceMembershipQueryJpaRepository :
     override fun findActiveWorkspaceMembershipsByAccountId(
         @Param("accountId") accountId: UUID,
     ): List<ActiveWorkspaceMembership>
+
+    @Query(
+        """
+        select new pizza.psycho.sos.workspace.application.dto.WorkspaceMemberListItem(
+            m.id,
+            m.accountId,
+            coalesce(m.displayName, ''),
+            m.role,
+            m.createdAt
+        )
+        from Membership m
+        where m.workspace.id = :workspaceId
+          and m.deletedAt is null
+        order by m.createdAt asc
+        """,
+    )
+    override fun findActiveMembersByWorkspaceId(
+        @Param("workspaceId") workspaceId: UUID,
+    ): List<WorkspaceMemberListItem>
 }

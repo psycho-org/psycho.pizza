@@ -32,9 +32,16 @@ class Workspace protected constructor(
             name: String,
             description: String,
             ownerAccountId: UUID,
+            ownerDisplayName: String = "",
         ): Workspace {
             val workspace = Workspace(name, description)
-            val ownerMembership = Membership.create(workspace, ownerAccountId, Role.OWNER)
+            val ownerMembership =
+                Membership.create(
+                    workspace = workspace,
+                    accountId = ownerAccountId,
+                    displayName = ownerDisplayName,
+                    role = Role.OWNER,
+                )
             workspace.memberships.add(ownerMembership)
             return workspace
         }
@@ -42,12 +49,13 @@ class Workspace protected constructor(
 
     fun addMembership(
         accountId: UUID,
+        displayName: String = "",
         role: Role = Role.CREW,
     ): Membership {
         if (memberships.any { it.accountId == accountId && !it.isDeleted }) {
             throw IllegalArgumentException("membership already exists for accountId=$accountId")
         }
-        val membership = Membership.create(this, accountId, role)
+        val membership = Membership.create(workspace = this, accountId = accountId, displayName = displayName, role = role)
         memberships.add(membership)
         return membership
     }
