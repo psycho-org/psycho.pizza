@@ -24,15 +24,6 @@ class SprintService(
     private val log by loggerDelegate()
 
     /*
-     * todo
-     *      1. sprint의 기간 변경 시 하위 task들의 기간변경 (검증 후 초과 task 목록 반환 방식 검토)
-     *          - sprint 범위 밖 task일 경우
-     *          - sprintA에서 sprintB로 옮겼을 때 기준 기간이 달라진다면..?
-     *          - sprint 기간 변경 시 하위 task들 기간 그대로 대신 task 기간을 변경하거나 task를 추가할 시 검증
-     *          - ui에 줄 때 sprint 기간 내에 있는지 dto에 담아서 보내줄 것
-     *      2. sprint 내의 프로젝트에 task의 기간 변경 또는 task 추가 시 sprint와의 기간 검증
-     *          - 변경은 task에 넣고 검증을 sprint에?
-     *
      * 정책
      * 1. sprint에 속하지 않는 task는 backlog로 칭함
      * 2. sprint에서 task를 제거하여 backlog로 전환할 때는 to do로 전환한 후 이벤트를 발송합니다.
@@ -261,7 +252,6 @@ class SprintService(
             projectPort
                 .findProgressesByProjectId(projectIds, workspaceId)
                 .associateBy(ProjectProgress::projectId)
-
         return projects.map { it.toResult(progressMap[it.projectId]) }
     }
 

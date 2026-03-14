@@ -1,6 +1,5 @@
 package pizza.psycho.sos.project.project.application.service
 
-import org.springframework.data.domain.Page
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.log.loggerDelegate
@@ -62,13 +61,36 @@ class ProjectService(
                         return@readable ProjectResult.Failure.IdNotFound
                     }
 
+            val sprintPeriods =
+                projectSprintParticipationQuery.findActiveSprintPeriodsByProjectId(
+                    projectId = command.projectId,
+                    workspaceId = command.workspaceId.value,
+                )
+
             taskPort
                 .findByIdIn(
                     ids = project.taskIds(),
                     workspaceId = command.workspaceId,
                     pageable = command.pageable,
-                ).let { ProjectResult.TaskList(it.toResult()) }
-                .also { log.info("getTasksInProject success: projectId=${command.projectId}") }
+                ).let { page ->
+                    val mapped =
+                        page.map { snapshot ->
+                            val within =
+                                if (sprintPeriods.isEmpty()) {
+                                    null
+                                } else {
+                                    val dueDate = snapshot.dueDate
+                                    sprintPeriods.any { snapshotPeriod ->
+                                        sprintTaskPeriodPolicy.isTaskDueDateWithinSprint(
+                                            Period(snapshotPeriod.startDate, snapshotPeriod.endDate),
+                                            dueDate,
+                                        )
+                                    }
+                                }
+                            snapshot.toResult(isWithinSprintPeriod = within)
+                        }
+                    ProjectResult.TaskList(mapped)
+                }.also { log.info("getTasksInProject success: projectId=${command.projectId}") }
         }
 
     fun create(command: ProjectCommand.Create): ProjectResult =
@@ -255,9 +277,7 @@ class ProjectService(
 
     // ----------------------------------------------------------------------------------------------
 
-    private fun Page<TaskSnapshot>.toResult(): Page<ProjectResult.Task> = map { it.toResult() }
-
-    private fun TaskSnapshot.toResult(): ProjectResult.Task =
+    private fun TaskSnapshot.toResult(isWithinSprintPeriod: Boolean? = null): ProjectResult.Task =
         ProjectResult.Task(
             id = id,
             title = title,
@@ -267,6 +287,7 @@ class ProjectService(
                     ProjectResult.Assignee(id = id, name = "", email = "")
                 },
             dueDate = dueDate,
+            isWithinSprintPeriod = isWithinSprintPeriod,
         )
 
     private fun Project.toResult(progress: ProjectProgress = ProjectProgress(projectId, 0L, 0L)): ProjectResult =

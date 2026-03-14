@@ -215,5 +215,6 @@ class ProjectController(
             status = status,
             assignee = assignee?.let { ProjectResponse.Assignee(it.id, it.name, it.email) },
             dueDate = dueDate,
+            isWithinSprintPeriod = isWithinSprintPeriod,
         )
 }
