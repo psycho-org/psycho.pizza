@@ -3,6 +3,7 @@ package pizza.psycho.sos.common.handler
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.ConstraintViolationException
 import org.slf4j.LoggerFactory
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.HttpStatusCode
 import org.springframework.http.ResponseEntity
@@ -76,19 +77,20 @@ class GlobalExceptionHandler {
         ex: DomainException,
         request: HttpServletRequest,
     ): ResponseEntity<ErrorResponse> {
-        val errorCode = ex.errorCode
-        if (errorCode == null) {
-            logger.warn("Legacy DomainException without errorCode at path={}", request.requestURI, ex)
-            return HttpStatus.BAD_REQUEST.toResponse(
-                message = ex.message ?: "Bad Request",
-                path = request.requestURI,
-            )
-        }
+        val errorCode =
+            ex.errorCode ?: run {
+                logger.warn("Legacy DomainException without errorCode at path={}", request.requestURI, ex)
+                return HttpStatus.BAD_REQUEST.toResponse(
+                    message = ex.message ?: "Bad Request",
+                    path = request.requestURI,
+                )
+            }
 
         return errorCode.status.toResponse(
             code = errorCode.code,
             message = errorCode.message,
             path = request.requestURI,
+            meta = ex.meta,
         )
     }
 
@@ -111,36 +113,52 @@ class GlobalExceptionHandler {
         message: String,
         path: String,
         details: Map<String, List<String>>? = null,
+        meta: ErrorMeta? = null,
     ): ResponseEntity<ErrorResponse> =
-        ResponseEntity.status(this).body(
-            ErrorResponse(
-                timestamp = Instant.now(),
-                status = value(),
-                error = reasonPhrase,
-                code = code,
-                message = message,
-                path = path,
-                details = details,
-            ),
-        )
+        ResponseEntity
+            .status(this)
+            .applyMetaHeaders(meta)
+            .body(
+                ErrorResponse(
+                    timestamp = Instant.now(),
+                    status = value(),
+                    error = reasonPhrase,
+                    code = code,
+                    message = message,
+                    path = path,
+                    details = details,
+                    meta = meta,
+                ),
+            )
 
     private fun HttpStatusCode.toResponse(
         code: String? = null,
         message: String,
         path: String,
         details: Map<String, List<String>>? = null,
+        meta: ErrorMeta? = null,
     ): ResponseEntity<ErrorResponse> =
-        ResponseEntity.status(this).body(
-            ErrorResponse(
-                timestamp = Instant.now(),
-                status = value(),
-                error = reasonPhraseOrFallback(),
-                code = code,
-                message = message,
-                path = path,
-                details = details,
-            ),
-        )
+        ResponseEntity
+            .status(this)
+            .applyMetaHeaders(meta)
+            .body(
+                ErrorResponse(
+                    timestamp = Instant.now(),
+                    status = value(),
+                    error = reasonPhraseOrFallback(),
+                    code = code,
+                    message = message,
+                    path = path,
+                    details = details,
+                    meta = meta,
+                ),
+            )
+
+    private fun ResponseEntity.BodyBuilder.applyMetaHeaders(meta: ErrorMeta?): ResponseEntity.BodyBuilder =
+        when (meta) {
+            is ErrorMeta.Cooldown -> header(HttpHeaders.RETRY_AFTER, meta.retryAfterSeconds.toString())
+            null -> this
+        }
 
     private fun HttpStatusCode.reasonPhraseOrFallback(): String = HttpStatus.resolve(value())?.reasonPhrase ?: "HTTP ${value()}"
 

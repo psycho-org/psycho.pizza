@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.common.handler.DomainException
+import pizza.psycho.sos.common.handler.ErrorMeta
 import pizza.psycho.sos.common.response.ApiResponse
 import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
@@ -108,11 +109,13 @@ class ChallengeController(
         when (this) {
             is RequestChallengeResult.Success ->
                 responseOf(
-                    data = ChallengeResponse.Requested(challengeId = challengeId),
+                    data = ChallengeResponse.Requested(challengeId = challengeId, expiresAt = expiresAt),
                 )
 
-            RequestChallengeResult.Failure.CooldownActive ->
-                throw DomainException(ChallengeErrorCode.CHALLENGE_OTP_COOLDOWN_ACTIVE)
+            is RequestChallengeResult.Failure.CooldownActive -> throw DomainException(
+                errorCode = ChallengeErrorCode.CHALLENGE_OTP_COOLDOWN_ACTIVE,
+                meta = ErrorMeta.Cooldown(availableAt, retryAfterSeconds),
+            )
         }
 
     private fun VerifyOtpResult.toConfirmedResponse(): ApiResponse<ChallengeResponse.Confirmed> =
@@ -126,12 +129,11 @@ class ChallengeController(
                         ),
                 )
 
+            VerifyOtpResult.Failure.ChallengeExpired -> throw DomainException(ChallengeErrorCode.CHALLENGE_EXPIRED)
             VerifyOtpResult.Failure.ChallengeNotFound -> throw DomainException(ChallengeErrorCode.CHALLENGE_NOT_FOUND)
+            VerifyOtpResult.Failure.InvalidOtp -> throw DomainException(ChallengeErrorCode.CHALLENGE_INVALID_OTP)
+            VerifyOtpResult.Failure.MaxAttemptsExceeded -> throw DomainException(ChallengeErrorCode.CHALLENGE_MAX_ATTEMPTS_EXCEEDED)
             VerifyOtpResult.Failure.OperationTypeMismatch -> throw DomainException(ChallengeErrorCode.CHALLENGE_NOT_FOUND)
             VerifyOtpResult.Failure.RequesterEmailMismatch -> throw DomainException(ChallengeErrorCode.CHALLENGE_NOT_FOUND)
-            VerifyOtpResult.Failure.ChallengeExpired -> throw DomainException(ChallengeErrorCode.CHALLENGE_EXPIRED)
-            VerifyOtpResult.Failure.MaxAttemptsExceeded ->
-                throw DomainException(ChallengeErrorCode.CHALLENGE_MAX_ATTEMPTS_EXCEEDED)
-            VerifyOtpResult.Failure.InvalidOtp -> throw DomainException(ChallengeErrorCode.CHALLENGE_INVALID_OTP)
         }
 }

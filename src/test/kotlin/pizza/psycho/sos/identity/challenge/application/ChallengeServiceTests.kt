@@ -17,6 +17,8 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.common.support.transaction.runner.TransactionRunner
+import pizza.psycho.sos.identity.account.domain.Account
+import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
 import pizza.psycho.sos.identity.challenge.application.port.VerificationDelivery
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
 import pizza.psycho.sos.identity.challenge.application.service.dto.ChallengeCommand
@@ -34,6 +36,7 @@ import java.time.Instant
 import java.util.UUID
 
 class ChallengeServiceTests {
+    private val accountRepository = mock(AccountRepository::class.java)
     private val challengeRepository = mock(ChallengeRepository::class.java)
     private val confirmationTokenRepository = mock(ConfirmationTokenRepository::class.java)
     private val passwordEncoder = mock(PasswordEncoder::class.java)
@@ -49,6 +52,7 @@ class ChallengeServiceTests {
         }
     private val challengeService =
         ChallengeService(
+            accountRepository = accountRepository,
             challengeRepository = challengeRepository,
             confirmationTokenRepository = confirmationTokenRepository,
             passwordEncoder = passwordEncoder,
@@ -63,7 +67,68 @@ class ChallengeServiceTests {
     }
 
     @Test
+    fun `createChallenge returns synthetic challenge when active account already exists for register`() {
+        val existingAccount =
+            Account.create(
+                email = Email.of("existing@psycho.pizza"),
+                passwordHash = "hash",
+                givenName = "given",
+                familyName = "family",
+            )
+        `when`(accountRepository.findByEmailValueIgnoreCaseAndDeletedAtIsNull("existing@psycho.pizza")).thenReturn(existingAccount)
+
+        val before = Instant.now()
+        val result =
+            challengeService.createChallenge(
+                ChallengeCommand.Request(
+                    email = "Existing@psycho.pizza",
+                    operationType = OperationType.REGISTER,
+                ),
+            )
+        val after = Instant.now()
+
+        assertTrue(result is RequestChallengeResult.Success)
+        val success = result as RequestChallengeResult.Success
+        assertTrue(!success.expiresAt.isBefore(before.plusSeconds(challengeProperties.otpTtlSeconds)))
+        assertTrue(!success.expiresAt.isAfter(after.plusSeconds(challengeProperties.otpTtlSeconds)))
+        verify(accountRepository).findByEmailValueIgnoreCaseAndDeletedAtIsNull("existing@psycho.pizza")
+        verifyNoInteractions(challengeRepository, verificationDelivery)
+    }
+
+    @Test
+    fun `createChallenge skips account lookup for non-register operations`() {
+        `when`(
+            challengeRepository.findByTargetEmailValueIgnoreCaseAndOperationTypeAndStatus(
+                "me@psycho.pizza",
+                OperationType.WITHDRAW,
+                ChallengeStatus.PENDING,
+            ),
+        ).thenReturn(null)
+        `when`(otpGenerator.generate(6)).thenReturn("123456")
+        `when`(passwordEncoder.encode("123456")).thenReturn("new-hash")
+        `when`(challengeRepository.saveAndFlush(any(Challenge::class.java))).thenAnswer { invocation ->
+            invocation.getArgument<Challenge>(0).also { challenge ->
+                if (challenge.id == null) {
+                    challenge.id = UUID.fromString("00000000-0000-0000-0000-000000000099")
+                }
+            }
+        }
+
+        val result =
+            challengeService.createChallenge(
+                ChallengeCommand.Request(
+                    email = "me@psycho.pizza",
+                    operationType = OperationType.WITHDRAW,
+                ),
+            )
+
+        assertTrue(result is RequestChallengeResult.Success)
+        verifyNoInteractions(accountRepository)
+    }
+
+    @Test
     fun `createChallenge returns cooldown active when existing pending is still within cooldown`() {
+        val createdAt = Instant.now()
         val pending =
             Challenge
                 .create(
@@ -72,7 +137,7 @@ class ChallengeServiceTests {
                     otpHash = "old-hash",
                     expiresAt = Instant.now().plusSeconds(300),
                     maxAttempts = 3,
-                ).also { it.createdAt = Instant.now() }
+                ).also { it.createdAt = createdAt }
         `when`(
             challengeRepository.findByTargetEmailValueIgnoreCaseAndOperationTypeAndStatus(
                 "user@psycho.pizza",
@@ -89,7 +154,11 @@ class ChallengeServiceTests {
                 ),
             )
 
-        assertEquals(RequestChallengeResult.Failure.CooldownActive, result)
+        assertTrue(result is RequestChallengeResult.Failure.CooldownActive)
+        val failure = result as RequestChallengeResult.Failure.CooldownActive
+        assertEquals(createdAt.plusSeconds(challengeProperties.cooldownSeconds), failure.availableAt)
+        assertTrue(failure.retryAfterSeconds in 1..challengeProperties.cooldownSeconds)
+        verify(accountRepository).findByEmailValueIgnoreCaseAndDeletedAtIsNull("user@psycho.pizza")
         verify(challengeRepository, never()).saveAndFlush(any(Challenge::class.java))
         verifyNoInteractions(verificationDelivery)
     }
@@ -118,8 +187,14 @@ class ChallengeServiceTests {
         ).thenReturn(pending)
         `when`(otpGenerator.generate(6)).thenReturn("123456")
         `when`(passwordEncoder.encode("123456")).thenReturn("new-hash")
+        var issuedChallenge: Challenge? = null
         `when`(challengeRepository.saveAndFlush(any(Challenge::class.java))).thenAnswer { invocation ->
-            invocation.getArgument<Challenge>(0).also { it.id = savedNewChallengeId }
+            invocation.getArgument<Challenge>(0).also {
+                if (it.status == ChallengeStatus.PENDING && it.id == null) {
+                    issuedChallenge = it
+                    it.id = savedNewChallengeId
+                }
+            }
         }
 
         val result =
@@ -131,7 +206,9 @@ class ChallengeServiceTests {
             )
 
         assertTrue(result is RequestChallengeResult.Success)
-        assertEquals(savedNewChallengeId, (result as RequestChallengeResult.Success).challengeId)
+        val success = result as RequestChallengeResult.Success
+        assertEquals(savedNewChallengeId, success.challengeId)
+        assertEquals(requireNotNull(issuedChallenge).expiresAt, success.expiresAt)
         assertEquals(ChallengeStatus.EXPIRED, pending.status)
         verify(challengeRepository, times(2)).saveAndFlush(any(Challenge::class.java))
         verify(verificationDelivery).sendOtp(Email.of("user@psycho.pizza"), "123456", OperationType.REGISTER)
@@ -139,13 +216,23 @@ class ChallengeServiceTests {
 
     @Test
     fun `createChallenge maps pending challenge unique constraint to cooldown active`() {
+        val createdAt = Instant.now().minusSeconds(1)
+        val pending =
+            Challenge
+                .create(
+                    operationType = OperationType.REGISTER,
+                    targetEmail = Email.of("user@psycho.pizza"),
+                    otpHash = "old-hash",
+                    expiresAt = Instant.now().plusSeconds(300),
+                    maxAttempts = 3,
+                ).also { it.createdAt = createdAt }
         `when`(
             challengeRepository.findByTargetEmailValueIgnoreCaseAndOperationTypeAndStatus(
                 "user@psycho.pizza",
                 OperationType.REGISTER,
                 ChallengeStatus.PENDING,
             ),
-        ).thenReturn(null)
+        ).thenReturn(null, pending)
         `when`(otpGenerator.generate(6)).thenReturn("123456")
         `when`(passwordEncoder.encode("123456")).thenReturn("new-hash")
         `when`(challengeRepository.saveAndFlush(any(Challenge::class.java))).thenThrow(
@@ -167,7 +254,10 @@ class ChallengeServiceTests {
                 ),
             )
 
-        assertEquals(RequestChallengeResult.Failure.CooldownActive, result)
+        assertTrue(result is RequestChallengeResult.Failure.CooldownActive)
+        val failure = result as RequestChallengeResult.Failure.CooldownActive
+        assertEquals(createdAt.plusSeconds(challengeProperties.cooldownSeconds), failure.availableAt)
+        assertTrue(failure.retryAfterSeconds in 1..challengeProperties.cooldownSeconds)
         verifyNoInteractions(verificationDelivery)
     }
 
