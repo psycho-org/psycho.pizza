@@ -14,7 +14,7 @@ open class DomainException(
     @Deprecated(
         message =
             "DomainException(errorCode, message, cause) 형식을 사용하세요.",
-        level = DeprecationLevel.WARNING,
+        level = DeprecationLevel.ERROR,
     )
     constructor(
         message: String,
