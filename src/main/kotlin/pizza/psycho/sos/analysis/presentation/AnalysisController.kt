@@ -18,12 +18,12 @@ import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 
 @RestController
-@RequestMapping("/api/v1/analysis")
+@RequestMapping("/api/v1/analysis-requests")
 class AnalysisController(
     private val analysisRequestService: AnalysisRequestService,
     private val analysisLifecycleService: AnalysisLifecycleService,
 ) {
-    @PostMapping("/request")
+    @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun createAnalysisRequest(
         @Valid
@@ -51,8 +51,8 @@ class AnalysisController(
         )
     }
 
-    @PostMapping("/request/complete")
-    @ResponseStatus(HttpStatus.CREATED)
+    @PostMapping("/complete")
+    @ResponseStatus(HttpStatus.OK)
     fun createAnalysisReport(
         @RequestBody body: AnalysisRequest.CompleteAnalysisReport,
     ): ApiResponse<AnalysisResponse.CreateAnalysisReportResponse> {
