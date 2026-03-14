@@ -25,7 +25,7 @@ class WorkspaceMembershipQueryJpaRepositoryTests {
         val ownerAccountId = UUID.fromString("00000000-0000-0000-0000-000000000908")
         val crewWorkspace =
             Workspace.create("Zeta", "desc", UUID.fromString("00000000-0000-0000-0000-000000000903")).also {
-                it.addMembership(ownerAccountId, Role.CREW)
+                it.addMembership(ownerAccountId, role = Role.CREW)
             }
 
         workspaceJpaRepository.save(Workspace.create("Epsilon", "desc", ownerAccountId))
@@ -61,5 +61,23 @@ class WorkspaceMembershipQueryJpaRepositoryTests {
         assertEquals(1, memberships.size)
         assertEquals("Iota", memberships.first().workspaceTitle)
         assertEquals(Role.OWNER, memberships.first().role)
+    }
+
+    @Test
+    fun `findActiveMembersByWorkspaceId returns membership display name without account join`() {
+        val ownerAccountId = UUID.fromString("00000000-0000-0000-0000-000000000914")
+        val crewAccountId = UUID.fromString("00000000-0000-0000-0000-000000000915")
+        val workspace =
+            Workspace.create("Mu", "desc", ownerAccountId).also {
+                it.addMembership(crewAccountId, role = Role.CREW).displayName = "Crew Display"
+            }
+        workspace.memberships.first { it.accountId == ownerAccountId }.displayName = "Owner Display"
+        val savedWorkspace = workspaceJpaRepository.save(workspace)
+
+        val members = workspaceMembershipQueryJpaRepository.findActiveMembersByWorkspaceId(savedWorkspace.id!!)
+
+        assertEquals(2, members.size)
+        assertEquals(setOf("Owner Display", "Crew Display"), members.map { it.name }.toSet())
+        assertEquals(setOf(Role.OWNER, Role.CREW), members.map { it.role }.toSet())
     }
 }

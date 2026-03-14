@@ -1,6 +1,7 @@
 package pizza.psycho.sos.workspace.domain.repository
 
 import pizza.psycho.sos.workspace.application.dto.ActiveWorkspaceMembership
+import pizza.psycho.sos.workspace.application.dto.WorkspaceMemberListItem
 import pizza.psycho.sos.workspace.domain.model.membership.Role
 import java.util.UUID
 
@@ -11,4 +12,6 @@ interface WorkspaceMembershipQueryRepository {
     ): Role?
 
     fun findActiveWorkspaceMembershipsByAccountId(accountId: UUID): List<ActiveWorkspaceMembership>
+
+    fun findActiveMembersByWorkspaceId(workspaceId: UUID): List<WorkspaceMemberListItem>
 }

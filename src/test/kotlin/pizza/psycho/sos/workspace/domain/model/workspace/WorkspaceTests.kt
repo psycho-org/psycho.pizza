@@ -43,7 +43,7 @@ class WorkspaceTests {
         val ownerAccountId = UUID.randomUUID()
         val crewAccountId = UUID.randomUUID()
         val workspace = Workspace.create("Test", "Desc", ownerAccountId)
-        workspace.addMembership(crewAccountId, Role.CREW)
+        workspace.addMembership(crewAccountId, role = Role.CREW)
 
         assertFailsWith<IllegalArgumentException> {
             workspace.transferOwnership(crewAccountId, ownerAccountId)
@@ -55,7 +55,7 @@ class WorkspaceTests {
         val ownerAccountId = UUID.randomUUID()
         val crewAccountId = UUID.randomUUID()
         val workspace = Workspace.create("Test", "Desc", ownerAccountId)
-        workspace.addMembership(crewAccountId, Role.CREW)
+        workspace.addMembership(crewAccountId, role = Role.CREW)
 
         workspace.transferOwnership(ownerAccountId, crewAccountId)
 
@@ -70,7 +70,7 @@ class WorkspaceTests {
         val ownerAccountId = UUID.randomUUID()
         val crewAccountId = UUID.randomUUID()
         val workspace = Workspace.create("Test", "Desc", ownerAccountId)
-        workspace.addMembership(crewAccountId, Role.CREW)
+        workspace.addMembership(crewAccountId, role = Role.CREW)
 
         workspace.removeAllMemberships(ownerAccountId)
 
