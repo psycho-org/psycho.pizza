@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.common.entity.BaseEntity
+import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectPort
@@ -141,6 +142,27 @@ class SprintServiceTests {
 
         assertTrue(result is SprintResult.Success)
         assertTrue(sprint.domainEvents().none { it is SprintPeriodChangedEvent })
+    }
+
+    @Test
+    fun `modify - goal을 null로 초기화할 수 있다`() {
+        val sprint =
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId)
+        val actorId = UUID.randomUUID()
+        every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns sprint
+
+        val result =
+            sprintService.modify(
+                SprintCommand.Update(
+                    workspaceId = workspaceId,
+                    sprintId = sprintId,
+                    goal = Patch.Clear,
+                    by = actorId,
+                ),
+            )
+
+        assertTrue(result is SprintResult.Success)
+        assertEquals(null, sprint.goal)
     }
 
     @Test

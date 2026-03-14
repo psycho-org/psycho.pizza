@@ -1,6 +1,7 @@
 package pizza.psycho.sos.project.sprint.application.service
 
 import org.springframework.stereotype.Service
+import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
@@ -222,7 +223,11 @@ class SprintService(
         command: SprintCommand.Update,
     ) = with(command) {
         name?.let { sprint.modify(it) }
-        goal?.let { sprint.changeGoal(it, by) }
+        when (goal) {
+            is Patch.Value -> sprint.changeGoal(goal.value, by)
+            Patch.Clear -> sprint.changeGoal(null, by)
+            Patch.Unchanged -> Unit
+        }
         if (startDate != null || endDate != null) {
             sprint.changePeriod(startDate, endDate, by)
         }
