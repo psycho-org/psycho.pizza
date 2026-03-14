@@ -14,6 +14,7 @@ import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.common.domain.vo.Email
@@ -28,6 +29,7 @@ import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryS
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.identity.security.token.AccessTokenClaims
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
+import java.time.Instant
 import java.util.UUID
 
 @WebMvcTest(ChallengeController::class)
@@ -50,6 +52,7 @@ class ChallengeControllerTests {
     @Test
     fun `register request endpoint returns challenge id`() {
         val challengeId = UUID.fromString("00000000-0000-0000-0000-000000000101")
+        val expiresAt = Instant.parse("2026-03-15T00:05:00Z")
         `when`(
             challengeService.createChallenge(
                 ChallengeCommand.Request(
@@ -57,7 +60,7 @@ class ChallengeControllerTests {
                     operationType = OperationType.REGISTER,
                 ),
             ),
-        ).thenReturn(RequestChallengeResult.Success(challengeId))
+        ).thenReturn(RequestChallengeResult.Success(challengeId, expiresAt))
 
         mockMvc
             .perform(
@@ -66,10 +69,12 @@ class ChallengeControllerTests {
                     .content("""{"email":"user@psycho.pizza"}"""),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.challengeId").value(challengeId.toString()))
+            .andExpect(jsonPath("$.data.expiresAt").value(expiresAt.toString()))
     }
 
     @Test
     fun `register request endpoint maps cooldown to too many requests`() {
+        val availableAt = Instant.parse("2026-03-15T00:00:43Z")
         `when`(
             challengeService.createChallenge(
                 ChallengeCommand.Request(
@@ -77,7 +82,7 @@ class ChallengeControllerTests {
                     operationType = OperationType.REGISTER,
                 ),
             ),
-        ).thenReturn(RequestChallengeResult.Failure.CooldownActive)
+        ).thenReturn(RequestChallengeResult.Failure.CooldownActive(availableAt, 43))
 
         mockMvc
             .perform(
@@ -85,7 +90,10 @@ class ChallengeControllerTests {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"email":"user@psycho.pizza"}"""),
             ).andExpect(status().isTooManyRequests)
+            .andExpect(header().string(HttpHeaders.RETRY_AFTER, "43"))
             .andExpect(jsonPath("$.code").value("CHALLENGE_OTP_COOLDOWN_ACTIVE"))
+            .andExpect(jsonPath("$.meta.availableAt").value(availableAt.toString()))
+            .andExpect(jsonPath("$.meta.retryAfterSeconds").value(43))
     }
 
     @Test
@@ -181,6 +189,7 @@ class ChallengeControllerTests {
             )
         val authentication = UsernamePasswordAuthenticationToken(principal, null, emptyList())
         val challengeId = UUID.fromString("00000000-0000-0000-0000-000000000106")
+        val expiresAt = Instant.parse("2026-03-15T00:06:00Z")
         `when`(
             challengeService.createChallenge(
                 ChallengeCommand.Request(
@@ -188,7 +197,7 @@ class ChallengeControllerTests {
                     operationType = OperationType.CHANGE_PASSWORD,
                 ),
             ),
-        ).thenReturn(RequestChallengeResult.Success(challengeId))
+        ).thenReturn(RequestChallengeResult.Success(challengeId, expiresAt))
 
         mockMvc
             .perform(
@@ -197,6 +206,7 @@ class ChallengeControllerTests {
                     .contentType(MediaType.APPLICATION_JSON),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.challengeId").value(challengeId.toString()))
+            .andExpect(jsonPath("$.data.expiresAt").value(expiresAt.toString()))
     }
 
     @Test
@@ -207,6 +217,7 @@ class ChallengeControllerTests {
                 email = "db@psycho.pizza",
             )
         val challengeId = UUID.fromString("00000000-0000-0000-0000-000000000108")
+        val expiresAt = Instant.parse("2026-03-15T00:07:00Z")
         `when`(accessTokenProvider.parse("access-token")).thenReturn(
             AccessTokenClaims(
                 accountId = principal.accountId,
@@ -221,7 +232,7 @@ class ChallengeControllerTests {
                     operationType = OperationType.CHANGE_PASSWORD,
                 ),
             ),
-        ).thenReturn(RequestChallengeResult.Success(challengeId))
+        ).thenReturn(RequestChallengeResult.Success(challengeId, expiresAt))
 
         mockMvc
             .perform(
@@ -230,6 +241,36 @@ class ChallengeControllerTests {
                     .contentType(MediaType.APPLICATION_JSON),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.challengeId").value(challengeId.toString()))
+            .andExpect(jsonPath("$.data.expiresAt").value(expiresAt.toString()))
+    }
+
+    @Test
+    fun `me withdraw request endpoint returns challenge id and expiresAt`() {
+        val principal =
+            AuthenticatedAccountPrincipal(
+                accountId = UUID.fromString("00000000-0000-0000-0000-000000000120"),
+                email = "me@psycho.pizza",
+            )
+        val authentication = UsernamePasswordAuthenticationToken(principal, null, emptyList())
+        val challengeId = UUID.fromString("00000000-0000-0000-0000-000000000121")
+        val expiresAt = Instant.parse("2026-03-15T00:08:00Z")
+        `when`(
+            challengeService.createChallenge(
+                ChallengeCommand.Request(
+                    email = "me@psycho.pizza",
+                    operationType = OperationType.WITHDRAW,
+                ),
+            ),
+        ).thenReturn(RequestChallengeResult.Success(challengeId, expiresAt))
+
+        mockMvc
+            .perform(
+                post("/api/v1/accounts/me/withdraw/requests")
+                    .with(authentication(authentication))
+                    .contentType(MediaType.APPLICATION_JSON),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.challengeId").value(challengeId.toString()))
+            .andExpect(jsonPath("$.data.expiresAt").value(expiresAt.toString()))
     }
 
     @Test
