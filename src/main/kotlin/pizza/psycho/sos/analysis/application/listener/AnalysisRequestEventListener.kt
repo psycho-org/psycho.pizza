@@ -23,7 +23,7 @@ class AnalysisRequestEventListener(
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handleAnalysisRequestCreated(event: AnalysisRequestCreatedEvent) {
-        log.info("🍕 Analysis Request Created: workspaceId=${event.workspaceId}, jobId=${event.analysisRequestId}")
+        log.info("🍕 Analysis Request Created: jobId=${event.analysisRequestId}")
         jobProducer.enqueue(
             AnalysisJobQueueItem(
                 jobId = event.analysisRequestId,

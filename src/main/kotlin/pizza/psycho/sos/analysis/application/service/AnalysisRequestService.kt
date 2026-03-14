@@ -34,7 +34,7 @@ class AnalysisRequestService(
         val createdAt = saved.createdAt ?: throw DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_CREATED_AT_NOT_GENERATED)
 
         // NOTE: commit 단계에서 실패 시 DB와 큐가 불일치할 수 있으므로 이벤트로 처리합니다.
-        domainEventPublisher.publish(AnalysisRequestCreatedEvent(command.workspaceId, analysisRequestId))
+        domainEventPublisher.publish(AnalysisRequestCreatedEvent(analysisRequestId))
 
         return AnalysisResult.Created(
             id = analysisRequestId,
