@@ -1,6 +1,7 @@
 package pizza.psycho.sos.project.project.application.service
 
 import io.mockk.every
+import io.mockk.justRun
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkAll
@@ -29,13 +30,15 @@ class ProjectServiceTests {
     private val projectRepository = mockk<ProjectRepository>()
     private val taskPort = mockk<TaskPort>()
     private val eventPublisher = mockk<DomainEventPublisher>()
-    private val projectService = ProjectService(projectRepository, taskPort, eventPublisher)
+    private val projectService = ProjectService(projectRepository, eventPublisher, taskPort)
 
     @BeforeEach
     fun setUp() {
         mockkObject(Tx)
         every { Tx.writable(any<() -> Any>()) } answers { firstArg<() -> Any>().invoke() }
         every { Tx.readable(any<() -> Any>()) } answers { firstArg<() -> Any>().invoke() }
+        justRun { eventPublisher.publishAndClear(any()) }
+        justRun { eventPublisher.publishAndClearAll(any()) }
     }
 
     @AfterEach
