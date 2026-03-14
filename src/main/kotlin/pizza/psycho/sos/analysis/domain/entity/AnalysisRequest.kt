@@ -5,9 +5,11 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Table
+import pizza.psycho.sos.analysis.domain.exception.AnalysisErrorCode
 import pizza.psycho.sos.analysis.domain.vo.AnalysisRequestStatus
 import pizza.psycho.sos.analysis.domain.vo.AnalysisTargetType
 import pizza.psycho.sos.common.entity.BaseEntity
+import pizza.psycho.sos.common.handler.DomainException
 import java.time.Instant
 import java.util.UUID
 
@@ -47,9 +49,11 @@ class AnalysisRequest(
      * - completedAt/errorMessage는 초기화
      */
     fun markAsRunning() {
-        // TODO: domain exception
-        require(status == AnalysisRequestStatus.QUEUED) {
-            "Only QUEUED request can transition to RUNNING (current=$status)"
+        if (status != AnalysisRequestStatus.QUEUED) {
+            throw DomainException(
+                AnalysisErrorCode.INVALID_ANALYSIS_STATE,
+                "분석 요청 상태가 QUEUED일 때만 RUNNING으로 변경할 수 있습니다. (현재 상태=$status)",
+            )
         }
         status = AnalysisRequestStatus.RUNNING
         startedAt = Instant.now()
@@ -62,9 +66,11 @@ class AnalysisRequest(
      * - completedAt 기록
      */
     fun markAsDone() {
-        // TODO: domain exception
-        require(status == AnalysisRequestStatus.RUNNING) {
-            "Only RUNNING request can transition to DONE (current=$status)"
+        if (status != AnalysisRequestStatus.RUNNING) {
+            throw DomainException(
+                AnalysisErrorCode.INVALID_ANALYSIS_STATE,
+                "분석 요청 상태가 RUNNING일 때만 DONE으로 변경할 수 있습니다. (현재 상태=$status)",
+            )
         }
         status = AnalysisRequestStatus.DONE
         completedAt = Instant.now()
@@ -75,9 +81,11 @@ class AnalysisRequest(
      * - completedAt 기록 + errorMessage 저장
      */
     fun markAsFailed(reason: String) {
-        // TODO: domain exception
-        require(status == AnalysisRequestStatus.RUNNING) {
-            "Only RUNNING request can transition to FAILED (current=$status)"
+        if (status != AnalysisRequestStatus.RUNNING) {
+            throw DomainException(
+                AnalysisErrorCode.INVALID_ANALYSIS_STATE,
+                "분석 요청 상태가 RUNNING일 때만 FAILED로 변경할 수 있습니다. (현재 상태=$status)",
+            )
         }
         status = AnalysisRequestStatus.FAILED
         completedAt = Instant.now()
@@ -90,8 +98,12 @@ class AnalysisRequest(
      * - startedAt 초기화
      */
     fun markAsQueuedForRetry() {
-        require(status == AnalysisRequestStatus.RUNNING)
-
+        if (status != AnalysisRequestStatus.RUNNING) {
+            throw DomainException(
+                AnalysisErrorCode.INVALID_ANALYSIS_STATE,
+                "분석 요청 상태가 RUNNING일 때만 QUEUED로 변경할 수 있습니다. (현재 상태=$status)",
+            )
+        }
         status = AnalysisRequestStatus.QUEUED
         startedAt = null
     }
