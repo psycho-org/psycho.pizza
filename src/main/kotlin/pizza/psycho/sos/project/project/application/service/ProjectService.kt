@@ -2,11 +2,13 @@ package pizza.psycho.sos.project.project.application.service
 
 import org.springframework.data.domain.Page
 import org.springframework.stereotype.Service
+import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
+import pizza.psycho.sos.project.project.application.service.dto.ProjectQuery
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
@@ -16,6 +18,7 @@ import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 class ProjectService(
     private val projectRepository: ProjectRepository,
     private val taskPort: TaskPort,
+    private val eventPublisher: DomainEventPublisher,
 ) {
     private val log by loggerDelegate()
 
@@ -23,7 +26,7 @@ class ProjectService(
      * todo: 워크스페이스의 모든 프로젝트를 찾는 로직 추가
      */
 
-    fun getProject(command: ProjectCommand.Get): ProjectResult =
+    fun getProject(command: ProjectQuery.Find): ProjectResult =
         Tx.readable {
             log.debug("getProject: projectId={}, workspaceId={}", command.projectId, command.workspaceId)
 
@@ -43,7 +46,7 @@ class ProjectService(
                 .also { log.info("getProject success: projectId=${command.projectId}") }
         }
 
-    fun getTasksInProject(command: ProjectCommand.GetTasks): ProjectResult =
+    fun getTasksInProject(command: ProjectQuery.FindTasksInProject): ProjectResult =
         Tx.readable {
             log.debug("getTasksInProject: projectId={}, workspaceId={}", command.projectId, command.workspaceId)
 
@@ -140,6 +143,46 @@ class ProjectService(
             applyUpdates(project, command)
 
             log.info("update success: projectId=${command.projectId}")
+            ProjectResult.Success
+        }
+
+    /**
+     * 프로젝트 간 Task 이동
+     */
+    fun moveTask(command: ProjectCommand.MoveTask): ProjectResult =
+        Tx.writable {
+            log.debug(
+                "moveTask: fromProjectId={}, toProjectId={}, taskId={}, workspaceId={}",
+                command.fromProjectId,
+                command.toProjectId,
+                command.taskId,
+                command.workspaceId,
+            )
+
+            val fromProject =
+                projectRepository.findActiveProjectByIdOrNull(command.fromProjectId, command.workspaceId)
+                    ?: run {
+                        log.warn("moveTask: fromProject not found. projectId=${command.fromProjectId}")
+                        return@writable ProjectResult.Failure.IdNotFound
+                    }
+
+            val toProject =
+                projectRepository.findActiveProjectByIdOrNull(command.toProjectId, command.workspaceId)
+                    ?: run {
+                        log.warn("moveTask: toProject not found. projectId=${command.toProjectId}")
+                        return@writable ProjectResult.Failure.IdNotFound
+                    }
+
+            fromProject.moveTaskTo(command.taskId, toProject, command.movedBy)
+            eventPublisher.publishAndClear(fromProject)
+
+            log.info(
+                "moveTask success: taskId={}, fromProjectId={}, toProjectId={}",
+                command.taskId,
+                command.fromProjectId,
+                command.toProjectId,
+            )
+
             ProjectResult.Success
         }
 

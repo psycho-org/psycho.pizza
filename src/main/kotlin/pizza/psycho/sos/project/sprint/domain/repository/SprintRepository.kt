@@ -10,6 +10,22 @@ interface SprintRepository {
         workspaceId: WorkspaceId,
     ): Sprint?
 
+    /**
+     * 주어진 Task가 어느 활성 스프린트에도 속해 있는지 여부를 확인한다.
+     */
+    fun existsActiveSprintByTaskId(
+        taskId: UUID,
+        workspaceId: WorkspaceId,
+    ): Boolean
+
+    /**
+     * 주어진 Project가 어느 활성 스프린트에도 속해 있는지 여부를 확인한다.
+     */
+    fun existsActiveSprintByProjectId(
+        projectId: UUID,
+        workspaceId: WorkspaceId,
+    ): Boolean
+
     fun deleteById(
         sprintId: UUID,
         deletedBy: UUID,

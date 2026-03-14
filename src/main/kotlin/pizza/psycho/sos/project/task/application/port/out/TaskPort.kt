@@ -38,4 +38,13 @@ interface TaskPort {
         deletedBy: UUID,
         workspaceId: WorkspaceId,
     ): Int
+
+    /**
+     * 주어진 Task ID 들의 상태를 TODO로 리셋한다.
+     */
+    fun resetStatusToTodo(
+        ids: Collection<UUID>,
+        actorId: UUID,
+        workspaceId: WorkspaceId,
+    )
 }

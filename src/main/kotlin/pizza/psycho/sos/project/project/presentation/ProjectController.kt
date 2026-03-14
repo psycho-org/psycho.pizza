@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.response.ApiResponse
@@ -18,11 +19,16 @@ import pizza.psycho.sos.common.support.pagination.PageInfoSupport
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.service.ProjectService
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
+import pizza.psycho.sos.project.project.application.service.dto.ProjectQuery
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
+import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.INVALID_REQUEST
+import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.PROJECT_NOT_FOUND
+import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode.TASK_NOT_FOUND
 import pizza.psycho.sos.project.project.presentation.dto.ProjectRequest
 import pizza.psycho.sos.project.project.presentation.dto.ProjectResponse
 import java.util.UUID
 
+// todo: accountId AuthenticationPrincipal에서 받아오도록 변경
 @RestController
 @RequestMapping("/api/v1/workspaces/{workspaceId}/projects")
 class ProjectController(
@@ -44,7 +50,7 @@ class ProjectController(
         @PathVariable projectId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            projectService.getProject(ProjectCommand.Get(WorkspaceId(workspaceId), projectId))
+            projectService.getProject(ProjectQuery.Find(WorkspaceId(workspaceId), projectId))
         }
 
     @PostMapping("/{projectId}/tasks")
@@ -64,7 +70,36 @@ class ProjectController(
         @PageableDefault(size = 10) pageable: Pageable,
     ): ApiResponse<*> =
         handleResult {
-            projectService.getTasksInProject(ProjectCommand.GetTasks(WorkspaceId(workspaceId), projectId, pageable))
+            projectService.getTasksInProject(
+                ProjectQuery.FindTasksInProject(
+                    WorkspaceId(workspaceId),
+                    projectId,
+                    pageable,
+                ),
+            )
+        }
+
+    /**
+     * 프로젝트 간 Task 이동
+     */
+    @PatchMapping("/{fromProjectId}/tasks/{taskId}/move")
+    fun moveTask(
+        @PathVariable workspaceId: UUID,
+        @PathVariable fromProjectId: UUID,
+        @PathVariable taskId: UUID,
+        @RequestParam(name = "account") accountId: UUID,
+        @Valid @RequestBody request: ProjectRequest.MoveTask,
+    ): ApiResponse<*> =
+        handleResult {
+            projectService.moveTask(
+                ProjectCommand.MoveTask(
+                    workspaceId = WorkspaceId(workspaceId),
+                    fromProjectId = fromProjectId,
+                    toProjectId = request.toProjectId,
+                    taskId = taskId,
+                    movedBy = accountId,
+                ),
+            )
         }
 
     @PatchMapping("/{projectId}")
@@ -77,24 +112,30 @@ class ProjectController(
             projectService.modify(request.toCommand(workspaceId, projectId))
         }
 
-    @DeleteMapping("/{projectId}/{userId}")
+    @DeleteMapping("/{projectId}")
     fun removeProject(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,
-        @PathVariable userId: UUID,
+        @RequestParam(name = "account") accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            projectService.remove(ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, userId))
+            projectService.remove(ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, accountId))
         }
 
-    @DeleteMapping("/{projectId}/{userId}/with-tasks")
+    @DeleteMapping("/{projectId}/with-tasks")
     fun removeProjectWithTasks(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,
-        @PathVariable userId: UUID,
+        @RequestParam(name = "account") accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            projectService.removeWithTasks(ProjectCommand.RemoveWithTasks(WorkspaceId(workspaceId), projectId, userId))
+            projectService.removeWithTasks(
+                ProjectCommand.RemoveWithTasks(
+                    WorkspaceId(workspaceId),
+                    projectId,
+                    accountId,
+                ),
+            )
         }
 
     // ------------------------------------------------------------------------------------------------
@@ -109,6 +150,7 @@ class ProjectController(
                     message = "데이터 삭제에 성공하였습니다.",
                     data = ProjectResponse.Remove(result.count),
                 )
+
             is ProjectResult.RemoveWithTasks ->
                 responseOf(
                     message = "프로젝트 및 하위 태스크 삭제에 성공하였습니다.",
@@ -116,9 +158,9 @@ class ProjectController(
                 )
 
             is ProjectResult.Success -> responseOf(message = "데이터 수정에 성공하였습니다.", data = null)
-            is ProjectResult.Failure.IdNotFound -> throw DomainException("id not found")
-            is ProjectResult.Failure.TaskNotFound -> throw DomainException("task not found")
-            is ProjectResult.Failure.InvalidRequest -> throw DomainException("invalid request")
+            is ProjectResult.Failure.IdNotFound -> throw DomainException(PROJECT_NOT_FOUND, "project not found")
+            is ProjectResult.Failure.TaskNotFound -> throw DomainException(TASK_NOT_FOUND)
+            is ProjectResult.Failure.InvalidRequest -> throw DomainException(INVALID_REQUEST)
             is ProjectResult.Progress -> responseOf(data = result.toResponse())
         }
 

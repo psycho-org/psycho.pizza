@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.common.handler.DomainException
+import pizza.psycho.sos.common.message.domain.exception.MessageErrorCode
 import pizza.psycho.sos.common.message.token.application.service.MailAuthTokenService
 import pizza.psycho.sos.common.message.token.application.service.dto.MailAuthTokenResult
 import pizza.psycho.sos.common.message.token.infrastructure.config.MailTokenProperties
@@ -45,5 +46,8 @@ class MailAuthController(
         name: String,
     ): String =
         value.trim().takeIf { it.isNotEmpty() }
-            ?: throw DomainException("$name is required")
+            ?: throw DomainException(
+                MessageErrorCode.MESSAGE_MAIL_VERIFY_URL_REQUIRED,
+                "$name is required",
+            )
 }

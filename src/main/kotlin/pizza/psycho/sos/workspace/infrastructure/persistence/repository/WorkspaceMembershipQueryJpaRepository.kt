@@ -4,14 +4,15 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
+import pizza.psycho.sos.workspace.application.dto.ActiveWorkspaceMembership
 import pizza.psycho.sos.workspace.domain.model.membership.Membership
 import pizza.psycho.sos.workspace.domain.model.membership.Role
-import pizza.psycho.sos.workspace.domain.repository.MembershipRepository
+import pizza.psycho.sos.workspace.domain.repository.WorkspaceMembershipQueryRepository
 import java.util.UUID
 
 @Repository
-interface MembershipJpaRepository :
-    MembershipRepository,
+interface WorkspaceMembershipQueryJpaRepository :
+    WorkspaceMembershipQueryRepository,
     JpaRepository<Membership, UUID> {
     @Query(
         """
@@ -29,15 +30,19 @@ interface MembershipJpaRepository :
 
     @Query(
         """
-        select case when count(m) > 0 then true else false end
+        select new pizza.psycho.sos.workspace.application.dto.ActiveWorkspaceMembership(
+            w.id,
+            w.name,
+            m.role
+        )
         from Membership m
+        join m.workspace w
         where m.accountId = :accountId
-          and m.role = pizza.psycho.sos.workspace.domain.model.membership.Role.OWNER
           and m.deletedAt is null
-          and m.workspace.deletedAt is null
+          and w.deletedAt is null
         """,
     )
-    override fun existsActiveOwnerMembershipByAccountId(
+    override fun findActiveWorkspaceMembershipsByAccountId(
         @Param("accountId") accountId: UUID,
-    ): Boolean
+    ): List<ActiveWorkspaceMembership>
 }

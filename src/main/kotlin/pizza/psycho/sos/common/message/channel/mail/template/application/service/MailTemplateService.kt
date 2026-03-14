@@ -11,6 +11,7 @@ import pizza.psycho.sos.common.message.channel.mail.template.domain.model.vo.Ren
 import pizza.psycho.sos.common.message.channel.mail.template.domain.repository.MailTemplateRepository
 import pizza.psycho.sos.common.message.channel.mail.template.domain.spec.MailTemplateSpecRegistry
 import pizza.psycho.sos.common.message.domain.MessageType
+import pizza.psycho.sos.common.message.domain.exception.MessageErrorCode
 
 @Service
 class MailTemplateService(
@@ -32,7 +33,11 @@ class MailTemplateService(
                 data.mailType,
                 ex.message,
             )
-            throw DomainException(ex.message ?: "failed to render mail template", ex)
+            throw DomainException(
+                MessageErrorCode.MESSAGE_MAIL_TEMPLATE_RENDER_FAILED,
+                ex.message ?: "failed to render mail template",
+                ex,
+            )
         }
     }
 
@@ -40,7 +45,10 @@ class MailTemplateService(
         mailTemplateRepository.findActiveByMailTypeOrNull(mailType)
             ?: run {
                 logger.warn("Mail template not found. mailType={}", mailType)
-                throw DomainException("mail template not found. mailType=$mailType")
+                throw DomainException(
+                    MessageErrorCode.MESSAGE_MAIL_TEMPLATE_NOT_FOUND,
+                    "mail template not found. mailType=$mailType",
+                )
             }
 
     @Transactional(readOnly = true)

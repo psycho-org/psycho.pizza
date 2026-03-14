@@ -38,17 +38,5 @@ interface TaskRepository {
         pageable: Pageable,
     ): Page<Task>
 
-    fun deleteById(
-        id: UUID,
-        deletedBy: UUID,
-        workspaceId: WorkspaceId,
-    ): Int
-
-    fun deleteByIdIn(
-        ids: Collection<UUID>,
-        deletedBy: UUID,
-        workspaceId: WorkspaceId,
-    ): Int
-
     fun save(task: Task): Task
 }
