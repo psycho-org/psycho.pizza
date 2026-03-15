@@ -207,6 +207,11 @@ class SprintService(
 
     private fun validateProjectIds(command: SprintCommand.Update): SprintResult.Failure? =
         with(command) {
+            if (addProjectIds.size != addProjectIds.distinct().size) {
+                log.warn("update: addProjectIds contain duplicates. addProjectIds={}", addProjectIds)
+                return@with SprintResult.Failure.InvalidRequest
+            }
+
             val overlap = addProjectIds.intersect(removeProjectIds.toSet())
             if (overlap.isNotEmpty()) {
                 log.warn("update: addProjectIds and removeProjectIds overlap. overlap={}", overlap)

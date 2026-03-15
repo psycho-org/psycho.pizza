@@ -251,4 +251,93 @@ class SprintTaskInProjectDomainEventHandlerTests {
 
         verify(exactly = 2) { eventPublisher.publish(any<TaskAddedToSprintEvent>()) }
     }
+
+    @Test
+    fun `task move from shared sprint to additional sprint still emits add for new sprint`() {
+        val workspaceId = UUID.randomUUID()
+        val sharedSprintId = UUID.randomUUID()
+        val newSprintId = UUID.randomUUID()
+        val fromProjectId = UUID.randomUUID()
+        val toProjectId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val actorId = UUID.randomUUID()
+
+        every {
+            sprintRepository.findActiveSprintIdsByProjectId(fromProjectId, WorkspaceId(workspaceId))
+        } returns listOf(sharedSprintId)
+        every {
+            sprintRepository.findActiveSprintIdsByProjectId(toProjectId, WorkspaceId(workspaceId))
+        } returns listOf(sharedSprintId, newSprintId)
+        every {
+            sprintRepository.findActiveSprintIdsByTaskIds(listOf(taskId), WorkspaceId(workspaceId))
+        } returns mapOf(taskId to setOf(sharedSprintId))
+
+        handler.handle(
+            TaskRemovedFromProjectEvent(
+                workspaceId = workspaceId,
+                actorId = actorId,
+                taskId = taskId,
+                projectId = fromProjectId,
+                eventId = UUID.randomUUID(),
+            ),
+        )
+        handler.handle(
+            TaskAddedToProjectEvent(
+                workspaceId = workspaceId,
+                actorId = actorId,
+                taskId = taskId,
+                projectId = toProjectId,
+                eventId = UUID.randomUUID(),
+            ),
+        )
+
+        verify(exactly = 0) {
+            eventPublisher.publish(
+                match<TaskAddedToSprintEvent> { it.sprintId == sharedSprintId && it.taskId == taskId },
+            )
+        }
+        verify(exactly = 1) {
+            eventPublisher.publish(
+                match<TaskAddedToSprintEvent> { it.sprintId == newSprintId && it.taskId == taskId },
+            )
+        }
+    }
+
+    @Test
+    fun `task removed from one of multiple sprints still emits removal for sprint actually left`() {
+        val workspaceId = UUID.randomUUID()
+        val sharedSprintId = UUID.randomUUID()
+        val removedSprintId = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val actorId = UUID.randomUUID()
+
+        every {
+            sprintRepository.findActiveSprintIdsByProjectId(projectId, WorkspaceId(workspaceId))
+        } returns listOf(sharedSprintId, removedSprintId)
+        every {
+            sprintRepository.findActiveSprintIdsByTaskIds(listOf(taskId), WorkspaceId(workspaceId))
+        } returns mapOf(taskId to setOf(sharedSprintId))
+
+        handler.handle(
+            TaskRemovedFromProjectEvent(
+                workspaceId = workspaceId,
+                actorId = actorId,
+                taskId = taskId,
+                projectId = projectId,
+                eventId = UUID.randomUUID(),
+            ),
+        )
+
+        verify(exactly = 0) {
+            eventPublisher.publish(
+                match<TaskRemovedFromSprintEvent> { it.sprintId == sharedSprintId && it.taskId == taskId },
+            )
+        }
+        verify(exactly = 1) {
+            eventPublisher.publish(
+                match<TaskRemovedFromSprintEvent> { it.sprintId == removedSprintId && it.taskId == taskId },
+            )
+        }
+    }
 }

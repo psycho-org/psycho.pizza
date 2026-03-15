@@ -1,6 +1,5 @@
 package pizza.psycho.sos.project.project.application.service
 
-import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.common.event.DomainEventPublisher
@@ -16,6 +15,7 @@ import pizza.psycho.sos.project.project.application.service.dto.ProjectQuery
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
+import pizza.psycho.sos.project.sprint.application.port.out.dto.SprintPeriodSnapshot
 import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.model.vo.Period
 import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
@@ -64,16 +64,15 @@ class ProjectService(
         Tx.readable {
             log.debug("getTasksInProject: projectId={}, workspaceId={}", command.projectId, command.workspaceId)
 
-            val project =
-                projectRepository.findActiveProjectByIdOrNull(command.projectId, command.workspaceId)
-                    ?: run {
-                        log.warn("getTasksInProject: project not found. projectId={}", command.projectId)
-                        return@readable ProjectResult.Failure.IdNotFound
-                    }
+            projectRepository.findActiveProjectByIdOrNull(command.projectId, command.workspaceId)
+                ?: run {
+                    log.warn("getTasksInProject: project not found. projectId={}", command.projectId)
+                    return@readable ProjectResult.Failure.IdNotFound
+                }
 
             val taskIdsPage =
                 projectRepository.findActiveTaskIdsByProjectId(
-                    projectId = project.projectId,
+                    projectId = command.projectId,
                     workspaceId = command.workspaceId,
                     pageable = command.pageable,
                 )
@@ -87,45 +86,24 @@ class ProjectService(
                         ids = taskIdsPage.content,
                         workspaceId = command.workspaceId,
                     ).associateBy(TaskSnapshot::id)
-
-            ProjectResult
-                .TaskList(
-                    PageImpl(
-                        taskIdsPage.content.mapNotNull(tasksById::get).map { it.toResult() },
-                        command.pageable,
-                        taskIdsPage.totalElements,
-                    ),
-                ).also { log.info("getTasksInProject success: projectId=${command.projectId}") }
             val sprintPeriods =
                 projectSprintParticipationQuery.findActiveSprintPeriodsByProjectId(
                     projectId = command.projectId,
                     workspaceId = command.workspaceId.value,
                 )
 
-            taskPort
-                .findByIdIn(
-                    ids = project.taskIds(),
-                    workspaceId = command.workspaceId,
-                    pageable = command.pageable,
-                ).let { page ->
-                    val mapped =
-                        page.map { snapshot ->
-                            val within =
-                                if (sprintPeriods.isEmpty()) {
-                                    null
-                                } else {
-                                    val dueDate = snapshot.dueDate
-                                    sprintPeriods.any { snapshotPeriod ->
-                                        sprintTaskPeriodPolicy.isTaskDueDateWithinSprint(
-                                            Period(snapshotPeriod.startDate, snapshotPeriod.endDate),
-                                            dueDate,
-                                        )
-                                    }
-                                }
-                            snapshot.toResult(isWithinSprintPeriod = within)
-                        }
-                    ProjectResult.TaskList(mapped)
-                }.also { log.info("getTasksInProject success: projectId=${command.projectId}") }
+            ProjectResult
+                .TaskList(
+                    PageImpl(
+                        taskIdsPage.content.mapNotNull(tasksById::get).map { snapshot ->
+                            snapshot.toResult(
+                                isWithinSprintPeriod = resolveTaskSprintPeriodStatus(snapshot, sprintPeriods),
+                            )
+                        },
+                        command.pageable,
+                        taskIdsPage.totalElements,
+                    ),
+                ).also { log.info("getTasksInProject success: projectId=${command.projectId}") }
         }
 
     fun create(command: ProjectCommand.Create): ProjectResult =
@@ -318,6 +296,11 @@ class ProjectService(
 
     private fun validateTaskIds(command: ProjectCommand.Update): ProjectResult.Failure? =
         with(command) {
+            if (addTaskIds.size != addTaskIds.distinct().size) {
+                log.warn("update: addTaskIds contain duplicates. addTaskIds={}", addTaskIds)
+                return@with ProjectResult.Failure.InvalidRequest
+            }
+
             val overlap = addTaskIds.intersect(removeTaskIds.toSet())
             if (overlap.isNotEmpty()) {
                 log.warn("update: addTaskIds and removeTaskIds overlap. overlap={}", overlap)
@@ -457,7 +440,21 @@ class ProjectService(
 
     // ----------------------------------------------------------------------------------------------
 
-    private fun Page<TaskSnapshot>.toResult(): Page<ProjectResult.Task> = map { it.toResult() }
+    private fun resolveTaskSprintPeriodStatus(
+        snapshot: TaskSnapshot,
+        sprintPeriods: List<SprintPeriodSnapshot>,
+    ): Boolean? {
+        if (sprintPeriods.isEmpty()) {
+            return null
+        }
+
+        return sprintPeriods.all { sprintPeriod ->
+            sprintTaskPeriodPolicy.isTaskDueDateWithinSprint(
+                Period(sprintPeriod.startDate, sprintPeriod.endDate),
+                snapshot.dueDate,
+            )
+        }
+    }
 
     private fun publishTaskRemovedFromSprintEvents(
         taskIds: Collection<UUID>,

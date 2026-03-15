@@ -194,13 +194,19 @@ interface SprintJpaRepository :
 
     @Query(
         """
-        select s
+        select distinct s
         from Sprint s
             join SprintProjectMapping sp on sp.sprint = s
+            join pizza.psycho.sos.project.project.domain.model.entity.Project p
+                on p.id = sp.projectId
             join pizza.psycho.sos.project.project.domain.model.entity.ProjectTaskMapping ptm
-                on ptm.project.id = sp.projectId
+                on ptm.project = p
+            join pizza.psycho.sos.project.task.domain.model.entity.Task t
+                on t.id = ptm.taskId
         where s.workspaceId = :workspaceId
           and s.deletedAt is null
+          and p.deletedAt is null
+          and t.deletedAt is null
           and ptm.taskId = :taskId
         """,
     )
