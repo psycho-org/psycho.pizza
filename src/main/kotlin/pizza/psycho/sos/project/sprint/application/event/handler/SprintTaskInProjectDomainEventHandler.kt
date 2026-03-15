@@ -13,6 +13,8 @@ import pizza.psycho.sos.project.project.domain.event.TaskRemovedFromProjectEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskAddedToSprintEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -30,7 +32,7 @@ class SprintTaskInProjectDomainEventHandler(
 ) {
     private val log by loggerDelegate()
     private val suppressedMoveKeys = ConcurrentHashMap.newKeySet<TaskSprintKey>()
-    private val emittedTaskAddedKeys = ConcurrentHashMap.newKeySet<TaskSprintKey>()
+    private val emittedTaskAddedKeys = ConcurrentHashMap<TaskSprintKey, Instant>()
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handle(event: ProjectDomainEvent) {
@@ -42,6 +44,7 @@ class SprintTaskInProjectDomainEventHandler(
     }
 
     private fun handleTaskAddedToProject(event: TaskAddedToProjectEvent) {
+        pruneEmittedKeys()
         val workspaceId = WorkspaceId(event.workspaceId)
 
         val sprintIds = sprintRepository.findActiveSprintIdsByProjectId(event.projectId, workspaceId)
@@ -61,7 +64,7 @@ class SprintTaskInProjectDomainEventHandler(
                 )
                 return@forEach
             }
-            val isNewEmission = emittedTaskAddedKeys.add(key)
+            val isNewEmission = markEmissionIfNew(key)
             if (!isNewEmission) {
                 log.debug(
                     "Skip TaskAddedToSprintEvent (already emitted). taskId={}, sprintId={}, projectId={}",
@@ -152,6 +155,38 @@ class SprintTaskInProjectDomainEventHandler(
         workspaceId: UUID,
         taskId: UUID,
     ) {
-        emittedTaskAddedKeys.removeIf { it.workspaceId == workspaceId && it.taskId == taskId }
+        emittedTaskAddedKeys.keys.removeIf { it.workspaceId == workspaceId && it.taskId == taskId }
+    }
+
+    private fun markEmissionIfNew(key: TaskSprintKey): Boolean {
+        val now = Instant.now()
+        val previous = emittedTaskAddedKeys.putIfAbsent(key, now)
+        return if (previous == null) {
+            true
+        } else if (previous.isBefore(now.minus(EMITTED_KEY_TTL))) {
+            emittedTaskAddedKeys.replace(key, previous, now)
+        } else {
+            false
+        }
+    }
+
+    private fun pruneEmittedKeys() {
+        if (emittedTaskAddedKeys.size <= MAX_EMITTED_KEY_SIZE) {
+            emittedTaskAddedKeys.entries.removeIf { (_, emittedAt) ->
+                emittedAt.isBefore(Instant.now().minus(EMITTED_KEY_TTL))
+            }
+            return
+        }
+        val threshold = Instant.now().minus(EMITTED_KEY_TTL)
+        emittedTaskAddedKeys.entries.removeIf { (_, emittedAt) -> emittedAt.isBefore(threshold) }
+        if (emittedTaskAddedKeys.size > MAX_EMITTED_KEY_SIZE) {
+            emittedTaskAddedKeys.clear()
+            log.warn("Cleared emittedTaskAddedKeys due to size overflow; dedupe state reset.")
+        }
+    }
+
+    companion object {
+        private val EMITTED_KEY_TTL: Duration = Duration.ofHours(12)
+        private const val MAX_EMITTED_KEY_SIZE: Int = 100_000
     }
 }

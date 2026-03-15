@@ -272,25 +272,6 @@ class SprintControllerTests {
     }
 
     @Test
-    fun `스프린트 삭제 시 삭제 결과를 반환한다`() {
-        val workspaceId = UUID.randomUUID()
-        val sprintId = UUID.randomUUID()
-        val userId = UUID.randomUUID()
-
-        `when`(
-            sprintService.remove(
-                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId),
-            ),
-        ).thenReturn(SprintResult.Remove(1))
-
-        mockMvc
-            .perform(
-                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId/$userId"),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.data.count").value(1))
-    }
-
-    @Test
     fun `스프린트와 하위 프로젝트 삭제 시 결과를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val sprintId = UUID.randomUUID()

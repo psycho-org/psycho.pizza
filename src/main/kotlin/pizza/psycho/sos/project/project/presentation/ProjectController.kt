@@ -113,17 +113,16 @@ class ProjectController(
             projectService.modify(request.toCommand(workspaceId, projectId))
         }
 
-    @DeleteMapping("/{projectId}")
     fun removeProject(
-        @PathVariable workspaceId: UUID,
-        @PathVariable projectId: UUID,
-        @RequestParam(name = "account") accountId: UUID,
+        workspaceId: UUID,
+        projectId: UUID,
+        accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
             projectService.remove(ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, accountId))
         }
 
-    @DeleteMapping("/{projectId}/with-tasks")
+    @DeleteMapping("/{projectId}")
     fun removeProjectWithTasks(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,

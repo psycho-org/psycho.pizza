@@ -1,14 +1,17 @@
 package pizza.psycho.sos.project.sprint.infrastructure
-
+import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.project.domain.model.entity.Project
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.infrastructure.persistence.SprintJpaRepository
 import java.time.Instant
@@ -20,6 +23,9 @@ import java.util.UUID
 class SprintRepositoryTests {
     @Autowired
     private lateinit var sprintRepository: SprintJpaRepository
+
+    @Autowired
+    private lateinit var entityManager: EntityManager
 
     private val workspaceId = WorkspaceId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
     private val otherWorkspaceId = WorkspaceId(UUID.fromString("00000000-0000-0000-0000-000000000002"))
@@ -85,5 +91,53 @@ class SprintRepositoryTests {
             )
 
         assertEquals(0, count)
+    }
+
+    @Test
+    fun `deleted project does not count as active sprint task membership`() {
+        val taskId = UUID.randomUUID()
+        val deletedBy = UUID.randomUUID()
+        val project = Project.create("Deleted Project", workspaceId)
+        entityManager.persist(project)
+        entityManager.flush()
+        project.addTask(taskId)
+        entityManager.flush()
+
+        val sprint =
+            Sprint.create("Sprint With Deleted Project", workspaceId, "goal", startDate, endDate).apply {
+                addProject(project.projectId)
+            }
+        sprintRepository.saveAndFlush(sprint)
+
+        project.delete(deletedBy)
+        entityManager.flush()
+        entityManager.clear()
+
+        assertFalse(sprintRepository.existsActiveSprintByTaskIdAndSprintId(taskId, sprint.sprintId, workspaceId))
+        assertFalse(sprintRepository.existsActiveSprintByTaskId(taskId, workspaceId))
+    }
+
+    @Test
+    fun `deleted project is excluded from active sprint project membership queries`() {
+        val deletedBy = UUID.randomUUID()
+        val project = Project.create("Deleted Project", workspaceId)
+        entityManager.persist(project)
+        entityManager.flush()
+
+        val sprint =
+            Sprint.create("Sprint With Deleted Project", workspaceId, "goal", startDate, endDate).apply {
+                addProject(project.projectId)
+            }
+        sprintRepository.saveAndFlush(sprint)
+
+        assertTrue(sprintRepository.existsActiveSprintByProjectId(project.projectId, workspaceId))
+        assertEquals(listOf(sprint.sprintId), sprintRepository.findActiveSprintIdsByProjectId(project.projectId, workspaceId))
+
+        project.delete(deletedBy)
+        entityManager.flush()
+        entityManager.clear()
+
+        assertFalse(sprintRepository.existsActiveSprintByProjectId(project.projectId, workspaceId))
+        assertTrue(sprintRepository.findActiveSprintIdsByProjectId(project.projectId, workspaceId).isEmpty())
     }
 }

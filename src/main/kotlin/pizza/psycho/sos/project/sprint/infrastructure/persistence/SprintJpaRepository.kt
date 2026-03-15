@@ -34,10 +34,13 @@ interface SprintJpaRepository :
         select case when count(s) > 0 then true else false end
         from Sprint s
             join SprintProjectMapping sp on sp.sprint = s
+            join pizza.psycho.sos.project.project.domain.model.entity.Project p
+                on p.id = sp.projectId
             join pizza.psycho.sos.project.project.domain.model.entity.ProjectTaskMapping ptm
-                on ptm.project.id = sp.projectId
+                on ptm.project = p
         where s.workspaceId = :workspaceId
           and s.deletedAt is null
+          and p.deletedAt is null
           and ptm.taskId = :taskId
         """,
     )
@@ -51,9 +54,12 @@ interface SprintJpaRepository :
         select case when count(s) > 0 then true else false end
         from Sprint s
             join SprintProjectMapping sp on sp.sprint = s
+            join pizza.psycho.sos.project.project.domain.model.entity.Project p
+                on p.id = sp.projectId
         where s.workspaceId = :workspaceId
           and s.deletedAt is null
-          and sp.projectId = :projectId
+          and p.deletedAt is null
+          and p.id = :projectId
         """,
     )
     override fun existsActiveSprintByProjectId(
@@ -66,9 +72,12 @@ interface SprintJpaRepository :
         select s.id
         from Sprint s
             join SprintProjectMapping sp on sp.sprint = s
+            join pizza.psycho.sos.project.project.domain.model.entity.Project p
+                on p.id = sp.projectId
         where s.workspaceId = :workspaceId
           and s.deletedAt is null
-          and sp.projectId = :projectId
+          and p.deletedAt is null
+          and p.id = :projectId
         """,
     )
     override fun findActiveSprintIdsByProjectId(
@@ -81,10 +90,13 @@ interface SprintJpaRepository :
         select case when count(s) > 0 then true else false end
         from Sprint s
             join SprintProjectMapping sp on sp.sprint = s
+            join pizza.psycho.sos.project.project.domain.model.entity.Project p
+                on p.id = sp.projectId
             join pizza.psycho.sos.project.project.domain.model.entity.ProjectTaskMapping ptm
-                on ptm.project.id = sp.projectId
+                on ptm.project = p
         where s.workspaceId = :workspaceId
           and s.deletedAt is null
+          and p.deletedAt is null
           and s.id = :sprintId
           and ptm.taskId = :taskId
         """,

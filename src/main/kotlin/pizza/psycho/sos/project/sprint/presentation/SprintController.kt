@@ -89,11 +89,10 @@ class SprintController(
             sprintService.modify(request.toCommand(workspaceId, sprintId, accountId))
         }
 
-    @DeleteMapping("/{sprintId}/{userId}")
     fun removeSprint(
-        @PathVariable workspaceId: UUID,
-        @PathVariable sprintId: UUID,
-        @PathVariable userId: UUID,
+        workspaceId: UUID,
+        sprintId: UUID,
+        userId: UUID,
     ): ApiResponse<*> =
         handleResult {
             sprintService.remove(SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId))

@@ -287,35 +287,6 @@ class ProjectControllerTests {
             ).andExpect(status().is4xxClientError)
     }
 
-    // ------------------------------------------------------------------------------------------------
-    // DELETE /api/v1/workspaces/{workspaceId}/projects/{projectId}/{userId}
-    // ------------------------------------------------------------------------------------------------
-
-    @Test
-    fun `프로젝트 삭제 시 삭제 결과를 반환한다`() {
-        val workspaceId = UUID.randomUUID()
-        val projectId = UUID.randomUUID()
-        val userId = UUID.randomUUID()
-
-        `when`(
-            projectService.remove(
-                ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, userId),
-            ),
-        ).thenReturn(ProjectResult.Remove(1))
-
-        mockMvc
-            .perform(
-                delete("/api/v1/workspaces/$workspaceId/projects/$projectId")
-                    .param("account", "$userId"),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.message").value("데이터 삭제에 성공하였습니다."))
-            .andExpect(jsonPath("$.data.count").value(1))
-    }
-
-    // ------------------------------------------------------------------------------------------------
-    // DELETE /api/v1/workspaces/{workspaceId}/projects/{projectId}/{userId}/with-tasks
-    // ------------------------------------------------------------------------------------------------
-
     @Test
     fun `프로젝트와 하위 태스크 삭제 시 삭제 결과를 반환한다`() {
         val workspaceId = UUID.randomUUID()
@@ -330,7 +301,7 @@ class ProjectControllerTests {
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/projects/$projectId/with-tasks")
+                delete("/api/v1/workspaces/$workspaceId/projects/$projectId")
                     .param("account", "$userId"),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.message").value("프로젝트 및 하위 태스크 삭제에 성공하였습니다."))
@@ -352,7 +323,7 @@ class ProjectControllerTests {
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/projects/$projectId/with-tasks")
+                delete("/api/v1/workspaces/$workspaceId/projects/$projectId")
                     .param("account", "$userId"),
             ).andExpect(status().is4xxClientError)
     }
