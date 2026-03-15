@@ -1,5 +1,7 @@
 package pizza.psycho.sos.project.sprint.domain.repository
 
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import java.util.UUID
@@ -57,4 +59,9 @@ interface SprintRepository {
     ): Int
 
     fun save(sprint: Sprint): Sprint
+
+    fun findActiveSprints(
+        workspaceId: WorkspaceId,
+        pageable: Pageable,
+    ): Page<Sprint>
 }

@@ -1,5 +1,6 @@
 package pizza.psycho.sos.project.sprint.application.service.dto
 
+import org.springframework.data.domain.Page
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import java.time.Instant
 import java.util.UUID
@@ -28,6 +29,10 @@ sealed interface SprintResult {
 
     data class ProjectList(
         val projects: List<Project>,
+    ) : SprintResult
+
+    data class SprintPage(
+        val page: Page<SprintInfo>,
     ) : SprintResult
 
     data class ProjectCreated(

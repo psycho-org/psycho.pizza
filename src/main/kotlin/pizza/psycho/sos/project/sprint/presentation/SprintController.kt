@@ -1,6 +1,8 @@
 package pizza.psycho.sos.project.sprint.presentation
 
 import jakarta.validation.Valid
+import org.springframework.data.domain.Pageable
+import org.springframework.data.web.PageableDefault
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.response.ApiResponse
 import pizza.psycho.sos.common.response.responseOf
+import pizza.psycho.sos.common.support.pagination.PageInfoSupport
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.application.service.SprintService
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
@@ -27,7 +30,17 @@ import java.util.UUID
 @RequestMapping("/api/v1/workspaces/{workspaceId}/sprints")
 class SprintController(
     private val sprintService: SprintService,
+    private val pageInfoSupport: PageInfoSupport,
 ) {
+    @GetMapping
+    fun findSprints(
+        @PathVariable workspaceId: UUID,
+        @PageableDefault(page = 0, size = 10) pageable: Pageable,
+    ): ApiResponse<*> =
+        handleResult {
+            sprintService.getSprints(SprintQuery.FindAll(WorkspaceId(workspaceId), pageable))
+        }
+
     @PostMapping
     fun createSprint(
         @PathVariable workspaceId: UUID,
@@ -103,6 +116,7 @@ class SprintController(
             is SprintResult.SprintInfo -> responseOf(data = result.toResponse())
             is SprintResult.ProjectList -> responseOf(data = result.projects.map { it.toResponse() })
             is SprintResult.ProjectCreated -> responseOf(data = result.project.toResponse())
+            is SprintResult.SprintPage -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
             is SprintResult.Remove ->
                 responseOf(
                     message = "데이터 삭제에 성공하였습니다.",

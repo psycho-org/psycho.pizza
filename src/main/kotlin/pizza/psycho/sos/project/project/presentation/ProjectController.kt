@@ -68,7 +68,7 @@ class ProjectController(
     fun findTasksInProject(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,
-        @PageableDefault(size = 10) pageable: Pageable,
+        @PageableDefault(page = 0, size = 10) pageable: Pageable,
     ): ApiResponse<*> =
         handleResult {
             projectService.getTasksInProject(

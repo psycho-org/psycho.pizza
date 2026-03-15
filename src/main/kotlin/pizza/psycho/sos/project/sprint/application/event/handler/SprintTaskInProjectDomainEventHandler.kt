@@ -30,6 +30,7 @@ class SprintTaskInProjectDomainEventHandler(
 ) {
     private val log by loggerDelegate()
     private val suppressedMoveKeys = ConcurrentHashMap.newKeySet<TaskSprintKey>()
+    private val emittedTaskAddedKeys = ConcurrentHashMap.newKeySet<TaskSprintKey>()
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handle(event: ProjectDomainEvent) {
@@ -60,15 +61,10 @@ class SprintTaskInProjectDomainEventHandler(
                 )
                 return@forEach
             }
-            val alreadyInSprint =
-                sprintRepository.existsActiveSprintByTaskIdAndSprintId(
-                    taskId = event.taskId,
-                    sprintId = sprintId,
-                    workspaceId = workspaceId,
-                )
-            if (alreadyInSprint) {
+            val isNewEmission = emittedTaskAddedKeys.add(key)
+            if (!isNewEmission) {
                 log.debug(
-                    "Skip TaskAddedToSprintEvent (task already in sprint). taskId={}, sprintId={}, projectId={}",
+                    "Skip TaskAddedToSprintEvent (already emitted). taskId={}, sprintId={}, projectId={}",
                     event.taskId,
                     sprintId,
                     event.projectId,
@@ -133,6 +129,7 @@ class SprintTaskInProjectDomainEventHandler(
                     eventId = UUID.randomUUID(),
                 ),
             )
+            emittedTaskAddedKeys.remove(key)
         }
 
         log.info(
