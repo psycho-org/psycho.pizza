@@ -78,11 +78,16 @@ class Sprint(
         by: UUID,
     ) {
         val previousPeriod = this.period
-        this.period =
-            period.copy(
-                startDate = startDate ?: period.startDate,
-                endDate = endDate ?: period.endDate,
+        val nextPeriod =
+            previousPeriod.copy(
+                startDate = startDate ?: previousPeriod.startDate,
+                endDate = endDate ?: previousPeriod.endDate,
             )
+        if (previousPeriod == nextPeriod) {
+            return
+        }
+
+        this.period = nextPeriod
 
         SprintPeriodChangedEvent(
             workspaceId = workspaceId.value,

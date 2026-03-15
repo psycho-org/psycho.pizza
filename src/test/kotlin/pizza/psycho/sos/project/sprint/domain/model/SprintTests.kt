@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.sprint.domain.event.SprintPeriodChangedEvent
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import java.time.Instant
 import java.util.UUID
@@ -100,5 +101,19 @@ class SprintTests {
 
         assertEquals(newStart, sprint.period.startDate)
         assertEquals(newEnd, sprint.period.endDate)
+    }
+
+    @Test
+    fun `changePeriod 호출 시 기간이 동일하면 변경 이벤트를 발행하지 않는다`() {
+        val sprint = createSprint()
+        val updatedBy = UUID.randomUUID()
+
+        sprint.changePeriod(
+            startDate = startDate,
+            endDate = endDate,
+            by = updatedBy,
+        )
+
+        assertTrue(sprint.domainEvents().none { it is SprintPeriodChangedEvent })
     }
 }
