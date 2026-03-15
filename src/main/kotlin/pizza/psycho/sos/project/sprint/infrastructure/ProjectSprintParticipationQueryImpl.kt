@@ -36,4 +36,13 @@ class ProjectSprintParticipationQueryImpl(
                     endDate = sprint.period.endDate,
                 )
             }
+
+    override fun findActiveSprintIdsByProjectId(
+        projectId: UUID,
+        workspaceId: UUID,
+    ): List<UUID> =
+        sprintRepository.findActiveSprintIdsByProjectId(
+            projectId = projectId,
+            workspaceId = WorkspaceId(workspaceId),
+        )
 }

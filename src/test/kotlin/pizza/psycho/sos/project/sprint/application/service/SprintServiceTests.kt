@@ -26,6 +26,7 @@ import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintResult
 import pizza.psycho.sos.project.sprint.domain.event.SprintPeriodChangedEvent
+import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
@@ -272,6 +273,49 @@ class SprintServiceTests {
         assertEquals(1, result.projectCount)
         assertEquals(1, result.taskCount)
         verify { taskPort.deleteByIdIn(listOf(uniqueTaskId), deletedBy, workspaceId) }
+    }
+
+    @Test
+    fun `스프린트 삭제 시 포함된 태스크들에 대해 제거 이벤트를 발행한다`() {
+        val deletedBy = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        val uniqueTaskId = UUID.randomUUID()
+        val sharedTaskId = UUID.randomUUID()
+        val sprint =
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId).apply {
+                addProject(projectId)
+            }
+        val snapshot =
+            ProjectSnapshot(
+                projectId = projectId,
+                workspaceId = workspaceId,
+                name = "Project 1",
+                taskIds = listOf(uniqueTaskId, sharedTaskId),
+            )
+
+        every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns sprint
+        every { projectPort.findByIdIn(listOf(projectId), workspaceId) } returns listOf(snapshot)
+        every { taskPort.deleteByIdIn(any(), deletedBy, workspaceId) } returns 1
+        every { projectPort.deleteByIdIn(listOf(projectId), deletedBy, workspaceId) } returns 1
+        every { sprintRepository.deleteById(sprintId, deletedBy, workspaceId) } returns 1
+
+        val result = sprintService.remove(SprintCommand.Remove(workspaceId, sprintId, deletedBy))
+
+        assertTrue(result is SprintResult.Remove)
+        verify(exactly = 1) {
+            eventPublisher.publish(
+                match<TaskRemovedFromSprintEvent> {
+                    it.sprintId == sprintId && it.taskId == uniqueTaskId && it.actorId == deletedBy
+                },
+            )
+        }
+        verify(exactly = 1) {
+            eventPublisher.publish(
+                match<TaskRemovedFromSprintEvent> {
+                    it.sprintId == sprintId && it.taskId == sharedTaskId && it.actorId == deletedBy
+                },
+            )
+        }
     }
 
     @Test

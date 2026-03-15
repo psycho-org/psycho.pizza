@@ -14,6 +14,7 @@ import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintResult
+import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
@@ -131,6 +132,12 @@ class SprintService(
 
             val projectIds = sprint.projectIds()
             val projectSnapshots = loadProjectSnapshots(projectIds, command.workspaceId)
+            publishTaskRemovedFromSprintEvents(
+                sprintId = command.sprintId,
+                taskIds = projectSnapshots.flatMap(ProjectSnapshot::taskIds),
+                workspaceId = command.workspaceId,
+                actorId = command.deletedBy,
+            )
             val deletedTaskCount = deleteTasks(projectSnapshots, command.deletedBy, command.workspaceId)
             val deletedProjectCount = deleteProjects(projectIds, command.deletedBy, command.workspaceId)
             val deletedSprintCount = deleteSprint(command.sprintId, command.deletedBy, command.workspaceId)
@@ -321,6 +328,27 @@ class SprintService(
         } else {
             taskPort.deleteByIdIn(deletableTaskIds, deletedBy, workspaceId)
         }
+    }
+
+    private fun publishTaskRemovedFromSprintEvents(
+        sprintId: UUID,
+        taskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+        actorId: UUID,
+    ) {
+        taskIds
+            .distinct()
+            .forEach { taskId ->
+                domainEventPublisher.publish(
+                    TaskRemovedFromSprintEvent(
+                        workspaceId = workspaceId.value,
+                        sprintId = sprintId,
+                        taskId = taskId,
+                        actorId = actorId,
+                        eventId = UUID.randomUUID(),
+                    ),
+                )
+            }
     }
 
     private fun deletableTaskIds(

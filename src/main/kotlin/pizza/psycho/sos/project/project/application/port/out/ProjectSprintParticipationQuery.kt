@@ -16,4 +16,9 @@ interface ProjectSprintParticipationQuery {
         projectId: UUID,
         workspaceId: UUID,
     ): List<SprintPeriodSnapshot>
+
+    fun findActiveSprintIdsByProjectId(
+        projectId: UUID,
+        workspaceId: UUID,
+    ): List<UUID>
 }
