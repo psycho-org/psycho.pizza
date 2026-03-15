@@ -135,6 +135,17 @@ class ProjectService(
             val activeTaskIds = projectRepository.findActiveTaskIdsByProjectId(project.projectId, command.workspaceId)
             val assignments = assignmentsByTaskIds(activeTaskIds, command.workspaceId)
             val deletableTaskIds = deletableTaskIds(activeTaskIds, setOf(project.projectId), assignments)
+            val taskIdsMovingToBacklog =
+                taskIdsMovingToBacklog(
+                    projectId = project.projectId,
+                    candidateTaskIds = activeTaskIds,
+                    deletableTaskIds = deletableTaskIds,
+                    assignments = assignments,
+                    workspaceId = command.workspaceId,
+                )
+            if (taskIdsMovingToBacklog.isNotEmpty()) {
+                taskPort.moveToBacklog(taskIdsMovingToBacklog, command.deletedBy, command.workspaceId)
+            }
             publishTaskRemovedFromSprintEvents(
                 projectId = project.projectId,
                 taskIds = activeTaskIds,
@@ -352,6 +363,45 @@ class ProjectService(
 
         return candidateTaskIds.filter { taskId ->
             assignmentsByTaskId[taskId].orEmpty().all(removedProjectIds::contains)
+        }
+    }
+
+    private fun taskIdsMovingToBacklog(
+        projectId: UUID,
+        candidateTaskIds: Collection<UUID>,
+        deletableTaskIds: Collection<UUID>,
+        assignments: List<TaskAssignment>,
+        workspaceId: WorkspaceId,
+    ): Set<UUID> {
+        if (candidateTaskIds.isEmpty()) {
+            return emptySet()
+        }
+
+        val removedSprintIds = sprintParticipationQuery.findActiveSprintIdsByProjectId(projectId, workspaceId.value)
+        if (removedSprintIds.isEmpty()) {
+            return emptySet()
+        }
+
+        val survivingTaskIds = candidateTaskIds.toSet() - deletableTaskIds.toSet()
+        if (survivingTaskIds.isEmpty()) {
+            return emptySet()
+        }
+
+        val remainingProjectIds =
+            assignments
+                .map(TaskAssignment::projectId)
+                .filterNot { it == projectId }
+                .toSet()
+        val assignmentsByTaskId = assignments.groupBy(TaskAssignment::taskId) { it.projectId }
+        val sprintIdsByProjectId = sprintParticipationQuery.findActiveSprintIdsByProjectIds(remainingProjectIds, workspaceId.value)
+
+        return survivingTaskIds.filterTo(mutableSetOf()) { taskId ->
+            assignmentsByTaskId[taskId]
+                .orEmpty()
+                .asSequence()
+                .filterNot { it == projectId }
+                .flatMap { assignedProjectId -> sprintIdsByProjectId[assignedProjectId].orEmpty().asSequence() }
+                .none()
         }
     }
 

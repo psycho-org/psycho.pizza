@@ -54,6 +54,8 @@ class SprintServiceTests {
         every { Tx.writable(any<() -> Any>()) } answers { firstArg<() -> Any>().invoke() }
         every { Tx.readable(any<() -> Any>()) } answers { firstArg<() -> Any>().invoke() }
         every { projectPort.findActiveProjectIdsByTaskIds(any(), any()) } returns emptyList()
+        every { sprintRepository.findActiveSprintIdsByProjectIds(any(), any()) } returns emptyMap()
+        every { taskPort.moveToBacklog(any(), any(), any()) } returns Unit
         every { taskPort.findByIdIn(any<Collection<UUID>>(), any()) } answers {
             firstArg<Collection<UUID>>().map { id ->
                 TaskSnapshot(
@@ -284,6 +286,44 @@ class SprintServiceTests {
         assertEquals(1, result.projectCount)
         assertEquals(1, result.taskCount)
         verify { taskPort.deleteByIdIn(listOf(uniqueTaskId), deletedBy, workspaceId) }
+    }
+
+    @Test
+    fun `스프린트 삭제 시 살아남는 태스크가 어떤 active sprint 에도 남지 않으면 backlog 로 이동시킨다`() {
+        val deletedBy = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        val otherProjectId = UUID.randomUUID()
+        val sharedTaskId = UUID.randomUUID()
+        val sprint =
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId).apply {
+                addProject(projectId)
+            }
+        val snapshot =
+            ProjectSnapshot(
+                projectId = projectId,
+                workspaceId = workspaceId,
+                name = "Project 1",
+                taskIds = listOf(sharedTaskId),
+            )
+
+        every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns sprint
+        every { projectPort.findByIdIn(listOf(projectId), workspaceId) } returns listOf(snapshot)
+        every {
+            projectPort.findActiveProjectIdsByTaskIds(listOf(sharedTaskId), workspaceId)
+        } returns
+            listOf(
+                TaskAssignment(sharedTaskId, projectId),
+                TaskAssignment(sharedTaskId, otherProjectId),
+            )
+        every { sprintRepository.findActiveSprintIdsByProjectIds(setOf(otherProjectId), workspaceId) } returns emptyMap()
+        every { projectPort.deleteByIdIn(listOf(projectId), deletedBy, workspaceId) } returns 1
+        every { sprintRepository.deleteById(sprintId, deletedBy, workspaceId) } returns 1
+
+        val result = sprintService.remove(SprintCommand.Remove(workspaceId, sprintId, deletedBy))
+
+        assertTrue(result is SprintResult.Remove)
+        verify(exactly = 1) { taskPort.moveToBacklog(setOf(sharedTaskId), deletedBy, workspaceId) }
+        verify(exactly = 0) { taskPort.deleteByIdIn(any(), any(), any()) }
     }
 
     @Test

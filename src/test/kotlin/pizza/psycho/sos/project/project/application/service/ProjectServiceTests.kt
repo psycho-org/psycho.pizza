@@ -52,6 +52,7 @@ class ProjectServiceTests {
         justRun { eventPublisher.publishAndClear(any()) }
         justRun { eventPublisher.publishAndClearAll(any()) }
         justRun { eventPublisher.publish(any<TaskRemovedFromSprintEvent>()) }
+        justRun { taskPort.moveToBacklog(any(), any(), any()) }
         every { projectRepository.findActiveProjectIdsByTaskIds(any(), any()) } returns emptyList()
         every { projectRepository.findActiveTaskIdsByProjectId(any(), any()) } returns emptyList()
         every { projectRepository.findActiveTaskIdsByProjectId(any(), any(), any()) } returns PageImpl(emptyList())
@@ -280,6 +281,46 @@ class ProjectServiceTests {
     }
 
     @Test
+    fun `프로젝트 삭제 시 살아남는 태스크가 어떤 active sprint 에도 남지 않으면 backlog 로 이동시킨다`() {
+        val workspaceId = WorkspaceId(UUID.randomUUID())
+        val projectId = UUID.randomUUID()
+        val otherProjectId = UUID.randomUUID()
+        val deletedBy = UUID.randomUUID()
+        val sprintId = UUID.randomUUID()
+        val sharedTaskId = UUID.randomUUID()
+
+        val project =
+            Project
+                .create(
+                    workspaceId = workspaceId,
+                    name = "삭제 대상 프로젝트",
+                ).apply {
+                    id = projectId
+                    addTask(sharedTaskId)
+                }
+
+        every { projectRepository.findActiveProjectByIdOrNull(projectId, workspaceId) } returns project
+        every { projectRepository.findActiveTaskIdsByProjectId(projectId, workspaceId) } returns listOf(sharedTaskId)
+        every {
+            projectRepository.findActiveProjectIdsByTaskIds(listOf(sharedTaskId), workspaceId)
+        } returns
+            listOf(
+                TaskAssignment(sharedTaskId, projectId),
+                TaskAssignment(sharedTaskId, otherProjectId),
+            )
+        every { sprintParticipationQuery.findActiveSprintIdsByProjectId(projectId, workspaceId.value) } returns listOf(sprintId)
+        every {
+            sprintParticipationQuery.findActiveSprintIdsByProjectIds(setOf(otherProjectId), workspaceId.value)
+        } returns emptyMap()
+
+        val result = projectService.remove(ProjectCommand.Remove(workspaceId, projectId, deletedBy))
+
+        assertTrue(result is ProjectResult.Remove)
+        verify(exactly = 1) { taskPort.moveToBacklog(setOf(sharedTaskId), deletedBy, workspaceId) }
+        verify(exactly = 0) { taskPort.deleteByIdIn(any(), any(), any()) }
+    }
+
+    @Test
     fun `프로젝트 삭제 시 살아남는 태스크가 떠나는 sprint 에 대해 제거 이벤트를 발행한다`() {
         val workspaceId = WorkspaceId(UUID.randomUUID())
         val projectId = UUID.randomUUID()
@@ -316,6 +357,7 @@ class ProjectServiceTests {
         val result = projectService.remove(ProjectCommand.Remove(workspaceId, projectId, deletedBy))
 
         assertTrue(result is ProjectResult.Remove)
+        verify(exactly = 0) { taskPort.moveToBacklog(any(), any(), any()) }
         verify(exactly = 1) {
             eventPublisher.publish(
                 match<TaskRemovedFromSprintEvent> {
