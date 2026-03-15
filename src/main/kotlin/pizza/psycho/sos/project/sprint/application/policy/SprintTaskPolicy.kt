@@ -92,6 +92,34 @@ class SprintTaskPolicy(
             .toSet()
     }
 
+    fun tasksMovingToBacklog(
+        candidateTaskIds: Collection<UUID>,
+        deletableTaskIds: Collection<UUID>,
+        assignments: List<TaskAssignment>,
+        removedProjectIds: Set<UUID>,
+        sprintIdsByProjectId: Map<UUID, Set<UUID>>,
+    ): Set<UUID> {
+        if (candidateTaskIds.isEmpty()) {
+            return emptySet()
+        }
+
+        val survivingTaskIds = candidateTaskIds.toSet() - deletableTaskIds.toSet()
+        if (survivingTaskIds.isEmpty()) {
+            return emptySet()
+        }
+
+        val assignmentsByTaskId = assignments.groupBy(TaskAssignment::taskId) { it.projectId }
+
+        return survivingTaskIds.filterTo(mutableSetOf()) { taskId ->
+            assignmentsByTaskId[taskId]
+                .orEmpty()
+                .asSequence()
+                .filterNot(removedProjectIds::contains)
+                .flatMap { projectId -> sprintIdsByProjectId[projectId].orEmpty().asSequence() }
+                .none()
+        }
+    }
+
     private fun activeSprintsForProject(
         projectId: UUID,
         workspaceId: WorkspaceId,

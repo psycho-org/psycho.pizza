@@ -27,6 +27,7 @@ import pizza.psycho.sos.project.project.domain.model.entity.Project
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
+import pizza.psycho.sos.project.task.application.port.out.dto.SprintTaskMembershipSnapshot
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 import pizza.psycho.sos.project.task.domain.model.vo.Status
 import java.time.Instant
@@ -52,7 +53,7 @@ class ProjectServiceTests {
         justRun { eventPublisher.publishAndClear(any()) }
         justRun { eventPublisher.publishAndClearAll(any()) }
         justRun { eventPublisher.publish(any<TaskRemovedFromSprintEvent>()) }
-        justRun { taskPort.moveToBacklog(any(), any(), any()) }
+        justRun { taskPort.moveSprintTasksToBacklog(any(), any(), any(), any()) }
         every { projectRepository.findActiveProjectIdsByTaskIds(any(), any()) } returns emptyList()
         every { projectRepository.findActiveTaskIdsByProjectId(any(), any()) } returns emptyList()
         every { projectRepository.findActiveTaskIdsByProjectId(any(), any(), any()) } returns PageImpl(emptyList())
@@ -312,11 +313,31 @@ class ProjectServiceTests {
         every {
             sprintParticipationQuery.findActiveSprintIdsByProjectIds(setOf(otherProjectId), workspaceId.value)
         } returns emptyMap()
+        every {
+            sprintTaskPolicy.tasksMovingToBacklog(
+                candidateTaskIds = listOf(sharedTaskId),
+                deletableTaskIds = emptyList(),
+                assignments =
+                    listOf(
+                        TaskAssignment(sharedTaskId, projectId),
+                        TaskAssignment(sharedTaskId, otherProjectId),
+                    ),
+                removedProjectIds = setOf(projectId),
+                sprintIdsByProjectId = emptyMap(),
+            )
+        } returns setOf(sharedTaskId)
 
         val result = projectService.remove(ProjectCommand.Remove(workspaceId, projectId, deletedBy))
 
         assertTrue(result is ProjectResult.Remove)
-        verify(exactly = 1) { taskPort.moveToBacklog(setOf(sharedTaskId), deletedBy, workspaceId) }
+        verify(exactly = 1) {
+            taskPort.moveSprintTasksToBacklog(
+                setOf(sharedTaskId),
+                deletedBy,
+                workspaceId,
+                SprintTaskMembershipSnapshot.of(setOf(sharedTaskId)),
+            )
+        }
         verify(exactly = 0) { taskPort.deleteByIdIn(any(), any(), any()) }
     }
 
@@ -357,7 +378,7 @@ class ProjectServiceTests {
         val result = projectService.remove(ProjectCommand.Remove(workspaceId, projectId, deletedBy))
 
         assertTrue(result is ProjectResult.Remove)
-        verify(exactly = 0) { taskPort.moveToBacklog(any(), any(), any()) }
+        verify(exactly = 0) { taskPort.moveSprintTasksToBacklog(any(), any(), any(), any()) }
         verify(exactly = 1) {
             eventPublisher.publish(
                 match<TaskRemovedFromSprintEvent> {
@@ -369,6 +390,44 @@ class ProjectServiceTests {
             )
         }
         verify(exactly = 0) { sprintParticipationQuery.findActiveSprintIdsByProjectId(otherProjectId, workspaceId.value) }
+    }
+
+    @Test
+    fun `스프린트에 속하지 않은 프로젝트 삭제 시 shared task 를 backlog 로 이동시키지 않는다`() {
+        val workspaceId = WorkspaceId(UUID.randomUUID())
+        val projectId = UUID.randomUUID()
+        val otherProjectId = UUID.randomUUID()
+        val deletedBy = UUID.randomUUID()
+        val sharedTaskId = UUID.randomUUID()
+
+        val project =
+            Project
+                .create(
+                    workspaceId = workspaceId,
+                    name = "삭제 대상 프로젝트",
+                ).apply {
+                    id = projectId
+                    addTask(sharedTaskId)
+                }
+
+        every { projectRepository.findActiveProjectByIdOrNull(projectId, workspaceId) } returns project
+        every { projectRepository.findActiveTaskIdsByProjectId(projectId, workspaceId) } returns listOf(sharedTaskId)
+        every {
+            projectRepository.findActiveProjectIdsByTaskIds(listOf(sharedTaskId), workspaceId)
+        } returns
+            listOf(
+                TaskAssignment(sharedTaskId, projectId),
+                TaskAssignment(sharedTaskId, otherProjectId),
+            )
+        every { sprintParticipationQuery.findActiveSprintIdsByProjectId(projectId, workspaceId.value) } returns emptyList()
+        every {
+            sprintParticipationQuery.findActiveSprintIdsByProjectIds(setOf(otherProjectId), workspaceId.value)
+        } returns emptyMap()
+
+        val result = projectService.remove(ProjectCommand.Remove(workspaceId, projectId, deletedBy))
+
+        assertTrue(result is ProjectResult.Remove)
+        verify(exactly = 0) { taskPort.moveSprintTasksToBacklog(any(), any(), any(), any()) }
     }
 
     @Test
@@ -444,5 +503,133 @@ class ProjectServiceTests {
 
         assertTrue(result is ProjectResult.Failure.TaskAlreadyAssigned)
         verify(exactly = 0) { eventPublisher.publishAndClear(any()) }
+    }
+
+    @Test
+    fun `프로젝트 수정으로 마지막 sprint 를 떠나는 태스크는 backlog 로 이동시킨다`() {
+        val workspaceId = WorkspaceId(UUID.randomUUID())
+        val projectId = UUID.randomUUID()
+        val otherProjectId = UUID.randomUUID()
+        val sprintId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val updatedBy = UUID.randomUUID()
+        val project =
+            Project.create(workspaceId = workspaceId, name = "프로젝트").apply {
+                id = projectId
+                addTask(taskId)
+            }
+
+        every { projectRepository.findActiveProjectByIdOrNull(projectId, workspaceId) } returns project
+        every { projectRepository.findActiveTaskIdsByProjectId(projectId, workspaceId) } returns listOf(taskId)
+        every {
+            projectRepository.findActiveProjectIdsByTaskIds(listOf(taskId), workspaceId)
+        } returns
+            listOf(
+                TaskAssignment(taskId, projectId),
+                TaskAssignment(taskId, otherProjectId),
+            )
+        every {
+            sprintParticipationQuery.findActiveSprintIdsByProjectIds(setOf(projectId), workspaceId.value)
+        } returns mapOf(projectId to setOf(sprintId))
+        every {
+            sprintParticipationQuery.findActiveSprintIdsByProjectIds(setOf(otherProjectId), workspaceId.value)
+        } returns emptyMap()
+        every {
+            sprintTaskPolicy.tasksMovingToBacklog(
+                candidateTaskIds = listOf(taskId),
+                deletableTaskIds = emptyList(),
+                assignments =
+                    listOf(
+                        TaskAssignment(taskId, projectId),
+                        TaskAssignment(taskId, otherProjectId),
+                    ),
+                removedProjectIds = setOf(projectId),
+                sprintIdsByProjectId = emptyMap(),
+            )
+        } returns setOf(taskId)
+
+        val result =
+            projectService.modify(
+                ProjectCommand.Update(
+                    workspaceId = workspaceId,
+                    projectId = projectId,
+                    removeTaskIds = listOf(taskId),
+                    updatedBy = updatedBy,
+                ),
+            )
+
+        assertTrue(result is ProjectResult.Success)
+        verify(exactly = 1) {
+            taskPort.moveSprintTasksToBacklog(
+                setOf(taskId),
+                updatedBy,
+                workspaceId,
+                SprintTaskMembershipSnapshot.of(setOf(taskId)),
+            )
+        }
+    }
+
+    @Test
+    fun `프로젝트 이동으로 마지막 sprint 를 떠나는 태스크는 backlog 로 이동시킨다`() {
+        val workspaceId = WorkspaceId(UUID.randomUUID())
+        val fromProjectId = UUID.randomUUID()
+        val toProjectId = UUID.randomUUID()
+        val sprintId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val movedBy = UUID.randomUUID()
+        val fromProject =
+            Project.create(workspaceId = workspaceId, name = "원본 프로젝트").apply {
+                id = fromProjectId
+                addTask(taskId)
+            }
+        val toProject = Project.create(workspaceId = workspaceId, name = "대상 프로젝트").apply { id = toProjectId }
+        val taskSnapshot = TaskSnapshot(id = taskId, title = "태스크", status = Status.IN_PROGRESS, assigneeId = null, dueDate = null)
+
+        every { projectRepository.findActiveProjectByIdOrNull(fromProjectId, workspaceId) } returns fromProject
+        every { projectRepository.findActiveProjectByIdOrNull(toProjectId, workspaceId) } returns toProject
+        every { taskPort.findByIdIn(listOf(taskId), workspaceId) } returns listOf(taskSnapshot)
+        every {
+            projectRepository.findActiveProjectIdsByTaskIds(listOf(taskId), workspaceId)
+        } returns listOf(TaskAssignment(taskId, fromProjectId))
+        every {
+            sprintParticipationQuery.findActiveSprintIdsByProjectIds(setOf(fromProjectId), workspaceId.value)
+        } returns mapOf(fromProjectId to setOf(sprintId))
+        every {
+            sprintParticipationQuery.findActiveSprintIdsByProjectIds(setOf(toProjectId), workspaceId.value)
+        } returns emptyMap()
+        every {
+            sprintTaskPolicy.tasksMovingToBacklog(
+                candidateTaskIds = listOf(taskId),
+                deletableTaskIds = emptyList(),
+                assignments =
+                    listOf(
+                        TaskAssignment(taskId, fromProjectId),
+                        TaskAssignment(taskId, toProjectId),
+                    ),
+                removedProjectIds = setOf(fromProjectId),
+                sprintIdsByProjectId = emptyMap(),
+            )
+        } returns setOf(taskId)
+
+        val result =
+            projectService.moveTask(
+                ProjectCommand.MoveTask(
+                    workspaceId = workspaceId,
+                    fromProjectId = fromProjectId,
+                    toProjectId = toProjectId,
+                    taskId = taskId,
+                    movedBy = movedBy,
+                ),
+            )
+
+        assertTrue(result is ProjectResult.Success)
+        verify(exactly = 1) {
+            taskPort.moveSprintTasksToBacklog(
+                setOf(taskId),
+                movedBy,
+                workspaceId,
+                SprintTaskMembershipSnapshot.of(setOf(taskId)),
+            )
+        }
     }
 }

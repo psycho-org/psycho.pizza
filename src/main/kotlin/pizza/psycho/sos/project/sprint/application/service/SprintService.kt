@@ -18,6 +18,7 @@ import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
+import pizza.psycho.sos.project.task.application.port.out.dto.SprintTaskMembershipSnapshot
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 import java.util.UUID
 
@@ -152,7 +153,7 @@ class SprintService(
                     .toSet()
             val sprintIdsByProjectId = sprintRepository.findActiveSprintIdsByProjectIds(remainingProjectIds, command.workspaceId)
             val taskIdsMovingToBacklog =
-                taskIdsMovingToBacklog(
+                sprintTaskPolicy.tasksMovingToBacklog(
                     candidateTaskIds = candidateTaskIds,
                     deletableTaskIds = deletableTaskIds,
                     assignments = assignments,
@@ -160,7 +161,12 @@ class SprintService(
                     sprintIdsByProjectId = sprintIdsByProjectId,
                 )
             if (taskIdsMovingToBacklog.isNotEmpty()) {
-                taskPort.moveToBacklog(taskIdsMovingToBacklog, command.deletedBy, command.workspaceId)
+                taskPort.moveSprintTasksToBacklog(
+                    taskIdsMovingToBacklog,
+                    command.deletedBy,
+                    command.workspaceId,
+                    SprintTaskMembershipSnapshot.of(taskIdsMovingToBacklog),
+                )
             }
             publishTaskRemovedFromSprintEvents(
                 sprintId = command.sprintId,
@@ -282,7 +288,12 @@ class SprintService(
             val taskIdsMovingToBacklog = sprintTaskPolicy.tasksMovingToBacklog(removedProjects, remainingProjects)
 
             if (taskIdsMovingToBacklog.isNotEmpty()) {
-                taskPort.moveToBacklog(taskIdsMovingToBacklog, by, workspaceId)
+                taskPort.moveSprintTasksToBacklog(
+                    taskIdsMovingToBacklog,
+                    by,
+                    workspaceId,
+                    SprintTaskMembershipSnapshot.of(taskIdsMovingToBacklog),
+                )
             } else {
                 log.debug(
                     "update: no tasks move to backlog when removing projects. sprintId={}, removeProjectIds={}",
@@ -361,34 +372,6 @@ class SprintService(
         } else {
             taskPort.deleteByIdIn(deletableTaskIds, deletedBy, workspaceId)
         }
-
-    private fun taskIdsMovingToBacklog(
-        candidateTaskIds: Collection<UUID>,
-        deletableTaskIds: Collection<UUID>,
-        assignments: List<TaskAssignment>,
-        removedProjectIds: Set<UUID>,
-        sprintIdsByProjectId: Map<UUID, Set<UUID>>,
-    ): Set<UUID> {
-        if (candidateTaskIds.isEmpty()) {
-            return emptySet()
-        }
-
-        val survivingTaskIds = candidateTaskIds.toSet() - deletableTaskIds.toSet()
-        if (survivingTaskIds.isEmpty()) {
-            return emptySet()
-        }
-
-        val assignmentsByTaskId = assignments.groupBy(TaskAssignment::taskId) { it.projectId }
-
-        return survivingTaskIds.filterTo(mutableSetOf()) { taskId ->
-            assignmentsByTaskId[taskId]
-                .orEmpty()
-                .asSequence()
-                .filterNot(removedProjectIds::contains)
-                .flatMap { projectId -> sprintIdsByProjectId[projectId].orEmpty().asSequence() }
-                .none()
-        }
-    }
 
     private fun publishTaskRemovedFromSprintEvents(
         sprintId: UUID,

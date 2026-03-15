@@ -9,6 +9,7 @@ import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.task.application.event.handler.TaskEventSprintMembershipRegistry
 import pizza.psycho.sos.project.task.application.port.out.TaskSprintParticipationQuery
+import pizza.psycho.sos.project.task.application.port.out.dto.SprintTaskMembershipSnapshot
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
 import pizza.psycho.sos.project.task.application.service.dto.TaskQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult
@@ -110,11 +111,23 @@ class TaskService(
     fun moveToBacklog(
         ids: Collection<UUID>,
         workspaceId: WorkspaceId,
-        actorId: UUID,
+        actorId: UUID?,
+    ) {
+        val membershipSnapshot =
+            SprintTaskMembershipSnapshot.of(
+                sprintParticipationQuery.findTaskIdsInActiveSprints(ids, workspaceId.value),
+            )
+        moveSprintTasksToBacklog(ids, workspaceId, actorId, membershipSnapshot)
+    }
+
+    fun moveSprintTasksToBacklog(
+        ids: Collection<UUID>,
+        workspaceId: WorkspaceId,
+        actorId: UUID?,
+        membershipSnapshot: SprintTaskMembershipSnapshot,
     ) = Tx.writable {
         if (ids.isEmpty()) return@writable
 
-        val sprintTaskIds = sprintParticipationQuery.findTaskIdsInActiveSprints(ids, workspaceId.value)
         val tasks = taskRepository.findAllByIdIn(ids, workspaceId)
         if (tasks.isEmpty()) return@writable
 
@@ -124,7 +137,7 @@ class TaskService(
                     status = Status.TODO,
                     by = actorId,
                 )
-                markSprintMembership(task, sprintTaskIds.contains(task.taskId))
+                markSprintMembership(task, membershipSnapshot.contains(task.taskId))
             }
         }
 
