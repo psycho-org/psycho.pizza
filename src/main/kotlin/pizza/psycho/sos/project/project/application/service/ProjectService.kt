@@ -1,11 +1,14 @@
 package pizza.psycho.sos.project.project.application.service
 
+import org.springframework.data.domain.Page
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.common.support.transaction.helper.Tx
+import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
 import pizza.psycho.sos.project.project.application.port.out.ProjectSprintParticipationQuery
+import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
 import pizza.psycho.sos.project.project.application.service.dto.ProjectQuery
@@ -16,6 +19,7 @@ import pizza.psycho.sos.project.sprint.domain.model.vo.Period
 import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
+import java.util.UUID
 
 @Service
 class ProjectService(
@@ -161,12 +165,13 @@ class ProjectService(
                     }
 
             val taskIds = project.taskIds()
+            val deletableTaskIds = deletableTaskIds(taskIds, setOf(project.projectId), command.workspaceId)
             val deletedTaskCount =
-                if (taskIds.isEmpty()) {
+                if (deletableTaskIds.isEmpty()) {
                     0
                 } else {
                     taskPort
-                        .deleteByIdIn(taskIds, command.deletedBy, command.workspaceId)
+                        .deleteByIdIn(deletableTaskIds, command.deletedBy, command.workspaceId)
                         .also {
                             log.info(
                                 "remove: tasks soft-deleted. count={}, projectId={}",
@@ -293,6 +298,27 @@ class ProjectService(
     }
 
     // ----------------------------------------------------------------------------------------------
+
+    private fun Page<TaskSnapshot>.toResult(): Page<ProjectResult.Task> = map { it.toResult() }
+
+    private fun deletableTaskIds(
+        candidateTaskIds: Collection<UUID>,
+        removedProjectIds: Set<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<UUID> {
+        if (candidateTaskIds.isEmpty()) {
+            return emptyList()
+        }
+
+        val assignmentsByTaskId =
+            projectRepository
+                .findActiveProjectIdsByTaskIds(candidateTaskIds, workspaceId)
+                .groupBy(TaskAssignment::taskId) { it.projectId }
+
+        return candidateTaskIds.filter { taskId ->
+            assignmentsByTaskId[taskId].orEmpty().all(removedProjectIds::contains)
+        }
+    }
 
     private fun TaskSnapshot.toResult(isWithinSprintPeriod: Boolean? = null): ProjectResult.Task =
         ProjectResult.Task(

@@ -8,6 +8,7 @@ import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectPort
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
+import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
@@ -312,11 +313,32 @@ class SprintService(
         deletedBy: UUID,
         workspaceId: WorkspaceId,
     ): Int {
+        val removedProjectIds = projectSnapshots.mapTo(mutableSetOf()) { it.projectId }
         val taskIds = projectSnapshots.flatMap { it.taskIds }.distinct()
-        return if (taskIds.isEmpty()) {
+        val deletableTaskIds = deletableTaskIds(taskIds, removedProjectIds, workspaceId)
+        return if (deletableTaskIds.isEmpty()) {
             0
         } else {
-            taskPort.deleteByIdIn(taskIds, deletedBy, workspaceId)
+            taskPort.deleteByIdIn(deletableTaskIds, deletedBy, workspaceId)
+        }
+    }
+
+    private fun deletableTaskIds(
+        candidateTaskIds: Collection<UUID>,
+        removedProjectIds: Set<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<UUID> {
+        if (candidateTaskIds.isEmpty()) {
+            return emptyList()
+        }
+
+        val assignmentsByTaskId =
+            projectPort
+                .findActiveProjectIdsByTaskIds(candidateTaskIds, workspaceId)
+                .groupBy(TaskAssignment::taskId) { it.projectId }
+
+        return candidateTaskIds.filter { taskId ->
+            assignmentsByTaskId[taskId].orEmpty().all(removedProjectIds::contains)
         }
     }
 

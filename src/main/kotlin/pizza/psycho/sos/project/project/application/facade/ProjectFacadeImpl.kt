@@ -5,6 +5,7 @@ import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
+import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import java.util.UUID
@@ -43,6 +44,11 @@ class ProjectFacadeImpl(
         deletedBy: UUID,
         workspaceId: WorkspaceId,
     ): Int = projectRepository.deleteByIdIn(projectIds, deletedBy, workspaceId)
+
+    override fun findActiveProjectIdsByTaskIds(
+        taskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<TaskAssignment> = projectRepository.findActiveProjectIdsByTaskIds(taskIds, workspaceId)
 
     private fun Project.toSnapshot(): ProjectSnapshot =
         ProjectSnapshot(

@@ -43,6 +43,13 @@ class SprintTaskInProjectDomainEventHandler(
         }
     }
 
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    fun handle(event: TaskRemovedFromSprintEvent) {
+        val key = TaskSprintKey(event.workspaceId, event.sprintId, event.taskId)
+        suppressedMoveKeys.remove(key)
+        emittedTaskAddedKeys.remove(key)
+    }
+
     private fun handleTaskAddedToProject(event: TaskAddedToProjectEvent) {
         pruneEmittedKeys()
         val workspaceId = WorkspaceId(event.workspaceId)
@@ -130,7 +137,6 @@ class SprintTaskInProjectDomainEventHandler(
                     eventId = UUID.randomUUID(),
                 ),
             )
-            emittedTaskAddedKeys.remove(key)
         }
 
         log.info(
