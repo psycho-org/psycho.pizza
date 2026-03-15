@@ -8,6 +8,7 @@ import java.util.UUID
 // Task 상태 변경 (MVP-03)
 data class TaskStatusChangedEvent(
     val workspaceId: UUID,
+    val sprintId: UUID, // 🔥here!
     val actorId: UUID?,
     val taskId: UUID,
     val fromStatus: String,
