@@ -134,6 +134,31 @@ class TaskServiceTests {
     }
 
     @Test
+    fun `워크스페이스의 backlog 태스크를 페이지네이션으로 조회한다`() {
+        val workspaceId = UUID.randomUUID()
+        val pageable = PageRequest.of(0, 10)
+        val command = TaskQuery.FindBacklogTasks(workspaceId, pageable)
+
+        val backlogTask =
+            Task
+                .create(
+                    title = "백로그 태스크",
+                    description = "설명",
+                    assigneeId = null,
+                    workspaceId = workspaceId,
+                ).apply { id = UUID.randomUUID() }
+
+        val page = PageImpl(listOf(backlogTask), pageable, 1)
+
+        every { taskRepository.findAllActiveBacklogTasks(WorkspaceId(workspaceId), pageable) } returns page
+
+        val taskList = taskService.getBacklog(command)
+
+        assertEquals(1, taskList.page.content.size)
+        assertEquals("백로그 태스크", taskList.page.content[0].title)
+    }
+
+    @Test
     fun `특정 태스크 ID로 조회 시 태스크 정보를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val taskId = UUID.randomUUID()

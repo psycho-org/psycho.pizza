@@ -50,6 +50,15 @@ class TaskController(
             taskService.getAll(TaskQuery.FindTasks(workspaceId, pageable))
         }
 
+    @GetMapping("/backlog")
+    fun findBacklogTasks(
+        @PathVariable workspaceId: UUID,
+        @PageableDefault(page = 0, size = 10) pageable: Pageable,
+    ): ApiResponse<*> =
+        handleResult {
+            taskService.getBacklog(TaskQuery.FindBacklogTasks(workspaceId, pageable))
+        }
+
     @GetMapping("/{id}")
     fun findTaskById(
         @PathVariable workspaceId: UUID,

@@ -48,6 +48,11 @@ class TaskService(
             TaskResult.TaskList(it.toResult())
         }
 
+    fun getBacklog(command: TaskQuery.FindBacklogTasks): TaskResult.TaskList =
+        taskRepository.findAllActiveBacklogTasks(WorkspaceId(command.workspaceId), command.pageable).let {
+            TaskResult.TaskList(it.toResult())
+        }
+
     fun getInformation(command: TaskQuery.FindTask): TaskResult =
         taskRepository
             .findActiveTaskByIdOrNull(id = command.id, workspaceId = WorkspaceId(command.workspaceId))
