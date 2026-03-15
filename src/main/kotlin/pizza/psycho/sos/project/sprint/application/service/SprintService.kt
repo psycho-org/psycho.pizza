@@ -1,6 +1,7 @@
 package pizza.psycho.sos.project.sprint.application.service
 
 import org.springframework.stereotype.Service
+import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.common.support.transaction.helper.Tx
@@ -21,6 +22,7 @@ class SprintService(
     private val sprintRepository: SprintRepository,
     private val projectPort: ProjectPort,
     private val taskPort: TaskPort,
+    private val domainEventPublisher: DomainEventPublisher,
 ) {
     private val log by loggerDelegate()
 
@@ -168,6 +170,8 @@ class SprintService(
                 deletedTaskCount,
             )
 
+            domainEventPublisher.publishAndClear(sprint)
+
             SprintResult.RemoveWithTasks(
                 sprintCount = deletedSprintCount,
                 projectCount = deletedProjectCount,
@@ -186,6 +190,7 @@ class SprintService(
             applyUpdates(sprint, command)
 
             log.info("update success: sprintId=${command.sprintId}")
+            domainEventPublisher.publishAndClear(sprint)
             SprintResult.Success
         }
 

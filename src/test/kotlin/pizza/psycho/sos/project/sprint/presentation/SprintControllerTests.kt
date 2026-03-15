@@ -302,14 +302,15 @@ class SprintControllerTests {
         val userId = UUID.randomUUID()
 
         `when`(
-            sprintService.remove(
-                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId),
+            sprintService.removeWithTasks(
+                SprintCommand.RemoveWithTasks(WorkspaceId(workspaceId), sprintId, userId),
             ),
         ).thenReturn(SprintResult.Failure.IdNotFound)
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId/$userId"),
+                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId/with-tasks")
+                    .param("account", userId.toString()),
             ).andExpect(status().is4xxClientError)
     }
 }

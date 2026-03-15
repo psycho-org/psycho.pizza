@@ -14,6 +14,7 @@ import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.common.entity.BaseEntity
+import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
@@ -34,7 +35,8 @@ class SprintServiceTests {
     private val sprintRepository = mockk<SprintRepository>()
     private val projectPort = mockk<ProjectPort>()
     private val taskPort = mockk<TaskPort>()
-    private val sprintService = SprintService(sprintRepository, projectPort, taskPort)
+    private val eventPublisher = mockk<DomainEventPublisher>(relaxed = true)
+    private val sprintService = SprintService(sprintRepository, projectPort, taskPort, eventPublisher)
 
     private val workspaceId = WorkspaceId(UUID.randomUUID())
     private val sprintId = UUID.randomUUID()
