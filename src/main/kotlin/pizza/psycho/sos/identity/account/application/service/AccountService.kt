@@ -4,10 +4,12 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import pizza.psycho.sos.common.domain.vo.Email
+import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.common.support.transaction.helper.hasConstraintName
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
 import pizza.psycho.sos.identity.account.domain.Account
+import pizza.psycho.sos.identity.account.domain.exception.AccountErrorCode
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
 import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
@@ -32,10 +34,17 @@ class AccountService(
             .findByEmailValueIgnoreCaseAndDeletedAtIsNull(Email.of(email).value)
             ?.id
 
-    fun findActiveDisplayNameByAccountIdOrNull(accountId: UUID): String? =
-        accountRepository
-            .findByIdAndDeletedAtIsNull(accountId)
-            ?.let { "${it.givenName} ${it.familyName}" }
+    /**
+     * [WARNING]
+     * * THIS METHOD ACTUALLY THROWS `DomainException(ACCOUNT_NOT_FOUND)` IN CASE THE RESULT IS NULL
+     */
+    fun findActiveDisplayNameByAccountIdOrNull(accountId: UUID): String {
+        val account =
+            accountRepository.findByIdAndDeletedAtIsNull(accountId)
+                ?: throw DomainException(AccountErrorCode.ACCOUNT_NOT_FOUND)
+
+        return account.let { "${it.givenName} ${it.familyName}" }
+    }
 
     fun register(command: AccountCommand.Register): Register =
         try {
