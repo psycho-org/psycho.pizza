@@ -135,22 +135,34 @@ class ProjectService(
             val activeTaskIds = projectRepository.findActiveTaskIdsByProjectId(project.projectId, command.workspaceId)
             val assignments = assignmentsByTaskIds(activeTaskIds, command.workspaceId)
             val deletableTaskIds = deletableTaskIds(activeTaskIds, setOf(project.projectId), assignments)
+            val removedSprintIds =
+                sprintParticipationQuery.findActiveSprintIdsByProjectId(project.projectId, command.workspaceId.value)
+            val remainingProjectIds =
+                assignments
+                    .map(TaskAssignment::projectId)
+                    .filterNot { it == project.projectId }
+                    .toSet()
+            val sprintIdsByProjectId =
+                sprintParticipationQuery.findActiveSprintIdsByProjectIds(remainingProjectIds, command.workspaceId.value)
             val taskIdsMovingToBacklog =
                 taskIdsMovingToBacklog(
-                    projectId = project.projectId,
                     candidateTaskIds = activeTaskIds,
                     deletableTaskIds = deletableTaskIds,
                     assignments = assignments,
-                    workspaceId = command.workspaceId,
+                    removedProjectId = project.projectId,
+                    removedSprintIds = removedSprintIds,
+                    sprintIdsByProjectId = sprintIdsByProjectId,
                 )
             if (taskIdsMovingToBacklog.isNotEmpty()) {
                 taskPort.moveToBacklog(taskIdsMovingToBacklog, command.deletedBy, command.workspaceId)
             }
             publishTaskRemovedFromSprintEvents(
-                projectId = project.projectId,
                 taskIds = activeTaskIds,
                 assignments = assignments,
                 workspaceId = command.workspaceId,
+                removedProjectId = project.projectId,
+                removedSprintIds = removedSprintIds,
+                sprintIdsByProjectId = sprintIdsByProjectId,
                 actorId = command.deletedBy,
             )
             val deletedTaskCount =
@@ -289,40 +301,31 @@ class ProjectService(
     private fun Page<TaskSnapshot>.toResult(): Page<ProjectResult.Task> = map { it.toResult() }
 
     private fun publishTaskRemovedFromSprintEvents(
-        projectId: UUID,
         taskIds: Collection<UUID>,
         assignments: List<TaskAssignment>,
         workspaceId: WorkspaceId,
+        removedProjectId: UUID,
+        removedSprintIds: Collection<UUID>,
+        sprintIdsByProjectId: Map<UUID, Set<UUID>>,
         actorId: UUID,
     ) {
         if (taskIds.isEmpty()) {
             return
         }
 
-        val removedSprintIds = sprintParticipationQuery.findActiveSprintIdsByProjectId(projectId, workspaceId.value)
         if (removedSprintIds.isEmpty()) {
             return
         }
 
-        val remainingProjectIds =
-            assignments
-                .map(TaskAssignment::projectId)
-                .filterNot { it == projectId }
-                .toSet()
         val assignmentsByTaskId =
             assignments.groupBy(TaskAssignment::taskId) { it.projectId }
-        val sprintIdsByProjectId =
-            sprintParticipationQuery
-                .findActiveSprintIdsByProjectIds(remainingProjectIds, workspaceId.value)
-                .toMutableMap()
-                .also { it[projectId] = removedSprintIds.toSet() }
 
         taskIds.distinct().forEach { taskId ->
             val remainingSprintIds =
                 assignmentsByTaskId[taskId]
                     .orEmpty()
                     .asSequence()
-                    .filterNot { it == projectId }
+                    .filterNot { it == removedProjectId }
                     .flatMap { assignedProjectId ->
                         sprintIdsByProjectId[assignedProjectId].orEmpty().asSequence()
                     }.toSet()
@@ -367,17 +370,17 @@ class ProjectService(
     }
 
     private fun taskIdsMovingToBacklog(
-        projectId: UUID,
         candidateTaskIds: Collection<UUID>,
         deletableTaskIds: Collection<UUID>,
         assignments: List<TaskAssignment>,
-        workspaceId: WorkspaceId,
+        removedProjectId: UUID,
+        removedSprintIds: Collection<UUID>,
+        sprintIdsByProjectId: Map<UUID, Set<UUID>>,
     ): Set<UUID> {
         if (candidateTaskIds.isEmpty()) {
             return emptySet()
         }
 
-        val removedSprintIds = sprintParticipationQuery.findActiveSprintIdsByProjectId(projectId, workspaceId.value)
         if (removedSprintIds.isEmpty()) {
             return emptySet()
         }
@@ -387,19 +390,13 @@ class ProjectService(
             return emptySet()
         }
 
-        val remainingProjectIds =
-            assignments
-                .map(TaskAssignment::projectId)
-                .filterNot { it == projectId }
-                .toSet()
         val assignmentsByTaskId = assignments.groupBy(TaskAssignment::taskId) { it.projectId }
-        val sprintIdsByProjectId = sprintParticipationQuery.findActiveSprintIdsByProjectIds(remainingProjectIds, workspaceId.value)
 
         return survivingTaskIds.filterTo(mutableSetOf()) { taskId ->
             assignmentsByTaskId[taskId]
                 .orEmpty()
                 .asSequence()
-                .filterNot { it == projectId }
+                .filterNot { it == removedProjectId }
                 .flatMap { assignedProjectId -> sprintIdsByProjectId[assignedProjectId].orEmpty().asSequence() }
                 .none()
         }
