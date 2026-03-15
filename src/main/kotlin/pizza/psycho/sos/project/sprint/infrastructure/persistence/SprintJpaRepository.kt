@@ -38,9 +38,12 @@ interface SprintJpaRepository :
                 on p.id = sp.projectId
             join pizza.psycho.sos.project.project.domain.model.entity.ProjectTaskMapping ptm
                 on ptm.project = p
+            join pizza.psycho.sos.project.task.domain.model.entity.Task t
+                on t.id = ptm.taskId
         where s.workspaceId = :workspaceId
           and s.deletedAt is null
           and p.deletedAt is null
+          and t.deletedAt is null
           and ptm.taskId = :taskId
         """,
     )
@@ -58,9 +61,12 @@ interface SprintJpaRepository :
                 on p.id = sp.projectId
             join pizza.psycho.sos.project.project.domain.model.entity.ProjectTaskMapping ptm
                 on ptm.project = p
+            join pizza.psycho.sos.project.task.domain.model.entity.Task t
+                on t.id = ptm.taskId
         where s.workspaceId = :workspaceId
           and s.deletedAt is null
           and p.deletedAt is null
+          and t.deletedAt is null
           and ptm.taskId = :taskId
         """,
     )
@@ -68,6 +74,20 @@ interface SprintJpaRepository :
         taskId: UUID,
         workspaceId: WorkspaceId,
     ): List<UUID>
+
+    override fun findActiveSprintIdsByTaskIds(
+        taskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): Map<UUID, Set<UUID>> =
+        if (taskIds.isEmpty()) {
+            emptyMap()
+        } else {
+            findTaskSprintRows(taskIds, workspaceId)
+                .groupBy(
+                    keySelector = { row: TaskSprintRow -> row.getTaskId() },
+                    valueTransform = { row: TaskSprintRow -> row.getSprintId() },
+                ).mapValues { entry -> entry.value.toSet() }
+        }
 
     @Query(
         """
@@ -105,6 +125,20 @@ interface SprintJpaRepository :
         workspaceId: WorkspaceId,
     ): List<UUID>
 
+    override fun findActiveSprintIdsByProjectIds(
+        projectIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): Map<UUID, Set<UUID>> =
+        if (projectIds.isEmpty()) {
+            emptyMap()
+        } else {
+            findProjectSprintRows(projectIds, workspaceId)
+                .groupBy(
+                    keySelector = { row: ProjectSprintRow -> row.getProjectId() },
+                    valueTransform = { row: ProjectSprintRow -> row.getSprintId() },
+                ).mapValues { entry -> entry.value.toSet() }
+        }
+
     @Query(
         """
         select case when count(s) > 0 then true else false end
@@ -114,9 +148,12 @@ interface SprintJpaRepository :
                 on p.id = sp.projectId
             join pizza.psycho.sos.project.project.domain.model.entity.ProjectTaskMapping ptm
                 on ptm.project = p
+            join pizza.psycho.sos.project.task.domain.model.entity.Task t
+                on t.id = ptm.taskId
         where s.workspaceId = :workspaceId
           and s.deletedAt is null
           and p.deletedAt is null
+          and t.deletedAt is null
           and s.id = :sprintId
           and ptm.taskId = :taskId
         """,
@@ -145,6 +182,16 @@ interface SprintJpaRepository :
         workspaceId: WorkspaceId,
     ): List<Sprint>
 
+    override fun findActiveSprintsByProjectIds(
+        projectIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<Sprint> =
+        if (projectIds.isEmpty()) {
+            emptyList()
+        } else {
+            findDistinctActiveSprintsByProjectIds(projectIds, workspaceId)
+        }
+
     @Query(
         """
         select s
@@ -167,6 +214,65 @@ interface SprintJpaRepository :
         pageable: Pageable,
     ): Page<Sprint> = findAllByWorkspaceIdValueAndDeletedAtIsNull(workspaceId.value, pageable)
 
+    @Query(
+        """
+        select sp.projectId as projectId, s.id as sprintId
+        from Sprint s
+            join SprintProjectMapping sp on sp.sprint = s
+            join pizza.psycho.sos.project.project.domain.model.entity.Project p
+                on p.id = sp.projectId
+        where s.workspaceId = :workspaceId
+          and s.deletedAt is null
+          and p.deletedAt is null
+          and p.id in :projectIds
+        """,
+    )
+    fun findProjectSprintRows(
+        projectIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<ProjectSprintRow>
+
+    @Query(
+        """
+        select ptm.taskId as taskId, s.id as sprintId
+        from Sprint s
+            join SprintProjectMapping sp on sp.sprint = s
+            join pizza.psycho.sos.project.project.domain.model.entity.Project p
+                on p.id = sp.projectId
+            join pizza.psycho.sos.project.project.domain.model.entity.ProjectTaskMapping ptm
+                on ptm.project = p
+            join pizza.psycho.sos.project.task.domain.model.entity.Task t
+                on t.id = ptm.taskId
+        where s.workspaceId = :workspaceId
+          and s.deletedAt is null
+          and p.deletedAt is null
+          and t.deletedAt is null
+          and ptm.taskId in :taskIds
+        """,
+    )
+    fun findTaskSprintRows(
+        taskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<TaskSprintRow>
+
+    @Query(
+        """
+        select distinct s
+        from Sprint s
+            join SprintProjectMapping sp on sp.sprint = s
+            join pizza.psycho.sos.project.project.domain.model.entity.Project p
+                on p.id = sp.projectId
+        where s.workspaceId = :workspaceId
+          and s.deletedAt is null
+          and p.deletedAt is null
+          and p.id in :projectIds
+        """,
+    )
+    fun findDistinctActiveSprintsByProjectIds(
+        projectIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<Sprint>
+
     fun findByIdAndWorkspaceIdValueAndDeletedAtIsNull(
         id: UUID,
         workspaceId: UUID,
@@ -176,4 +282,16 @@ interface SprintJpaRepository :
         workspaceId: UUID,
         pageable: Pageable,
     ): Page<Sprint>
+}
+
+interface ProjectSprintRow {
+    fun getProjectId(): UUID
+
+    fun getSprintId(): UUID
+}
+
+interface TaskSprintRow {
+    fun getTaskId(): UUID
+
+    fun getSprintId(): UUID
 }

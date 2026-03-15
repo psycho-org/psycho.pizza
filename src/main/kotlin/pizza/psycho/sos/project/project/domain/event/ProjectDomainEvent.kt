@@ -22,11 +22,31 @@ data class TaskAddedToProjectEvent(
     override val occurredAt: Instant = Instant.now(),
 ) : ProjectDomainEvent
 
+// 프로젝트에 여러 Task 추가
+data class TasksAddedToProjectEvent(
+    override val workspaceId: UUID,
+    override val actorId: UUID?,
+    val taskIds: List<UUID>,
+    val projectId: UUID,
+    override val eventId: UUID,
+    override val occurredAt: Instant = Instant.now(),
+) : ProjectDomainEvent
+
 // 프로젝트에서 Task 제거
 data class TaskRemovedFromProjectEvent(
     override val workspaceId: UUID,
     override val actorId: UUID?,
     val taskId: UUID,
+    val projectId: UUID,
+    override val eventId: UUID,
+    override val occurredAt: Instant = Instant.now(),
+) : ProjectDomainEvent
+
+// 프로젝트에서 여러 Task 제거
+data class TasksRemovedFromProjectEvent(
+    override val workspaceId: UUID,
+    override val actorId: UUID?,
+    val taskIds: List<UUID>,
     val projectId: UUID,
     override val eventId: UUID,
     override val occurredAt: Instant = Instant.now(),

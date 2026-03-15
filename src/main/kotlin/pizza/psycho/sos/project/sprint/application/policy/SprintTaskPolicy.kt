@@ -6,6 +6,7 @@ import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
+import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.sprint.domain.exception.SprintErrorCode
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
@@ -43,13 +44,15 @@ class SprintTaskPolicy(
         workspaceId: WorkspaceId,
     ) {
         val changedDueDate = (dueDate as? Patch.Value)?.value ?: return
-        val assignments = projectRepository.findActiveProjectIdsByTaskIds(listOf(taskId), workspaceId)
-        assignments
-            .map { it.projectId }
-            .distinct()
-            .forEach { projectId ->
-                validateTaskDueDateForProject(projectId, changedDueDate, workspaceId)
-            }
+        val projectIds =
+            projectRepository
+                .findActiveProjectIdsByTaskIds(listOf(taskId), workspaceId)
+                .map { assignment: TaskAssignment -> assignment.projectId }
+                .distinct()
+        validateTaskDueDateWithinSprints(
+            sprintRepository.findActiveSprintsByProjectIds(projectIds, workspaceId),
+            changedDueDate,
+        )
     }
 
     fun validateTasksWithinSprintPeriod(
@@ -87,6 +90,34 @@ class SprintTaskPolicy(
             .flatMap { it.taskIds }
             .filterNot(remainingTaskIds::contains)
             .toSet()
+    }
+
+    fun tasksMovingToBacklog(
+        candidateTaskIds: Collection<UUID>,
+        deletableTaskIds: Collection<UUID>,
+        assignments: List<TaskAssignment>,
+        removedProjectIds: Set<UUID>,
+        sprintIdsByProjectId: Map<UUID, Set<UUID>>,
+    ): Set<UUID> {
+        if (candidateTaskIds.isEmpty()) {
+            return emptySet()
+        }
+
+        val survivingTaskIds = candidateTaskIds.toSet() - deletableTaskIds.toSet()
+        if (survivingTaskIds.isEmpty()) {
+            return emptySet()
+        }
+
+        val assignmentsByTaskId = assignments.groupBy(TaskAssignment::taskId) { it.projectId }
+
+        return survivingTaskIds.filterTo(mutableSetOf()) { taskId ->
+            assignmentsByTaskId[taskId]
+                .orEmpty()
+                .asSequence()
+                .filterNot(removedProjectIds::contains)
+                .flatMap { projectId -> sprintIdsByProjectId[projectId].orEmpty().asSequence() }
+                .none()
+        }
     }
 
     private fun activeSprintsForProject(

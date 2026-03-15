@@ -153,8 +153,21 @@ class Task protected constructor(
         ).register()
     }
 
-    fun clearDueDate() {
+    fun clearDueDate(by: UUID? = null) {
+        val old = this.dueDate
+        if (old.value == null) {
+            return
+        }
         this.dueDate = TaskDueDate()
+
+        TaskDueDateChangedEvent(
+            workspaceId = this.workspaceId.value,
+            actorId = by,
+            taskId = this.taskId,
+            fromDueDate = old.value,
+            toDueDate = null,
+            eventId = UUID.randomUUID(),
+        ).register()
     }
 
     fun apply(spec: TaskUpdateSpec) {
@@ -196,7 +209,7 @@ class Task protected constructor(
             Patch.Unchanged -> Unit
         }
 
-        // 4) 마감일 (set 시 이벤트, clear 는 현재 도메인 정책상 이벤트 없음)
+        // 4) 마감일 (set / clear 모두 변경 이벤트를 발행)
         val currentDueDate = dueDate.value
         when (spec.dueDate) {
             is Patch.Value -> {
@@ -208,7 +221,7 @@ class Task protected constructor(
 
             Patch.Clear -> {
                 if (currentDueDate != null) {
-                    clearDueDate()
+                    clearDueDate(spec.actorId)
                 }
             }
 

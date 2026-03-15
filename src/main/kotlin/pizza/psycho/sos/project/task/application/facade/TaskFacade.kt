@@ -3,6 +3,7 @@ package pizza.psycho.sos.project.task.application.facade
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.task.application.port.out.dto.SprintTaskMembershipSnapshot
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 import java.time.Instant
 import java.util.UUID
@@ -41,7 +42,14 @@ interface TaskFacade {
 
     fun moveToBacklog(
         ids: Collection<UUID>,
-        actorId: UUID,
+        actorId: UUID?,
         workspaceId: WorkspaceId,
+    )
+
+    fun moveSprintTasksToBacklog(
+        ids: Collection<UUID>,
+        actorId: UUID?,
+        workspaceId: WorkspaceId,
+        membershipSnapshot: SprintTaskMembershipSnapshot,
     )
 }

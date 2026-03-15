@@ -18,6 +18,7 @@ import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
+import pizza.psycho.sos.project.task.application.port.out.dto.SprintTaskMembershipSnapshot
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 import java.util.UUID
 
@@ -132,13 +133,44 @@ class SprintService(
 
             val projectIds = sprint.projectIds()
             val projectSnapshots = loadProjectSnapshots(projectIds, command.workspaceId)
+            val candidateTaskIds = projectSnapshots.flatMap(ProjectSnapshot::taskIds).distinct()
+            val removedProjectIds = projectSnapshots.mapTo(mutableSetOf()) { it.projectId }
+            val assignments = projectPort.findActiveProjectIdsByTaskIds(candidateTaskIds, command.workspaceId)
+            val deletableTaskIds = deletableTaskIds(candidateTaskIds, removedProjectIds, assignments)
+            val remainingProjectIds =
+                assignments
+                    .map(TaskAssignment::projectId)
+                    .filterNot(removedProjectIds::contains)
+                    .toSet()
+            val sprintIdsByProjectId = sprintRepository.findActiveSprintIdsByProjectIds(remainingProjectIds, command.workspaceId)
+            val taskIdsMovingToBacklog =
+                sprintTaskPolicy.tasksMovingToBacklog(
+                    candidateTaskIds = candidateTaskIds,
+                    deletableTaskIds = deletableTaskIds,
+                    assignments = assignments,
+                    removedProjectIds = removedProjectIds,
+                    sprintIdsByProjectId = sprintIdsByProjectId,
+                )
+            if (taskIdsMovingToBacklog.isNotEmpty()) {
+                taskPort.moveSprintTasksToBacklog(
+                    taskIdsMovingToBacklog,
+                    command.deletedBy,
+                    command.workspaceId,
+                    SprintTaskMembershipSnapshot.of(taskIdsMovingToBacklog),
+                )
+            }
             publishTaskRemovedFromSprintEvents(
                 sprintId = command.sprintId,
-                taskIds = projectSnapshots.flatMap(ProjectSnapshot::taskIds),
+                taskIds = candidateTaskIds,
                 workspaceId = command.workspaceId,
                 actorId = command.deletedBy,
             )
-            val deletedTaskCount = deleteTasks(projectSnapshots, command.deletedBy, command.workspaceId)
+            val deletedTaskCount =
+                deleteTasks(
+                    deletableTaskIds,
+                    command.deletedBy,
+                    command.workspaceId,
+                )
             val deletedProjectCount = deleteProjects(projectIds, command.deletedBy, command.workspaceId)
             val deletedSprintCount = deleteSprint(command.sprintId, command.deletedBy, command.workspaceId)
 
@@ -247,7 +279,12 @@ class SprintService(
             val taskIdsMovingToBacklog = sprintTaskPolicy.tasksMovingToBacklog(removedProjects, remainingProjects)
 
             if (taskIdsMovingToBacklog.isNotEmpty()) {
-                taskPort.moveToBacklog(taskIdsMovingToBacklog, by, workspaceId)
+                taskPort.moveSprintTasksToBacklog(
+                    taskIdsMovingToBacklog,
+                    by,
+                    workspaceId,
+                    SprintTaskMembershipSnapshot.of(taskIdsMovingToBacklog),
+                )
             } else {
                 log.debug(
                     "update: no tasks move to backlog when removing projects. sprintId={}, removeProjectIds={}",
@@ -316,19 +353,15 @@ class SprintService(
         }
 
     private fun deleteTasks(
-        projectSnapshots: List<ProjectSnapshot>,
+        deletableTaskIds: Collection<UUID>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
-    ): Int {
-        val removedProjectIds = projectSnapshots.mapTo(mutableSetOf()) { it.projectId }
-        val taskIds = projectSnapshots.flatMap { it.taskIds }.distinct()
-        val deletableTaskIds = deletableTaskIds(taskIds, removedProjectIds, workspaceId)
-        return if (deletableTaskIds.isEmpty()) {
+    ): Int =
+        if (deletableTaskIds.isEmpty()) {
             0
         } else {
             taskPort.deleteByIdIn(deletableTaskIds, deletedBy, workspaceId)
         }
-    }
 
     private fun publishTaskRemovedFromSprintEvents(
         sprintId: UUID,
@@ -354,16 +387,13 @@ class SprintService(
     private fun deletableTaskIds(
         candidateTaskIds: Collection<UUID>,
         removedProjectIds: Set<UUID>,
-        workspaceId: WorkspaceId,
+        assignments: List<TaskAssignment>,
     ): List<UUID> {
         if (candidateTaskIds.isEmpty()) {
             return emptyList()
         }
 
-        val assignmentsByTaskId =
-            projectPort
-                .findActiveProjectIdsByTaskIds(candidateTaskIds, workspaceId)
-                .groupBy(TaskAssignment::taskId) { it.projectId }
+        val assignmentsByTaskId = assignments.groupBy(TaskAssignment::taskId) { it.projectId }
 
         return candidateTaskIds.filter { taskId ->
             assignmentsByTaskId[taskId].orEmpty().all(removedProjectIds::contains)

@@ -19,6 +19,7 @@ import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
+import pizza.psycho.sos.project.task.application.event.handler.TaskEventSprintMembershipRegistry
 import pizza.psycho.sos.project.task.application.port.out.TaskSprintParticipationQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
 import pizza.psycho.sos.project.task.application.service.dto.TaskQuery
@@ -35,11 +36,15 @@ class TaskServiceTests {
     private val sprintTaskPolicy = mockk<SprintTaskPolicy>(relaxed = true)
     private val taskSprintParticipationQuery = mockk<TaskSprintParticipationQuery>()
     private val sprintTaskPeriodPolicy = mockk<SprintTaskPeriodPolicy>()
+    private val sprintParticipationQuery = mockk<TaskSprintParticipationQuery>(relaxed = true)
+    private val sprintMembershipRegistry = mockk<TaskEventSprintMembershipRegistry>(relaxed = true)
     private val taskService =
         TaskService(
             taskRepository,
             domainEventPublisher,
             sprintTaskPolicy,
+            sprintParticipationQuery,
+            sprintMembershipRegistry,
             taskSprintParticipationQuery,
             sprintTaskPeriodPolicy,
         )

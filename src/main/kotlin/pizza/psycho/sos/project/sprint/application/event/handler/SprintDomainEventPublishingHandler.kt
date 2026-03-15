@@ -1,7 +1,8 @@
 package pizza.psycho.sos.project.sprint.application.event.handler
 
-import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
+import org.springframework.transaction.event.TransactionPhase
+import org.springframework.transaction.event.TransactionalEventListener
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.project.sprint.domain.event.SprintDomainEvent
@@ -20,7 +21,7 @@ class SprintDomainEventPublishingHandler(
 ) {
     private val log by loggerDelegate()
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handle(event: SprintDomainEvent) {
         when (event) {
             is SprintGoalChangedEvent ->

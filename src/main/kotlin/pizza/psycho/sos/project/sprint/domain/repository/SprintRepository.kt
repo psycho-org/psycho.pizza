@@ -28,6 +28,11 @@ interface SprintRepository {
         workspaceId: WorkspaceId,
     ): List<UUID>
 
+    fun findActiveSprintIdsByTaskIds(
+        taskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): Map<UUID, Set<UUID>>
+
     /**
      * 주어진 Project가 어느 활성 스프린트에도 속해 있는지 여부를 확인한다.
      */
@@ -44,11 +49,21 @@ interface SprintRepository {
         workspaceId: WorkspaceId,
     ): List<UUID>
 
+    fun findActiveSprintIdsByProjectIds(
+        projectIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): Map<UUID, Set<UUID>>
+
     /**
      * 주어진 Project가 속한 활성 스프린트 목록을 조회한다.
      */
     fun findActiveSprintsByProjectId(
         projectId: UUID,
+        workspaceId: WorkspaceId,
+    ): List<Sprint>
+
+    fun findActiveSprintsByProjectIds(
+        projectIds: Collection<UUID>,
         workspaceId: WorkspaceId,
     ): List<Sprint>
 

@@ -20,6 +20,14 @@ class TaskSprintParticipationQueryImpl(
             workspaceId = WorkspaceId(workspaceId),
         )
 
+    override fun findTaskIdsInActiveSprints(
+        taskIds: Collection<UUID>,
+        workspaceId: UUID,
+    ): Set<UUID> =
+        sprintRepository
+            .findActiveSprintIdsByTaskIds(taskIds, WorkspaceId(workspaceId))
+            .keys
+
     override fun findActiveSprintPeriodsByTaskId(
         taskId: UUID,
         workspaceId: UUID,

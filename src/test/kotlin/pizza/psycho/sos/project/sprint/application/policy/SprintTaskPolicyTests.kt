@@ -48,7 +48,7 @@ class SprintTaskPolicyTests {
         val sprint = Sprint.create("Sprint", workspaceId, "Goal", startDate, endDate).withId(sprintId)
         every { projectRepository.findActiveProjectIdsByTaskIds(listOf(taskId), workspaceId) } returns
             listOf(TaskAssignment(taskId, projectId))
-        every { sprintRepository.findActiveSprintsByProjectId(projectId, workspaceId) } returns listOf(sprint)
+        every { sprintRepository.findActiveSprintsByProjectIds(listOf(projectId), workspaceId) } returns listOf(sprint)
 
         assertThrows(DomainException::class.java) {
             policy.validateTaskDueDateChange(

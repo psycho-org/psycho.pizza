@@ -3,6 +3,8 @@ package pizza.psycho.sos.project.sprint.application.event.handler
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Test
+import org.springframework.transaction.event.TransactionPhase
+import org.springframework.transaction.event.TransactionalEventListener
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.project.sprint.domain.event.SprintGoalChangedEvent
 import pizza.psycho.sos.project.sprint.domain.event.SprintPeriodChangedEvent
@@ -17,6 +19,20 @@ import pizza.psycho.sos.audit.application.listener.event.TaskRemovedFromSprintEv
 class SprintDomainEventPublishingHandlerTests {
     private val eventPublisher = mockk<DomainEventPublisher>(relaxed = true)
     private val handler = SprintDomainEventPublishingHandler(eventPublisher)
+
+    @Test
+    fun `sprint domain events are handled after commit`() {
+        val method =
+            SprintDomainEventPublishingHandler::class.java.getDeclaredMethod(
+                "handle",
+                pizza.psycho.sos.project.sprint.domain.event.SprintDomainEvent::class.java,
+            )
+
+        val annotation = method.getAnnotation(TransactionalEventListener::class.java)
+
+        kotlin.test.assertNotNull(annotation)
+        kotlin.test.assertEquals(TransactionPhase.AFTER_COMMIT, annotation.phase)
+    }
 
     @Test
     fun `sprint goal changed event is republished as audit event`() {
