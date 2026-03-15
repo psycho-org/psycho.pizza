@@ -26,6 +26,7 @@ class AccountService(
     private val refreshTokenService: RefreshTokenService,
     private val challengeService: ChallengeService,
     private val workspaceOwnershipQueryService: WorkspaceOwnershipQueryService,
+    private val workspaceMembershipCleanupPort: WorkspaceMembershipCleanupPort,
 ) {
     fun findActiveAccountIdByEmailOrNull(email: String): UUID? =
         accountRepository
@@ -106,6 +107,10 @@ class AccountService(
             return Withdraw.Failure.OwnerWorkspaceExists
         }
 
+        workspaceMembershipCleanupPort.softDeleteActiveMembershipsByAccountId(
+            accountId = command.accountId,
+            deletedBy = command.accountId,
+        )
         account.delete(command.accountId)
         accountRepository.save(account)
         refreshTokenService.revokeAllByAccountId(command.accountId)
