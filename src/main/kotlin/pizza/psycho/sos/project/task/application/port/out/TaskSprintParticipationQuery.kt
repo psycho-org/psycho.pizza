@@ -15,6 +15,11 @@ interface TaskSprintParticipationQuery {
         workspaceId: UUID,
     ): Boolean
 
+    fun findTaskIdsInActiveSprints(
+        taskIds: Collection<UUID>,
+        workspaceId: UUID,
+    ): Set<UUID>
+
     fun findActiveSprintPeriodsByTaskId(
         taskId: UUID,
         workspaceId: UUID,

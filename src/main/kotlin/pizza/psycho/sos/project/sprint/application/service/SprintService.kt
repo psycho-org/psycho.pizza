@@ -1,19 +1,25 @@
 package pizza.psycho.sos.project.sprint.application.service
 
 import org.springframework.stereotype.Service
+import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectPort
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
+import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
+import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintResult
+import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
+import pizza.psycho.sos.project.task.application.port.out.dto.SprintTaskMembershipSnapshot
+import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 import java.util.UUID
 
 @Service
@@ -21,6 +27,8 @@ class SprintService(
     private val sprintRepository: SprintRepository,
     private val projectPort: ProjectPort,
     private val taskPort: TaskPort,
+    private val domainEventPublisher: DomainEventPublisher,
+    private val sprintTaskPolicy: SprintTaskPolicy,
 ) {
     private val log by loggerDelegate()
 
@@ -47,6 +55,15 @@ class SprintService(
             sprint
                 .toResult()
                 .also { log.info("getSprint success: sprintId=${command.sprintId}") }
+        }
+
+    fun getSprints(command: SprintQuery.FindAll): SprintResult =
+        Tx.readable {
+            log.debug("getSprints: workspaceId={}, pageable={}", command.workspaceId, command.pageable)
+            val page = sprintRepository.findActiveSprints(command.workspaceId, command.pageable)
+            SprintResult
+                .SprintPage(page.map { it.toResult() })
+                .also { log.info("getSprints success: workspaceId={}", command.workspaceId) }
         }
 
     fun getProjectsInSprint(command: SprintQuery.FindProjectsInSprint): SprintResult =
@@ -110,47 +127,63 @@ class SprintService(
             val sprint =
                 findActiveSprint(command.sprintId, command.workspaceId)
                     ?: run {
-                        log.warn("remove: sprint not found. sprintId=${command.sprintId}")
-                        return@writable SprintResult.Failure.IdNotFound
-                    }
-
-            val projectIds = sprint.projectIds()
-            val deletedProjectCount = deleteProjects(projectIds, command.deletedBy, command.workspaceId)
-            val deletedSprintCount = deleteSprint(command.sprintId, command.deletedBy, command.workspaceId)
-
-            log.info(
-                "remove success: sprintId={}, deletedProjects={}, deletedSprint={}",
-                command.sprintId,
-                deletedProjectCount,
-                deletedSprintCount,
-            )
-
-            SprintResult.Remove(deletedSprintCount)
-        }
-
-    fun removeWithTasks(command: SprintCommand.RemoveWithTasks): SprintResult =
-        Tx.writable {
-            val sprint =
-                findActiveSprint(command.sprintId, command.workspaceId)
-                    ?: run {
-                        log.warn("removeWithTasks: sprint not found. sprintId=${command.sprintId}")
+                        log.warn("remove: sprint not found. sprintId={}", command.sprintId)
                         return@writable SprintResult.Failure.IdNotFound
                     }
 
             val projectIds = sprint.projectIds()
             val projectSnapshots = loadProjectSnapshots(projectIds, command.workspaceId)
-            val deletedTaskCount = deleteTasks(projectSnapshots, command.deletedBy, command.workspaceId)
+            val candidateTaskIds = projectSnapshots.flatMap(ProjectSnapshot::taskIds).distinct()
+            val removedProjectIds = projectSnapshots.mapTo(mutableSetOf()) { it.projectId }
+            val assignments = projectPort.findActiveProjectIdsByTaskIds(candidateTaskIds, command.workspaceId)
+            val deletableTaskIds = deletableTaskIds(candidateTaskIds, removedProjectIds, assignments)
+            val remainingProjectIds =
+                assignments
+                    .map(TaskAssignment::projectId)
+                    .filterNot(removedProjectIds::contains)
+                    .toSet()
+            val sprintIdsByProjectId = sprintRepository.findActiveSprintIdsByProjectIds(remainingProjectIds, command.workspaceId)
+            val taskIdsMovingToBacklog =
+                sprintTaskPolicy.tasksMovingToBacklog(
+                    candidateTaskIds = candidateTaskIds,
+                    deletableTaskIds = deletableTaskIds,
+                    assignments = assignments,
+                    removedProjectIds = removedProjectIds,
+                    sprintIdsByProjectId = sprintIdsByProjectId,
+                )
+            if (taskIdsMovingToBacklog.isNotEmpty()) {
+                taskPort.moveSprintTasksToBacklog(
+                    taskIdsMovingToBacklog,
+                    command.deletedBy,
+                    command.workspaceId,
+                    SprintTaskMembershipSnapshot.of(taskIdsMovingToBacklog),
+                )
+            }
+            publishTaskRemovedFromSprintEvents(
+                sprintId = command.sprintId,
+                taskIds = candidateTaskIds,
+                workspaceId = command.workspaceId,
+                actorId = command.deletedBy,
+            )
+            val deletedTaskCount =
+                deleteTasks(
+                    deletableTaskIds,
+                    command.deletedBy,
+                    command.workspaceId,
+                )
             val deletedProjectCount = deleteProjects(projectIds, command.deletedBy, command.workspaceId)
             val deletedSprintCount = deleteSprint(command.sprintId, command.deletedBy, command.workspaceId)
 
             log.info(
-                "removeWithTasks success: sprintId={}, projects={}, tasks={}",
+                "remove success: sprintId={}, projects={}, tasks={}",
                 command.sprintId,
                 deletedProjectCount,
                 deletedTaskCount,
             )
 
-            SprintResult.RemoveWithTasks(
+            domainEventPublisher.publishAndClear(sprint)
+
+            SprintResult.Remove(
                 sprintCount = deletedSprintCount,
                 projectCount = deletedProjectCount,
                 taskCount = deletedTaskCount,
@@ -168,11 +201,17 @@ class SprintService(
             applyUpdates(sprint, command)
 
             log.info("update success: sprintId=${command.sprintId}")
+            domainEventPublisher.publishAndClear(sprint)
             SprintResult.Success
         }
 
     private fun validateProjectIds(command: SprintCommand.Update): SprintResult.Failure? =
         with(command) {
+            if (addProjectIds.size != addProjectIds.distinct().size) {
+                log.warn("update: addProjectIds contain duplicates. addProjectIds={}", addProjectIds)
+                return@with SprintResult.Failure.InvalidRequest
+            }
+
             val overlap = addProjectIds.intersect(removeProjectIds.toSet())
             if (overlap.isNotEmpty()) {
                 log.warn("update: addProjectIds and removeProjectIds overlap. overlap={}", overlap)
@@ -213,6 +252,7 @@ class SprintService(
         sprint: Sprint,
         command: SprintCommand.Update,
     ) = with(command) {
+        val existingProjects = loadProjectSnapshots(sprint.projectIds(), workspaceId)
         name?.let { sprint.modify(it) }
         when (goal) {
             is Patch.Value -> sprint.changeGoal(goal.value, by)
@@ -224,37 +264,41 @@ class SprintService(
         }
 
         if (addProjectIds.isNotEmpty()) {
-            sprint.addProjects(addProjectIds)
+            val addedProjects = loadProjectSnapshots(addProjectIds, workspaceId)
+            val taskIdsEnteringSprint = sprintTaskPolicy.tasksEnteringSprint(existingProjects, addedProjects)
+            val tasksEnteringSprint = loadTaskSnapshots(taskIdsEnteringSprint, workspaceId)
+            sprintTaskPolicy.validateTasksWithinSprintPeriod(sprint, tasksEnteringSprint)
+            sprint.addProjects(addProjectIds, taskIdsEnteringSprint, by)
             log.info("update: projects added. sprintId=$sprintId, projectIds=$addProjectIds")
         }
 
         if (removeProjectIds.isNotEmpty()) {
-            // 스프린트에서 프로젝트를 분리할 때, 해당 프로젝트 내 Task 들의 상태를 TO DO로 리셋
-            val projectSnapshots = loadProjectSnapshots(removeProjectIds, workspaceId)
-            val removingTaskIds = projectSnapshots.flatMap { it.taskIds }
+            val removedProjects = existingProjects.filter { removeProjectIds.contains(it.projectId) }
+            val addedProjects =
+                if (addProjectIds.isEmpty()) {
+                    emptyList()
+                } else {
+                    loadProjectSnapshots(addProjectIds, workspaceId)
+                }
+            val remainingProjects = existingProjects.filterNot { removeProjectIds.contains(it.projectId) } + addedProjects
+            val taskIdsMovingToBacklog = sprintTaskPolicy.tasksMovingToBacklog(removedProjects, remainingProjects)
 
-            val remainingProjectIds = sprint.projectIds().filterNot { removeProjectIds.contains(it) }
-            val remainingTaskIds =
-                loadProjectSnapshots(remainingProjectIds, workspaceId)
-                    .flatMap { it.taskIds }
-                    .toSet()
-
-            val taskIdsToReset =
-                removingTaskIds
-                    .filterNot { remainingTaskIds.contains(it) }
-                    .distinct()
-
-            if (taskIdsToReset.isNotEmpty()) {
-                taskPort.resetStatusToTodo(taskIdsToReset, by, workspaceId, emitEvent = true)
+            if (taskIdsMovingToBacklog.isNotEmpty()) {
+                taskPort.moveSprintTasksToBacklog(
+                    taskIdsMovingToBacklog,
+                    by,
+                    workspaceId,
+                    SprintTaskMembershipSnapshot.of(taskIdsMovingToBacklog),
+                )
             } else {
                 log.debug(
-                    "update: no tasks need reset when removing projects. sprintId={}, removeProjectIds={}",
+                    "update: no tasks move to backlog when removing projects. sprintId={}, removeProjectIds={}",
                     sprint.sprintId,
                     removeProjectIds,
                 )
             }
 
-            sprint.removeProjects(removeProjectIds)
+            sprint.removeProjects(removeProjectIds, taskIdsMovingToBacklog, by)
             log.info("update: projects removed. sprintId=$sprintId, projectIds=$removeProjectIds")
         }
     }
@@ -292,6 +336,16 @@ class SprintService(
             projectPort.findByIdIn(projectIds, workspaceId)
         }
 
+    private fun loadTaskSnapshots(
+        taskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<TaskSnapshot> =
+        if (taskIds.isEmpty()) {
+            emptyList()
+        } else {
+            taskPort.findByIdIn(taskIds.toList(), workspaceId)
+        }
+
     private fun deleteProjects(
         projectIds: List<UUID>,
         deletedBy: UUID,
@@ -304,15 +358,50 @@ class SprintService(
         }
 
     private fun deleteTasks(
-        projectSnapshots: List<ProjectSnapshot>,
+        deletableTaskIds: Collection<UUID>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
-    ): Int {
-        val taskIds = projectSnapshots.flatMap { it.taskIds }.distinct()
-        return if (taskIds.isEmpty()) {
+    ): Int =
+        if (deletableTaskIds.isEmpty()) {
             0
         } else {
-            taskPort.deleteByIdIn(taskIds, deletedBy, workspaceId)
+            taskPort.deleteByIdIn(deletableTaskIds, deletedBy, workspaceId)
+        }
+
+    private fun publishTaskRemovedFromSprintEvents(
+        sprintId: UUID,
+        taskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+        actorId: UUID,
+    ) {
+        taskIds
+            .distinct()
+            .forEach { taskId ->
+                domainEventPublisher.publish(
+                    TaskRemovedFromSprintEvent(
+                        workspaceId = workspaceId.value,
+                        sprintId = sprintId,
+                        taskId = taskId,
+                        actorId = actorId,
+                        eventId = UUID.randomUUID(),
+                    ),
+                )
+            }
+    }
+
+    private fun deletableTaskIds(
+        candidateTaskIds: Collection<UUID>,
+        removedProjectIds: Set<UUID>,
+        assignments: List<TaskAssignment>,
+    ): List<UUID> {
+        if (candidateTaskIds.isEmpty()) {
+            return emptyList()
+        }
+
+        val assignmentsByTaskId = assignments.groupBy(TaskAssignment::taskId) { it.projectId }
+
+        return candidateTaskIds.filter { taskId ->
+            assignmentsByTaskId[taskId].orEmpty().all(removedProjectIds::contains)
         }
     }
 
@@ -322,7 +411,7 @@ class SprintService(
         workspaceId: WorkspaceId,
     ): Int = sprintRepository.deleteById(sprintId, deletedBy, workspaceId)
 
-    private fun Sprint.toResult(): SprintResult =
+    private fun Sprint.toResult(): SprintResult.SprintInfo =
         SprintResult.SprintInfo(
             workspaceId = workspaceId,
             sprintId = sprintId,

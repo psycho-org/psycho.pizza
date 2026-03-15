@@ -10,6 +10,8 @@ import pizza.psycho.sos.project.project.domain.event.ProjectDomainEvent
 import pizza.psycho.sos.project.project.domain.event.TaskAddedToProjectEvent
 import pizza.psycho.sos.project.project.domain.event.TaskProjectChangedEvent
 import pizza.psycho.sos.project.project.domain.event.TaskRemovedFromProjectEvent
+import pizza.psycho.sos.project.project.domain.event.TasksAddedToProjectEvent
+import pizza.psycho.sos.project.project.domain.event.TasksRemovedFromProjectEvent
 
 @Component
 class ProjectDomainEventPublishingHandler(
@@ -63,6 +65,8 @@ class ProjectDomainEventPublishingHandler(
             // Sprint 관련 처리에서 사용하지 않는 Project 이벤트들
             is TaskAddedToProjectEvent,
             is TaskRemovedFromProjectEvent,
+            is TasksAddedToProjectEvent,
+            is TasksRemovedFromProjectEvent,
             -> Unit
         }
     }

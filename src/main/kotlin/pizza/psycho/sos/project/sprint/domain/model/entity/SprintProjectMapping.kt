@@ -17,7 +17,7 @@ class SprintProjectMapping(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sprint_id")
     var sprint: Sprint,
-    @Column(name = "projectId", nullable = false)
+    @Column(name = "project_id", nullable = false)
     var projectId: UUID,
     @Embedded
     val workspaceId: WorkspaceId,

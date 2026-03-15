@@ -58,17 +58,18 @@ class ProjectController(
     fun createTaskInProject(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,
+        @RequestParam(name = "account") accountId: UUID,
         @Valid @RequestBody request: ProjectRequest.CreateTask,
     ): ApiResponse<*> =
         handleResult {
-            projectService.createTask(request.toCommand(workspaceId, projectId))
+            projectService.createTask(request.toCommand(workspaceId, projectId, accountId))
         }
 
     @GetMapping("/{projectId}/tasks")
     fun findTasksInProject(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,
-        @PageableDefault(size = 10) pageable: Pageable,
+        @PageableDefault(page = 0, size = 10) pageable: Pageable,
     ): ApiResponse<*> =
         handleResult {
             projectService.getTasksInProject(
@@ -107,10 +108,11 @@ class ProjectController(
     fun modifyProject(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,
+        @RequestParam(name = "account") accountId: UUID,
         @Valid @RequestBody request: ProjectRequest.Update,
     ): ApiResponse<*> =
         handleResult {
-            projectService.modify(request.toCommand(workspaceId, projectId))
+            projectService.modify(request.toCommand(workspaceId, projectId, accountId))
         }
 
     @DeleteMapping("/{projectId}")
@@ -123,22 +125,6 @@ class ProjectController(
             projectService.remove(ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, accountId))
         }
 
-    @DeleteMapping("/{projectId}/with-tasks")
-    fun removeProjectWithTasks(
-        @PathVariable workspaceId: UUID,
-        @PathVariable projectId: UUID,
-        @RequestParam(name = "account") accountId: UUID,
-    ): ApiResponse<*> =
-        handleResult {
-            projectService.removeWithTasks(
-                ProjectCommand.RemoveWithTasks(
-                    WorkspaceId(workspaceId),
-                    projectId,
-                    accountId,
-                ),
-            )
-        }
-
     // ------------------------------------------------------------------------------------------------
 
     private fun handleResult(function: () -> ProjectResult): ApiResponse<*> =
@@ -148,14 +134,8 @@ class ProjectController(
             is ProjectResult.TaskList -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
             is ProjectResult.Remove ->
                 responseOf(
-                    message = "데이터 삭제에 성공하였습니다.",
-                    data = ProjectResponse.Remove(result.count),
-                )
-
-            is ProjectResult.RemoveWithTasks ->
-                responseOf(
                     message = "프로젝트 및 하위 태스크 삭제에 성공하였습니다.",
-                    data = ProjectResponse.RemoveWithTasks(result.projectCount, result.taskCount),
+                    data = ProjectResponse.Remove(result.projectCount, result.taskCount),
                 )
 
             is ProjectResult.Success -> responseOf(message = "데이터 수정에 성공하였습니다.", data = null)
@@ -175,6 +155,7 @@ class ProjectController(
     private fun ProjectRequest.CreateTask.toCommand(
         workspaceId: UUID,
         projectId: UUID,
+        accountId: UUID,
     ) = ProjectCommand.CreateTask(
         workspaceId = WorkspaceId(workspaceId),
         projectId = projectId,
@@ -182,17 +163,20 @@ class ProjectController(
         description = description,
         assigneeId = assigneeId,
         dueDate = dueDate,
+        createdBy = accountId,
     )
 
     private fun ProjectRequest.Update.toCommand(
         workspaceId: UUID,
         projectId: UUID,
+        accountId: UUID,
     ) = ProjectCommand.Update(
         workspaceId = WorkspaceId(workspaceId),
         projectId = projectId,
         name = name,
         addTaskIds = addTaskIds,
         removeTaskIds = removeTaskIds,
+        updatedBy = accountId,
     )
 
     private fun ProjectResult.ProjectInfo.toResponse(): ProjectResponse.Information =

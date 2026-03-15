@@ -41,10 +41,6 @@ sealed interface ProjectResult {
     ) : ProjectResult
 
     data class Remove(
-        val count: Int,
-    ) : ProjectResult
-
-    data class RemoveWithTasks(
         val projectCount: Int,
         val taskCount: Int,
     ) : ProjectResult

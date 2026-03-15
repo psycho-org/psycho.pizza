@@ -23,13 +23,7 @@ sealed interface ProjectCommand {
         val workspaceId: WorkspaceId,
         val projectId: UUID,
         val deletedBy: UUID,
-    )
-
-    data class RemoveWithTasks(
-        val workspaceId: WorkspaceId,
-        val projectId: UUID,
-        val deletedBy: UUID,
-    )
+    ) : ProjectCommand
 
     data class CreateTask(
         val workspaceId: WorkspaceId,

@@ -10,9 +10,13 @@ import pizza.psycho.sos.project.project.domain.event.ProjectDomainEvent
 import pizza.psycho.sos.project.project.domain.event.TaskAddedToProjectEvent
 import pizza.psycho.sos.project.project.domain.event.TaskProjectChangedEvent
 import pizza.psycho.sos.project.project.domain.event.TaskRemovedFromProjectEvent
+import pizza.psycho.sos.project.project.domain.event.TasksAddedToProjectEvent
+import pizza.psycho.sos.project.project.domain.event.TasksRemovedFromProjectEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskAddedToSprintEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -30,117 +34,164 @@ class SprintTaskInProjectDomainEventHandler(
 ) {
     private val log by loggerDelegate()
     private val suppressedMoveKeys = ConcurrentHashMap.newKeySet<TaskSprintKey>()
+    private val emittedTaskAddedKeys = ConcurrentHashMap<TaskSprintKey, Instant>()
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handle(event: ProjectDomainEvent) {
         when (event) {
-            is TaskAddedToProjectEvent -> handleTaskAddedToProject(event)
-            is TaskRemovedFromProjectEvent -> handleTaskRemovedFromProject(event)
+            is TaskAddedToProjectEvent ->
+                handleTaskAddedToProject(
+                    workspaceId = event.workspaceId,
+                    projectId = event.projectId,
+                    taskIds = listOf(event.taskId),
+                    actorId = event.actorId,
+                )
+
+            is TasksAddedToProjectEvent ->
+                handleTaskAddedToProject(
+                    workspaceId = event.workspaceId,
+                    projectId = event.projectId,
+                    taskIds = event.taskIds,
+                    actorId = event.actorId,
+                )
+
+            is TaskRemovedFromProjectEvent ->
+                handleTaskRemovedFromProject(
+                    workspaceId = event.workspaceId,
+                    projectId = event.projectId,
+                    taskIds = listOf(event.taskId),
+                    actorId = event.actorId,
+                )
+
+            is TasksRemovedFromProjectEvent ->
+                handleTaskRemovedFromProject(
+                    workspaceId = event.workspaceId,
+                    projectId = event.projectId,
+                    taskIds = event.taskIds,
+                    actorId = event.actorId,
+                )
+
             is TaskProjectChangedEvent -> Unit
         }
     }
 
-    private fun handleTaskAddedToProject(event: TaskAddedToProjectEvent) {
-        val workspaceId = WorkspaceId(event.workspaceId)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    fun handle(event: TaskRemovedFromSprintEvent) {
+        val key = TaskSprintKey(event.workspaceId, event.sprintId, event.taskId)
+        suppressedMoveKeys.remove(key)
+        emittedTaskAddedKeys.remove(key)
+    }
 
-        val sprintIds = sprintRepository.findActiveSprintIdsByProjectId(event.projectId, workspaceId)
+    private fun handleTaskAddedToProject(
+        workspaceId: UUID,
+        projectId: UUID,
+        taskIds: Collection<UUID>,
+        actorId: UUID?,
+    ) {
+        pruneEmittedKeys()
+        val workspace = WorkspaceId(workspaceId)
+
+        val sprintIds = sprintRepository.findActiveSprintIdsByProjectId(projectId, workspace)
         if (sprintIds.isEmpty()) {
-            log.debug("Skip TaskAddedToSprintEvent: project not in any active sprint. event={}", event)
+            log.debug("Skip TaskAddedToSprintEvent: project not in any active sprint. projectId={}", projectId)
             return
         }
 
-        sprintIds.forEach { sprintId ->
-            val key = TaskSprintKey(event.workspaceId, sprintId, event.taskId)
-            if (suppressedMoveKeys.remove(key)) {
-                log.debug(
-                    "Skip TaskAddedToSprintEvent (move within sprint). taskId={}, sprintId={}, projectId={}",
-                    event.taskId,
-                    sprintId,
-                    event.projectId,
+        taskIds.distinct().forEach { taskId ->
+            sprintIds.forEach sprintLoop@{ sprintId ->
+                val key = TaskSprintKey(workspaceId, sprintId, taskId)
+                if (suppressedMoveKeys.remove(key)) {
+                    log.debug(
+                        "Skip TaskAddedToSprintEvent (move within sprint). taskId={}, sprintId={}, projectId={}",
+                        taskId,
+                        sprintId,
+                        projectId,
+                    )
+                    return@sprintLoop
+                }
+                val isNewEmission = markEmissionIfNew(key)
+                if (!isNewEmission) {
+                    log.debug(
+                        "Skip TaskAddedToSprintEvent (already emitted). taskId={}, sprintId={}, projectId={}",
+                        taskId,
+                        sprintId,
+                        projectId,
+                    )
+                    return@sprintLoop
+                }
+                eventPublisher.publish(
+                    TaskAddedToSprintEvent(
+                        workspaceId = workspaceId,
+                        sprintId = sprintId,
+                        taskId = taskId,
+                        actorId = actorId,
+                        eventId = UUID.randomUUID(),
+                    ),
                 )
-                return@forEach
             }
-            val alreadyInSprint =
-                sprintRepository.existsActiveSprintByTaskIdAndSprintId(
-                    taskId = event.taskId,
-                    sprintId = sprintId,
-                    workspaceId = workspaceId,
-                )
-            if (alreadyInSprint) {
-                log.debug(
-                    "Skip TaskAddedToSprintEvent (task already in sprint). taskId={}, sprintId={}, projectId={}",
-                    event.taskId,
-                    sprintId,
-                    event.projectId,
-                )
-                return@forEach
-            }
-            eventPublisher.publish(
-                TaskAddedToSprintEvent(
-                    workspaceId = event.workspaceId,
-                    sprintId = sprintId,
-                    taskId = event.taskId,
-                    actorId = event.actorId,
-                    eventId = UUID.randomUUID(),
-                ),
-            )
         }
 
         log.info(
-            "TaskAddedToSprintEvent published for taskId={}, projectId={}, sprintIds={}, workspaceId={}",
-            event.taskId,
-            event.projectId,
+            "TaskAddedToSprintEvent published for taskIds={}, projectId={}, sprintIds={}, workspaceId={}",
+            taskIds,
+            projectId,
             sprintIds,
-            event.workspaceId,
+            workspaceId,
         )
     }
 
-    private fun handleTaskRemovedFromProject(event: TaskRemovedFromProjectEvent) {
-        val workspaceId = WorkspaceId(event.workspaceId)
-        val sprintIds = sprintRepository.findActiveSprintIdsByProjectId(event.projectId, workspaceId)
+    private fun handleTaskRemovedFromProject(
+        workspaceId: UUID,
+        projectId: UUID,
+        taskIds: Collection<UUID>,
+        actorId: UUID?,
+    ) {
+        val workspace = WorkspaceId(workspaceId)
+        val sprintIds = sprintRepository.findActiveSprintIdsByProjectId(projectId, workspace)
 
         if (sprintIds.isEmpty()) {
-            log.debug("Skip TaskRemovedFromSprintEvent: project not in any active sprint. event={}", event)
+            taskIds.forEach { taskId -> clearEmittedTaskAddedKeys(workspaceId, taskId) }
+            log.debug("Skip TaskRemovedFromSprintEvent: project not in any active sprint. projectId={}", projectId)
             return
         }
 
-        sprintIds.forEach { sprintId ->
-            val key = TaskSprintKey(event.workspaceId, sprintId, event.taskId)
-            val stillInSprint =
-                sprintRepository.existsActiveSprintByTaskIdAndSprintId(
-                    taskId = event.taskId,
-                    sprintId = sprintId,
-                    workspaceId = workspaceId,
+        val remainingSprintIdsByTaskId = sprintRepository.findActiveSprintIdsByTaskIds(taskIds, workspace)
+
+        taskIds.distinct().forEach { taskId ->
+            val remainingSprintIds = remainingSprintIdsByTaskId[taskId].orEmpty()
+            sprintIds.forEach sprintLoop@{ sprintId ->
+                val key = TaskSprintKey(workspaceId, sprintId, taskId)
+                val stillInSprint = remainingSprintIds.contains(sprintId)
+                if (stillInSprint) {
+                    suppressedMoveKeys.add(key)
+                    log.debug(
+                        "Skip TaskRemovedFromSprintEvent (task still in sprint). taskId={}, sprintId={}, projectId={}",
+                        taskId,
+                        sprintId,
+                        projectId,
+                    )
+                    return@sprintLoop
+                } else {
+                    suppressedMoveKeys.remove(key)
+                }
+                eventPublisher.publish(
+                    TaskRemovedFromSprintEvent(
+                        workspaceId = workspaceId,
+                        sprintId = sprintId,
+                        taskId = taskId,
+                        actorId = actorId,
+                        eventId = UUID.randomUUID(),
+                    ),
                 )
-            if (stillInSprint) {
-                suppressedMoveKeys.add(key)
-                log.debug(
-                    "Skip TaskRemovedFromSprintEvent (task still in sprint). taskId={}, sprintId={}, projectId={}",
-                    event.taskId,
-                    sprintId,
-                    event.projectId,
-                )
-                return@forEach
-            } else {
-                suppressedMoveKeys.remove(key)
             }
-            eventPublisher.publish(
-                TaskRemovedFromSprintEvent(
-                    workspaceId = event.workspaceId,
-                    sprintId = sprintId,
-                    taskId = event.taskId,
-                    actorId = event.actorId,
-                    eventId = UUID.randomUUID(),
-                ),
-            )
         }
 
         log.info(
-            "TaskRemovedFromSprintEvent published for taskId={}, projectId={}, sprintIds={}, workspaceId={}",
-            event.taskId,
-            event.projectId,
+            "TaskRemovedFromSprintEvent published for taskIds={}, projectId={}, sprintIds={}, workspaceId={}",
+            taskIds,
+            projectId,
             sprintIds,
-            event.workspaceId,
+            workspaceId,
         )
     }
 
@@ -149,4 +200,43 @@ class SprintTaskInProjectDomainEventHandler(
         val sprintId: UUID,
         val taskId: UUID,
     )
+
+    private fun clearEmittedTaskAddedKeys(
+        workspaceId: UUID,
+        taskId: UUID,
+    ) {
+        emittedTaskAddedKeys.keys.removeIf { it.workspaceId == workspaceId && it.taskId == taskId }
+    }
+
+    private fun markEmissionIfNew(key: TaskSprintKey): Boolean {
+        val now = Instant.now()
+        val previous = emittedTaskAddedKeys.putIfAbsent(key, now)
+        return if (previous == null) {
+            true
+        } else if (previous.isBefore(now.minus(EMITTED_KEY_TTL))) {
+            emittedTaskAddedKeys.replace(key, previous, now)
+        } else {
+            false
+        }
+    }
+
+    private fun pruneEmittedKeys() {
+        if (emittedTaskAddedKeys.size <= MAX_EMITTED_KEY_SIZE) {
+            emittedTaskAddedKeys.entries.removeIf { (_, emittedAt) ->
+                emittedAt.isBefore(Instant.now().minus(EMITTED_KEY_TTL))
+            }
+            return
+        }
+        val threshold = Instant.now().minus(EMITTED_KEY_TTL)
+        emittedTaskAddedKeys.entries.removeIf { (_, emittedAt) -> emittedAt.isBefore(threshold) }
+        if (emittedTaskAddedKeys.size > MAX_EMITTED_KEY_SIZE) {
+            emittedTaskAddedKeys.clear()
+            log.warn("Cleared emittedTaskAddedKeys due to size overflow; dedupe state reset.")
+        }
+    }
+
+    companion object {
+        private val EMITTED_KEY_TTL: Duration = Duration.ofHours(12)
+        private const val MAX_EMITTED_KEY_SIZE: Int = 100_000
+    }
 }

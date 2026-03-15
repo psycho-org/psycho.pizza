@@ -1,6 +1,8 @@
 package pizza.psycho.sos.project.sprint.presentation
 
 import jakarta.validation.Valid
+import org.springframework.data.domain.Pageable
+import org.springframework.data.web.PageableDefault
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.response.ApiResponse
 import pizza.psycho.sos.common.response.responseOf
+import pizza.psycho.sos.common.support.pagination.PageInfoSupport
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.application.service.SprintService
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
@@ -27,7 +30,17 @@ import java.util.UUID
 @RequestMapping("/api/v1/workspaces/{workspaceId}/sprints")
 class SprintController(
     private val sprintService: SprintService,
+    private val pageInfoSupport: PageInfoSupport,
 ) {
+    @GetMapping
+    fun findSprints(
+        @PathVariable workspaceId: UUID,
+        @PageableDefault(page = 0, size = 10) pageable: Pageable,
+    ): ApiResponse<*> =
+        handleResult {
+            sprintService.getSprints(SprintQuery.FindAll(WorkspaceId(workspaceId), pageable))
+        }
+
     @PostMapping
     fun createSprint(
         @PathVariable workspaceId: UUID,
@@ -76,24 +89,14 @@ class SprintController(
             sprintService.modify(request.toCommand(workspaceId, sprintId, accountId))
         }
 
-    @DeleteMapping("/{sprintId}/{userId}")
+    @DeleteMapping("/{sprintId}")
     fun removeSprint(
-        @PathVariable workspaceId: UUID,
-        @PathVariable sprintId: UUID,
-        @PathVariable userId: UUID,
-    ): ApiResponse<*> =
-        handleResult {
-            sprintService.remove(SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId))
-        }
-
-    @DeleteMapping("/{sprintId}/with-tasks")
-    fun removeSprintWithTasks(
         @PathVariable workspaceId: UUID,
         @PathVariable sprintId: UUID,
         @RequestParam(value = "account") accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            sprintService.removeWithTasks(SprintCommand.RemoveWithTasks(WorkspaceId(workspaceId), sprintId, accountId))
+            sprintService.remove(SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, accountId))
         }
 
     // ------------------------------------------------------------------------------------------------
@@ -103,16 +106,11 @@ class SprintController(
             is SprintResult.SprintInfo -> responseOf(data = result.toResponse())
             is SprintResult.ProjectList -> responseOf(data = result.projects.map { it.toResponse() })
             is SprintResult.ProjectCreated -> responseOf(data = result.project.toResponse())
+            is SprintResult.SprintPage -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
             is SprintResult.Remove ->
                 responseOf(
-                    message = "데이터 삭제에 성공하였습니다.",
-                    data = SprintResponse.Remove(result.count),
-                )
-
-            is SprintResult.RemoveWithTasks ->
-                responseOf(
                     message = "스프린트 및 하위 프로젝트, 태스크 삭제에 성공하였습니다.",
-                    data = SprintResponse.RemoveWithTasks(result.sprintCount, result.projectCount, result.taskCount),
+                    data = SprintResponse.Remove(result.sprintCount, result.projectCount, result.taskCount),
                 )
 
             is SprintResult.Success -> responseOf<Unit>(message = "Data modification was successful.")
