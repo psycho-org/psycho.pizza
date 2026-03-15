@@ -186,4 +186,40 @@ class SprintTaskInProjectDomainEventHandlerTests {
             )
         }
     }
+
+    @Test
+    fun `task removed from sprint clears dedupe so re-entry emits add again`() {
+        val workspaceId = UUID.randomUUID()
+        val sprintId = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val actorId = UUID.randomUUID()
+
+        every {
+            sprintRepository.findActiveSprintIdsByProjectId(projectId, WorkspaceId(workspaceId))
+        } returns listOf(sprintId)
+
+        val addedEvent =
+            TaskAddedToProjectEvent(
+                workspaceId = workspaceId,
+                actorId = actorId,
+                taskId = taskId,
+                projectId = projectId,
+                eventId = UUID.randomUUID(),
+            )
+
+        handler.handle(addedEvent)
+        handler.handle(
+            TaskRemovedFromSprintEvent(
+                workspaceId = workspaceId,
+                sprintId = sprintId,
+                taskId = taskId,
+                actorId = actorId,
+                eventId = UUID.randomUUID(),
+            ),
+        )
+        handler.handle(addedEvent.copy(eventId = UUID.randomUUID()))
+
+        verify(exactly = 2) { eventPublisher.publish(any<TaskAddedToSprintEvent>()) }
+    }
 }

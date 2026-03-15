@@ -163,6 +163,45 @@ class ProjectServiceTests {
     }
 
     @Test
+    fun `프로젝트 삭제 시 다른 활성 프로젝트에 매핑된 태스크는 삭제하지 않는다`() {
+        val workspaceId = WorkspaceId(UUID.randomUUID())
+        val projectId = UUID.randomUUID()
+        val otherProjectId = UUID.randomUUID()
+        val deletedBy = UUID.randomUUID()
+        val uniqueTaskId = UUID.randomUUID()
+        val sharedTaskId = UUID.randomUUID()
+
+        val project =
+            Project
+                .create(
+                    workspaceId = workspaceId,
+                    name = "삭제 대상 프로젝트",
+                ).apply {
+                    id = projectId
+                    addTask(uniqueTaskId)
+                    addTask(sharedTaskId)
+                }
+
+        every { projectRepository.findActiveProjectByIdOrNull(projectId, workspaceId) } returns project
+        every {
+            projectRepository.findActiveProjectIdsByTaskIds(listOf(uniqueTaskId, sharedTaskId), workspaceId)
+        } returns
+            listOf(
+                TaskAssignment(uniqueTaskId, projectId),
+                TaskAssignment(sharedTaskId, projectId),
+                TaskAssignment(sharedTaskId, otherProjectId),
+            )
+        every { taskPort.deleteByIdIn(listOf(uniqueTaskId), deletedBy, workspaceId) } returns 1
+
+        val result = projectService.remove(ProjectCommand.Remove(workspaceId, projectId, deletedBy))
+
+        assertTrue(result is ProjectResult.Remove)
+        result as ProjectResult.Remove
+        assertEquals(1, result.taskCount)
+        verify { taskPort.deleteByIdIn(listOf(uniqueTaskId), deletedBy, workspaceId) }
+    }
+
+    @Test
     fun `존재하지 않는 프로젝트 삭제 시 IdNotFound를 반환한다`() {
         val workspaceId = WorkspaceId(UUID.randomUUID())
         val command = ProjectCommand.Remove(workspaceId, UUID.randomUUID(), UUID.randomUUID())

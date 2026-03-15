@@ -20,6 +20,7 @@ import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectPort
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
+import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
@@ -51,6 +52,7 @@ class SprintServiceTests {
         mockkObject(Tx)
         every { Tx.writable(any<() -> Any>()) } answers { firstArg<() -> Any>().invoke() }
         every { Tx.readable(any<() -> Any>()) } answers { firstArg<() -> Any>().invoke() }
+        every { projectPort.findActiveProjectIdsByTaskIds(any(), any()) } returns emptyList()
     }
 
     @AfterEach
@@ -228,6 +230,48 @@ class SprintServiceTests {
         verify { taskPort.deleteByIdIn(match { it.size == 2 }, deletedBy, workspaceId) }
         verify { projectPort.deleteByIdIn(match { it.size == 2 }, deletedBy, workspaceId) }
         verify { sprintRepository.deleteById(sprintId, deletedBy, workspaceId) }
+    }
+
+    @Test
+    fun `스프린트 삭제 시 외부 프로젝트와 공유된 태스크는 삭제하지 않는다`() {
+        val deletedBy = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        val otherProjectId = UUID.randomUUID()
+        val uniqueTaskId = UUID.randomUUID()
+        val sharedTaskId = UUID.randomUUID()
+        val sprint =
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId).apply {
+                addProject(projectId)
+            }
+        val snapshot =
+            ProjectSnapshot(
+                projectId = projectId,
+                workspaceId = workspaceId,
+                name = "Project 1",
+                taskIds = listOf(uniqueTaskId, sharedTaskId),
+            )
+
+        every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns sprint
+        every { projectPort.findByIdIn(listOf(projectId), workspaceId) } returns listOf(snapshot)
+        every {
+            projectPort.findActiveProjectIdsByTaskIds(listOf(uniqueTaskId, sharedTaskId), workspaceId)
+        } returns
+            listOf(
+                TaskAssignment(uniqueTaskId, projectId),
+                TaskAssignment(sharedTaskId, projectId),
+                TaskAssignment(sharedTaskId, otherProjectId),
+            )
+        every { taskPort.deleteByIdIn(listOf(uniqueTaskId), deletedBy, workspaceId) } returns 1
+        every { projectPort.deleteByIdIn(listOf(projectId), deletedBy, workspaceId) } returns 1
+        every { sprintRepository.deleteById(sprintId, deletedBy, workspaceId) } returns 1
+
+        val result = sprintService.remove(SprintCommand.Remove(workspaceId, sprintId, deletedBy))
+
+        assertTrue(result is SprintResult.Remove)
+        result as SprintResult.Remove
+        assertEquals(1, result.projectCount)
+        assertEquals(1, result.taskCount)
+        verify { taskPort.deleteByIdIn(listOf(uniqueTaskId), deletedBy, workspaceId) }
     }
 
     @Test
