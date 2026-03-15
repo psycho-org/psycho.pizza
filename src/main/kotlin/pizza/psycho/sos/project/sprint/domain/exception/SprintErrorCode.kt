@@ -13,6 +13,7 @@ enum class SprintErrorCode(
     PROJECT_NOT_FOUND(HttpStatus.BAD_REQUEST, "project not found"),
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "invalid request"),
     GOAL_NOT_EMPTY_OR_BLANK(HttpStatus.BAD_REQUEST, "goal not empty or blank"),
+    GOAL_LENGTH_TOO_LONG(HttpStatus.BAD_REQUEST, "goal length too long"),
     ;
 
     override val code: String = name

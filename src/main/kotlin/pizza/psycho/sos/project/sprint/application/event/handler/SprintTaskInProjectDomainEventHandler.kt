@@ -96,6 +96,7 @@ class SprintTaskInProjectDomainEventHandler(
         val sprintIds = sprintRepository.findActiveSprintIdsByProjectId(event.projectId, workspaceId)
 
         if (sprintIds.isEmpty()) {
+            clearEmittedTaskAddedKeys(event.workspaceId, event.taskId)
             log.debug("Skip TaskRemovedFromSprintEvent: project not in any active sprint. event={}", event)
             return
         }
@@ -146,4 +147,11 @@ class SprintTaskInProjectDomainEventHandler(
         val sprintId: UUID,
         val taskId: UUID,
     )
+
+    private fun clearEmittedTaskAddedKeys(
+        workspaceId: UUID,
+        taskId: UUID,
+    ) {
+        emittedTaskAddedKeys.removeIf { it.workspaceId == workspaceId && it.taskId == taskId }
+    }
 }

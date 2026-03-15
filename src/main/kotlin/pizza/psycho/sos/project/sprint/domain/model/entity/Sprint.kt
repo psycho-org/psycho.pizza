@@ -136,8 +136,13 @@ class Sprint(
         }
 
         private fun requireGoalNotBlank(goal: String?) {
-            if (goal?.isBlank() == true) {
-                throw DomainException(SprintErrorCode.GOAL_NOT_EMPTY_OR_BLANK)
+            goal?.let {
+                if (it.isBlank()) {
+                    throw DomainException(SprintErrorCode.GOAL_NOT_EMPTY_OR_BLANK)
+                }
+                if (it.length > 120) {
+                    throw DomainException(SprintErrorCode.GOAL_LENGTH_TOO_LONG)
+                }
             }
         }
     }

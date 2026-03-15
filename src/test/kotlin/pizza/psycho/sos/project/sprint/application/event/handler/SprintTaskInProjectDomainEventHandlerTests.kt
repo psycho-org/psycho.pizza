@@ -140,4 +140,50 @@ class SprintTaskInProjectDomainEventHandlerTests {
         handler.handle(event.copy(eventId = UUID.randomUUID()))
         verify(exactly = 1) { eventPublisher.publish(any<TaskAddedToSprintEvent>()) }
     }
+
+    @Test
+    fun `project detached before task removal clears dedupe so re-add emits again`() {
+        val workspaceId = UUID.randomUUID()
+        val sprintId = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val actorId = UUID.randomUUID()
+
+        every {
+            sprintRepository.findActiveSprintIdsByProjectId(projectId, WorkspaceId(workspaceId))
+        } returnsMany
+            listOf(
+                listOf(sprintId),
+                emptyList(),
+                listOf(sprintId),
+            )
+
+        val addedEvent =
+            TaskAddedToProjectEvent(
+                workspaceId = workspaceId,
+                actorId = actorId,
+                taskId = taskId,
+                projectId = projectId,
+                eventId = UUID.randomUUID(),
+            )
+
+        handler.handle(addedEvent)
+        handler.handle(
+            TaskRemovedFromProjectEvent(
+                workspaceId = workspaceId,
+                actorId = actorId,
+                taskId = taskId,
+                projectId = projectId,
+                eventId = UUID.randomUUID(),
+            ),
+        )
+        handler.handle(addedEvent.copy(eventId = UUID.randomUUID()))
+
+        verify(exactly = 2) { eventPublisher.publish(any<TaskAddedToSprintEvent>()) }
+        verify(exactly = 0) {
+            eventPublisher.publish(
+                match { it is TaskRemovedFromSprintEvent },
+            )
+        }
+    }
 }
