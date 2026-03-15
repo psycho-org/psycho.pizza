@@ -58,10 +58,11 @@ class ProjectController(
     fun createTaskInProject(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,
+        @RequestParam(name = "account") accountId: UUID,
         @Valid @RequestBody request: ProjectRequest.CreateTask,
     ): ApiResponse<*> =
         handleResult {
-            projectService.createTask(request.toCommand(workspaceId, projectId))
+            projectService.createTask(request.toCommand(workspaceId, projectId, accountId))
         }
 
     @GetMapping("/{projectId}/tasks")
@@ -107,10 +108,11 @@ class ProjectController(
     fun modifyProject(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,
+        @RequestParam(name = "account") accountId: UUID,
         @Valid @RequestBody request: ProjectRequest.Update,
     ): ApiResponse<*> =
         handleResult {
-            projectService.modify(request.toCommand(workspaceId, projectId))
+            projectService.modify(request.toCommand(workspaceId, projectId, accountId))
         }
 
     fun removeProject(
@@ -174,6 +176,7 @@ class ProjectController(
     private fun ProjectRequest.CreateTask.toCommand(
         workspaceId: UUID,
         projectId: UUID,
+        accountId: UUID,
     ) = ProjectCommand.CreateTask(
         workspaceId = WorkspaceId(workspaceId),
         projectId = projectId,
@@ -181,17 +184,20 @@ class ProjectController(
         description = description,
         assigneeId = assigneeId,
         dueDate = dueDate,
+        createdBy = accountId,
     )
 
     private fun ProjectRequest.Update.toCommand(
         workspaceId: UUID,
         projectId: UUID,
+        accountId: UUID,
     ) = ProjectCommand.Update(
         workspaceId = WorkspaceId(workspaceId),
         projectId = projectId,
         name = name,
         addTaskIds = addTaskIds,
         removeTaskIds = removeTaskIds,
+        updatedBy = accountId,
     )
 
     private fun ProjectResult.ProjectInfo.toResponse(): ProjectResponse.Information =
