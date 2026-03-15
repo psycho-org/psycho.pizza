@@ -1,4 +1,4 @@
-package pizza.psycho.sos.project.reason.domain.entity
+package pizza.psycho.sos.project.reason.domain.model.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Embedded
@@ -8,8 +8,8 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.Table
 import pizza.psycho.sos.common.entity.BaseEntity
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
-import pizza.psycho.sos.project.reason.domain.vo.EventType
-import pizza.psycho.sos.project.reason.domain.vo.TargetType
+import pizza.psycho.sos.project.reason.domain.model.vo.EventType
+import pizza.psycho.sos.project.reason.domain.model.vo.TargetType
 import java.util.UUID
 
 @Table(name = "reasons")

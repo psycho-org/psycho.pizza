@@ -1,4 +1,4 @@
-package pizza.psycho.sos.project.reason.domain.vo
+package pizza.psycho.sos.project.reason.domain.model.vo
 
 enum class TargetType {
     SPRINT,
