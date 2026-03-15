@@ -3,7 +3,7 @@ package pizza.psycho.sos.analysis.application.service
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import pizza.psycho.sos.analysis.domain.entity.AnalysisMetricCount
-import pizza.psycho.sos.analysis.domain.vo.AnalysisMetricKey
+import pizza.psycho.sos.analysis.domain.vo.AnalysisEventSubtype
 import pizza.psycho.sos.analysis.infrastructure.persistence.AnalysisMetricCountRepository
 import java.util.UUID
 
@@ -15,19 +15,19 @@ class AnalysisMetricCountService(
     fun increase(
         workspaceId: UUID,
         sprintId: UUID,
-        metricKey: AnalysisMetricKey,
+        eventSubtype: AnalysisEventSubtype,
         delta: Int = 1,
     ) {
         val metric =
-            analysisMetricCountRepository.findByWorkspaceIdAndSprintIdAndMetricKey(
+            analysisMetricCountRepository.findByWorkspaceIdAndSprintIdAndEventSubtype(
                 workspaceId = workspaceId,
                 sprintId = sprintId,
-                metricKey = metricKey,
+                eventSubtype = eventSubtype,
             ) ?: AnalysisMetricCount(
                 workspaceId = workspaceId,
                 sprintId = sprintId,
-                metricKey = metricKey,
-                metricCount = 0,
+                eventSubtype = eventSubtype,
+                count = 0,
             )
 
         metric.increase(delta)
@@ -38,10 +38,10 @@ class AnalysisMetricCountService(
     fun getCounts(
         workspaceId: UUID,
         sprintId: UUID,
-    ): Map<AnalysisMetricKey, Int> =
+    ): Map<AnalysisEventSubtype, Int> =
         analysisMetricCountRepository
             .findAllByWorkspaceIdAndSprintId(
                 workspaceId = workspaceId,
                 sprintId = sprintId,
-            ).associate { it.metricKey to it.metricCount }
+            ).associate { it.eventSubtype to it.count }
 }

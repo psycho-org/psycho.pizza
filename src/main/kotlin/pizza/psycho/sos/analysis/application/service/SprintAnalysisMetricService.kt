@@ -3,7 +3,7 @@ package pizza.psycho.sos.analysis.application.service
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.analysis.application.service.dto.SprintAnalysisInput
 import pizza.psycho.sos.analysis.domain.exception.AnalysisErrorCode
-import pizza.psycho.sos.analysis.domain.vo.AnalysisMetricKey
+import pizza.psycho.sos.analysis.domain.vo.AnalysisEventSubtype
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectPort
@@ -114,15 +114,15 @@ class SprintAnalysisMetricService(
                         ),
                     stability =
                         SprintAnalysisInput.Metrics.Stability(
-                            sprintGoalChangeCount = eventCounts[AnalysisMetricKey.SPRINT_GOAL_CHANGE_COUNT] ?: 0,
-                            sprintPeriodChangeCount = eventCounts[AnalysisMetricKey.SPRINT_PERIOD_CHANGE_COUNT] ?: 0,
+                            sprintGoalChangeCount = eventCounts[AnalysisEventSubtype.GOAL_UPDATED] ?: 0,
+                            sprintPeriodChangeCount = eventCounts[AnalysisEventSubtype.PERIOD_UPDATED] ?: 0,
                         ),
                     flow =
                         SprintAnalysisInput.Metrics.Flow(
-                            reworkEventsCount = eventCounts[AnalysisMetricKey.REWORK_EVENTS_COUNT] ?: 0,
-                            todoToDoneDirectCount = eventCounts[AnalysisMetricKey.TODO_TO_DONE_DIRECT_COUNT] ?: 0,
-                            scopeChurnEventsCount = eventCounts[AnalysisMetricKey.SCOPE_CHURN_EVENTS_COUNT] ?: 0,
-                            canceledTasksCount = eventCounts[AnalysisMetricKey.CANCELED_TASKS_COUNT] ?: 0,
+                            reworkEventsCount = eventCounts[AnalysisEventSubtype.STATUS_REGRESSION_FROM_DONE] ?: 0,
+                            todoToDoneDirectCount = eventCounts[AnalysisEventSubtype.TODO_TO_DONE_DIRECT] ?: 0,
+                            scopeChurnEventsCount = eventCounts[AnalysisEventSubtype.SCOPE_CHURN] ?: 0,
+                            canceledTasksCount = eventCounts[AnalysisEventSubtype.STATUS_CHANGED_TO_CANCELED] ?: 0,
                         ),
                 ),
         )
