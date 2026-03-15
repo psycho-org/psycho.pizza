@@ -11,4 +11,5 @@ data class ErrorResponse(
     val code: String? = null,
     val path: String,
     val details: Map<String, List<String>>? = null,
+    val meta: ErrorMeta? = null,
 ) : ApiResponse<Nothing>

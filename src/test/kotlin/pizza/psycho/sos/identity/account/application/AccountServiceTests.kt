@@ -2,6 +2,7 @@ package pizza.psycho.sos.identity.account.application
 
 import org.hibernate.exception.ConstraintViolationException
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -56,6 +57,36 @@ class AccountServiceTests {
     @BeforeEach
     fun setUp() {
         Tx.initialize(TransactionRunner())
+    }
+
+    @Test
+    fun `find active display name by account id returns combined given and family name for active account`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000010")
+        val account =
+            Account
+                .create(
+                    email = Email.of("user@psycho.pizza"),
+                    passwordHash = "encoded-password",
+                    givenName = "Rick",
+                    familyName = "Sanchez",
+                ).also { it.id = accountId }
+
+        `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
+
+        val displayName = accountService.findActiveDisplayNameByAccountIdOrNull(accountId)
+
+        assertEquals("Rick Sanchez", displayName)
+    }
+
+    @Test
+    fun `find active display name by account id returns null when account is not active`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000011")
+
+        `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(null)
+
+        val displayName = accountService.findActiveDisplayNameByAccountIdOrNull(accountId)
+
+        assertNull(displayName)
     }
 
     @Test
