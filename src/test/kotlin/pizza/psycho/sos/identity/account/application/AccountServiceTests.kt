@@ -19,6 +19,7 @@ import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.common.support.transaction.runner.TransactionRunner
 import pizza.psycho.sos.identity.account.application.service.AccountService
+import pizza.psycho.sos.identity.account.application.service.WorkspaceMembershipCleanupPort
 import pizza.psycho.sos.identity.account.application.service.WorkspaceOwnershipQueryService
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
 import pizza.psycho.sos.identity.account.domain.Account
@@ -43,6 +44,7 @@ class AccountServiceTests {
     private val refreshTokenService = mock(RefreshTokenService::class.java)
     private val challengeService = mock(ChallengeService::class.java)
     private val workspaceOwnershipQueryService = mock(WorkspaceOwnershipQueryService::class.java)
+    private val workspaceMembershipCleanupPort = mock(WorkspaceMembershipCleanupPort::class.java)
     private val accountService =
         AccountService(
             accountRepository,
@@ -50,6 +52,7 @@ class AccountServiceTests {
             refreshTokenService,
             challengeService,
             workspaceOwnershipQueryService,
+            workspaceMembershipCleanupPort,
         )
 
     private val testTokenId: UUID = UUID.fromString("00000000-0000-0000-0000-ffffffffffff")
@@ -467,6 +470,7 @@ class AccountServiceTests {
         assertTrue(result is Withdraw.Failure.OwnerWorkspaceExists)
         assertTrue(!token.used)
         verify(workspaceOwnershipQueryService).existsActiveOwnerMembershipByAccountId(accountId)
+        verifyNoInteractions(workspaceMembershipCleanupPort)
         verify(accountRepository, never()).save(org.mockito.ArgumentMatchers.any(Account::class.java))
         verify(refreshTokenService, never()).revokeAllByAccountId(accountId)
     }
@@ -504,6 +508,7 @@ class AccountServiceTests {
         assertEquals(accountId, account.deletedBy)
         assertTrue(token.used)
         verify(workspaceOwnershipQueryService).existsActiveOwnerMembershipByAccountId(accountId)
+        verify(workspaceMembershipCleanupPort).softDeleteActiveMembershipsByAccountId(accountId, accountId)
         verify(accountRepository).save(account)
         verify(refreshTokenService).revokeAllByAccountId(accountId)
     }

@@ -11,8 +11,9 @@ import pizza.psycho.sos.workspace.application.service.WorkspaceService
 import pizza.psycho.sos.workspace.domain.exception.WorkspaceErrorCode
 import pizza.psycho.sos.workspace.domain.model.membership.Role
 import pizza.psycho.sos.workspace.domain.model.workspace.Workspace
+import pizza.psycho.sos.workspace.domain.repository.WorkspaceCommandRepository
 import pizza.psycho.sos.workspace.domain.repository.WorkspaceMembershipQueryRepository
-import pizza.psycho.sos.workspace.domain.repository.WorkspaceRepository
+import pizza.psycho.sos.workspace.domain.repository.WorkspaceQueryRepository
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -22,11 +23,18 @@ import kotlin.test.assertTrue
 
 @ActiveProfiles("test")
 class WorkspaceServiceTests {
-    private val workspaceRepository = FakeWorkspaceRepository()
+    private val workspaceQueryRepository = FakeWorkspaceQueryRepository()
+    private val workspaceCommandRepository = FakeWorkspaceCommandRepository(workspaceQueryRepository)
     private val workspaceMembershipQueryRepository =
         org.mockito.Mockito.mock(WorkspaceMembershipQueryRepository::class.java)
     private val accountDisplayNamePort = org.mockito.Mockito.mock(AccountDisplayNamePort::class.java)
-    private val service = WorkspaceService(workspaceRepository, workspaceMembershipQueryRepository, accountDisplayNamePort)
+    private val service =
+        WorkspaceService(
+            workspaceCommandRepository,
+            workspaceQueryRepository,
+            workspaceMembershipQueryRepository,
+            accountDisplayNamePort,
+        )
 
     @Test
     fun `createWorkspace - creates and saves workspace`() {
@@ -41,7 +49,7 @@ class WorkspaceServiceTests {
         assertEquals("Desc", workspace.description)
         assertEquals(1, workspace.memberships.size)
         assertEquals("Owner Name", workspace.memberships.first().displayName)
-        assertNotNull(workspaceRepository.lastSaved)
+        assertNotNull(workspaceCommandRepository.lastSaved)
     }
 
     @Test
@@ -87,7 +95,7 @@ class WorkspaceServiceTests {
             )
         val workspace = Workspace.create("Alpha", "Desc", requesterAccountId)
         workspace.id = workspaceId
-        workspaceRepository.save(workspace)
+        workspaceCommandRepository.save(workspace)
         Mockito
             .`when`(
                 workspaceMembershipQueryRepository.findRoleByWorkspaceIdAndAccountId(workspaceId, requesterAccountId),
@@ -109,7 +117,7 @@ class WorkspaceServiceTests {
         val crewAccountId = UUID.randomUUID()
         val workspace = Workspace.create("Test", "Desc", ownerAccountId, "Owner Name")
         workspace.id = workspaceId
-        workspaceRepository.save(workspace)
+        workspaceCommandRepository.save(workspace)
         Mockito
             .`when`(
                 workspaceMembershipQueryRepository.findRoleByWorkspaceIdAndAccountId(workspaceId, ownerAccountId),
@@ -131,7 +139,7 @@ class WorkspaceServiceTests {
         val workspace = Workspace.create("Test", "Desc", ownerAccountId)
         workspace.addMembership(crewAccountId, role = Role.CREW)
         workspace.id = workspaceId
-        workspaceRepository.save(workspace)
+        workspaceCommandRepository.save(workspace)
 
         Mockito
             .`when`(
@@ -153,7 +161,7 @@ class WorkspaceServiceTests {
         val workspace = Workspace.create("Test", "Desc", ownerAccountId)
         workspace.addMembership(crewAccountId, role = Role.CREW)
         workspace.id = workspaceId
-        workspaceRepository.save(workspace)
+        workspaceCommandRepository.save(workspace)
 
         Mockito
             .`when`(
@@ -166,20 +174,30 @@ class WorkspaceServiceTests {
         assertEquals(ownerAccountId, workspace.deletedBy)
     }
 
-    private class FakeWorkspaceRepository : WorkspaceRepository {
+    private class FakeWorkspaceQueryRepository : WorkspaceQueryRepository {
         private val store = mutableMapOf<UUID, Workspace>()
-        var lastSaved: Workspace? = null
-            private set
 
         override fun findByIdOrNull(id: UUID): Workspace? = store[id]
 
         override fun findActiveByIdOrNull(id: UUID): Workspace? = store[id]?.takeIf { !it.isDeleted }
 
-        override fun save(workspace: Workspace): Workspace {
+        fun saveInternal(workspace: Workspace): Workspace {
             if (workspace.id == null) {
                 workspace.id = UUID.randomUUID()
             }
             store[workspace.id!!] = workspace
+            return workspace
+        }
+    }
+
+    private class FakeWorkspaceCommandRepository(
+        private val workspaceQueryRepository: FakeWorkspaceQueryRepository,
+    ) : WorkspaceCommandRepository {
+        var lastSaved: Workspace? = null
+            private set
+
+        override fun save(workspace: Workspace): Workspace {
+            workspaceQueryRepository.saveInternal(workspace)
             lastSaved = workspace
             return workspace
         }
