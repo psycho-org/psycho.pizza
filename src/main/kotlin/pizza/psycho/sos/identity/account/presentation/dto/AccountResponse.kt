@@ -18,6 +18,7 @@ sealed interface AccountResponse {
     sealed interface Policy : AccountResponse {
         data class Password(
             val regex: String,
+            val message: String,
         ) : Policy
     }
 }

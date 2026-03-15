@@ -33,6 +33,7 @@ class AccountController(
             data =
                 AccountResponse.Policy.Password(
                     regex = PasswordValidator.PATTERN,
+                    message = PasswordValidator.MESSAGE_KO,
                 ),
         )
 
