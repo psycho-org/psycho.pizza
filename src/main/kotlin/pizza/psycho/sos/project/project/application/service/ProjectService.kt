@@ -1,6 +1,7 @@
 package pizza.psycho.sos.project.project.application.service
 
 import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageImpl
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.log.loggerDelegate
@@ -65,13 +66,31 @@ class ProjectService(
                         return@readable ProjectResult.Failure.IdNotFound
                     }
 
-            taskPort
-                .findByIdIn(
-                    ids = project.taskIds(),
+            val taskIdsPage =
+                projectRepository.findActiveTaskIdsByProjectId(
+                    projectId = project.projectId,
                     workspaceId = command.workspaceId,
                     pageable = command.pageable,
-                ).let { ProjectResult.TaskList(it.toResult()) }
-                .also { log.info("getTasksInProject success: projectId=${command.projectId}") }
+                )
+            if (taskIdsPage.isEmpty) {
+                return@readable ProjectResult.TaskList(PageImpl(emptyList(), command.pageable, 0))
+            }
+
+            val tasksById =
+                taskPort
+                    .findByIdIn(
+                        ids = taskIdsPage.content,
+                        workspaceId = command.workspaceId,
+                    ).associateBy(TaskSnapshot::id)
+
+            ProjectResult
+                .TaskList(
+                    PageImpl(
+                        taskIdsPage.content.mapNotNull(tasksById::get).map { it.toResult() },
+                        command.pageable,
+                        taskIdsPage.totalElements,
+                    ),
+                ).also { log.info("getTasksInProject success: projectId=${command.projectId}") }
         }
 
     fun create(command: ProjectCommand.Create): ProjectResult =
@@ -113,12 +132,13 @@ class ProjectService(
                         log.warn("remove: project not found. projectId={}", command.projectId)
                         return@writable ProjectResult.Failure.IdNotFound
                     }
-
-            val taskIds = project.taskIds()
-            val deletableTaskIds = deletableTaskIds(taskIds, setOf(project.projectId), command.workspaceId)
+            val activeTaskIds = projectRepository.findActiveTaskIdsByProjectId(project.projectId, command.workspaceId)
+            val assignments = assignmentsByTaskIds(activeTaskIds, command.workspaceId)
+            val deletableTaskIds = deletableTaskIds(activeTaskIds, setOf(project.projectId), assignments)
             publishTaskRemovedFromSprintEvents(
                 projectId = project.projectId,
-                taskIds = taskIds,
+                taskIds = activeTaskIds,
+                assignments = assignments,
                 workspaceId = command.workspaceId,
                 actorId = command.deletedBy,
             )
@@ -260,6 +280,7 @@ class ProjectService(
     private fun publishTaskRemovedFromSprintEvents(
         projectId: UUID,
         taskIds: Collection<UUID>,
+        assignments: List<TaskAssignment>,
         workspaceId: WorkspaceId,
         actorId: UUID,
     ) {
@@ -272,11 +293,18 @@ class ProjectService(
             return
         }
 
+        val remainingProjectIds =
+            assignments
+                .map(TaskAssignment::projectId)
+                .filterNot { it == projectId }
+                .toSet()
         val assignmentsByTaskId =
-            projectRepository
-                .findActiveProjectIdsByTaskIds(taskIds, workspaceId)
-                .groupBy(TaskAssignment::taskId) { it.projectId }
-        val sprintIdsByProjectId = mutableMapOf(projectId to removedSprintIds)
+            assignments.groupBy(TaskAssignment::taskId) { it.projectId }
+        val sprintIdsByProjectId =
+            sprintParticipationQuery
+                .findActiveSprintIdsByProjectIds(remainingProjectIds, workspaceId.value)
+                .toMutableMap()
+                .also { it[projectId] = removedSprintIds.toSet() }
 
         taskIds.distinct().forEach { taskId ->
             val remainingSprintIds =
@@ -285,13 +313,7 @@ class ProjectService(
                     .asSequence()
                     .filterNot { it == projectId }
                     .flatMap { assignedProjectId ->
-                        sprintIdsByProjectId
-                            .getOrPut(assignedProjectId) {
-                                sprintParticipationQuery.findActiveSprintIdsByProjectId(
-                                    assignedProjectId,
-                                    workspaceId.value,
-                                )
-                            }.asSequence()
+                        sprintIdsByProjectId[assignedProjectId].orEmpty().asSequence()
                     }.toSet()
 
             removedSprintIds
@@ -311,19 +333,22 @@ class ProjectService(
         }
     }
 
+    private fun assignmentsByTaskIds(
+        taskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<TaskAssignment> = projectRepository.findActiveProjectIdsByTaskIds(taskIds, workspaceId)
+
     private fun deletableTaskIds(
         candidateTaskIds: Collection<UUID>,
         removedProjectIds: Set<UUID>,
-        workspaceId: WorkspaceId,
+        assignments: List<TaskAssignment>,
     ): List<UUID> {
         if (candidateTaskIds.isEmpty()) {
             return emptyList()
         }
 
         val assignmentsByTaskId =
-            projectRepository
-                .findActiveProjectIdsByTaskIds(candidateTaskIds, workspaceId)
-                .groupBy(TaskAssignment::taskId) { it.projectId }
+            assignments.groupBy(TaskAssignment::taskId) { it.projectId }
 
         return candidateTaskIds.filter { taskId ->
             assignmentsByTaskId[taskId].orEmpty().all(removedProjectIds::contains)

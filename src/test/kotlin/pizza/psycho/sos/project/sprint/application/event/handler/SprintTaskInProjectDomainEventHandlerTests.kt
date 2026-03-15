@@ -8,6 +8,7 @@ import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.domain.event.TaskAddedToProjectEvent
 import pizza.psycho.sos.project.project.domain.event.TaskRemovedFromProjectEvent
+import pizza.psycho.sos.project.project.domain.event.TasksAddedToProjectEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskAddedToSprintEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
@@ -34,8 +35,8 @@ class SprintTaskInProjectDomainEventHandlerTests {
             sprintRepository.findActiveSprintIdsByProjectId(toProjectId, WorkspaceId(workspaceId))
         } returns listOf(sprintId)
         every {
-            sprintRepository.findActiveSprintIdsByTaskId(taskId, WorkspaceId(workspaceId))
-        } returns listOf(sprintId)
+            sprintRepository.findActiveSprintIdsByTaskIds(listOf(taskId), WorkspaceId(workspaceId))
+        } returns mapOf(taskId to setOf(sprintId))
 
         handler.handle(
             TaskRemovedFromProjectEvent(
@@ -78,8 +79,8 @@ class SprintTaskInProjectDomainEventHandlerTests {
             sprintRepository.findActiveSprintIdsByProjectId(toProjectId, WorkspaceId(workspaceId))
         } returns listOf(sprintTo)
         every {
-            sprintRepository.findActiveSprintIdsByTaskId(taskId, WorkspaceId(workspaceId))
-        } returns emptyList()
+            sprintRepository.findActiveSprintIdsByTaskIds(listOf(taskId), WorkspaceId(workspaceId))
+        } returns emptyMap()
 
         handler.handle(
             TaskRemovedFromProjectEvent(
@@ -139,6 +140,34 @@ class SprintTaskInProjectDomainEventHandlerTests {
         handler.handle(event)
         handler.handle(event.copy(eventId = UUID.randomUUID()))
         verify(exactly = 1) { eventPublisher.publish(any<TaskAddedToSprintEvent>()) }
+    }
+
+    @Test
+    fun `bulk task added event queries sprint membership once per project`() {
+        val workspaceId = UUID.randomUUID()
+        val sprintId = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        val taskId1 = UUID.randomUUID()
+        val taskId2 = UUID.randomUUID()
+
+        every {
+            sprintRepository.findActiveSprintIdsByProjectId(projectId, WorkspaceId(workspaceId))
+        } returns listOf(sprintId)
+
+        handler.handle(
+            TasksAddedToProjectEvent(
+                workspaceId = workspaceId,
+                actorId = UUID.randomUUID(),
+                taskIds = listOf(taskId1, taskId2),
+                projectId = projectId,
+                eventId = UUID.randomUUID(),
+            ),
+        )
+
+        verify(exactly = 1) {
+            sprintRepository.findActiveSprintIdsByProjectId(projectId, WorkspaceId(workspaceId))
+        }
+        verify(exactly = 2) { eventPublisher.publish(any<TaskAddedToSprintEvent>()) }
     }
 
     @Test

@@ -1,5 +1,7 @@
 package pizza.psycho.sos.project.project.application.port.out
 
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
@@ -45,4 +47,20 @@ interface ProjectRepository {
         taskIds: Collection<UUID>,
         workspaceId: WorkspaceId,
     ): List<TaskAssignment>
+
+    fun findActiveTaskIdsByProjectId(
+        projectId: UUID,
+        workspaceId: WorkspaceId,
+    ): List<UUID>
+
+    fun findActiveTaskIdsByProjectId(
+        projectId: UUID,
+        workspaceId: WorkspaceId,
+        pageable: Pageable,
+    ): Page<UUID>
+
+    fun findActiveTaskIdsByProjectIds(
+        projectIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): Map<UUID, List<UUID>>
 }

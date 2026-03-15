@@ -6,6 +6,7 @@ import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
+import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.sprint.domain.exception.SprintErrorCode
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
@@ -43,13 +44,15 @@ class SprintTaskPolicy(
         workspaceId: WorkspaceId,
     ) {
         val changedDueDate = (dueDate as? Patch.Value)?.value ?: return
-        val assignments = projectRepository.findActiveProjectIdsByTaskIds(listOf(taskId), workspaceId)
-        assignments
-            .map { it.projectId }
-            .distinct()
-            .forEach { projectId ->
-                validateTaskDueDateForProject(projectId, changedDueDate, workspaceId)
-            }
+        val projectIds =
+            projectRepository
+                .findActiveProjectIdsByTaskIds(listOf(taskId), workspaceId)
+                .map { assignment: TaskAssignment -> assignment.projectId }
+                .distinct()
+        validateTaskDueDateWithinSprints(
+            sprintRepository.findActiveSprintsByProjectIds(projectIds, workspaceId),
+            changedDueDate,
+        )
     }
 
     fun validateTasksWithinSprintPeriod(

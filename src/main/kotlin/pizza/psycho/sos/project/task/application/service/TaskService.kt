@@ -7,11 +7,14 @@ import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
+import pizza.psycho.sos.project.task.application.event.handler.TaskEventSprintMembershipRegistry
+import pizza.psycho.sos.project.task.application.port.out.TaskSprintParticipationQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
 import pizza.psycho.sos.project.task.application.service.dto.TaskQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult.Assignee
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult.TaskInformation
+import pizza.psycho.sos.project.task.domain.event.TaskDomainEvent
 import pizza.psycho.sos.project.task.domain.model.entity.Task
 import pizza.psycho.sos.project.task.domain.model.entity.TaskUpdateSpec
 import pizza.psycho.sos.project.task.domain.model.vo.Status
@@ -23,6 +26,8 @@ class TaskService(
     private val taskRepository: TaskRepository,
     private val domainEventPublisher: DomainEventPublisher,
     private val sprintTaskPolicy: SprintTaskPolicy,
+    private val sprintParticipationQuery: TaskSprintParticipationQuery,
+    private val sprintMembershipRegistry: TaskEventSprintMembershipRegistry,
 ) {
     fun create(command: TaskCommand.AddTask): TaskResult =
         Tx.writable {
@@ -70,7 +75,9 @@ class TaskService(
             taskRepository
                 .findActiveTaskByIdOrNull(id, workspaceId)
                 ?.also {
+                    val wasInActiveSprint = sprintParticipationQuery.existsActiveSprintByTaskId(it.taskId, workspaceId.value)
                     it.delete(deletedBy)
+                    markSprintMembership(it, wasInActiveSprint)
                     domainEventPublisher.publishAndClear(it)
                 }?.let { 1 }
                 ?: 0
@@ -83,10 +90,14 @@ class TaskService(
     ): Int =
         Tx.writable {
             if (ids.isEmpty()) return@writable 0
+            val sprintTaskIds = sprintParticipationQuery.findTaskIdsInActiveSprints(ids, workspaceId.value)
             val tasks =
                 taskRepository
                     .findAllByIdIn(ids, workspaceId)
-                    .onEach { it.delete(deletedBy) }
+                    .onEach {
+                        it.delete(deletedBy)
+                        markSprintMembership(it, sprintTaskIds.contains(it.taskId))
+                    }
 
             domainEventPublisher.publishAndClearAll(tasks)
             return@writable tasks.size
@@ -103,6 +114,7 @@ class TaskService(
     ) = Tx.writable {
         if (ids.isEmpty()) return@writable
 
+        val sprintTaskIds = sprintParticipationQuery.findTaskIdsInActiveSprints(ids, workspaceId.value)
         val tasks = taskRepository.findAllByIdIn(ids, workspaceId)
         if (tasks.isEmpty()) return@writable
 
@@ -112,6 +124,7 @@ class TaskService(
                     status = Status.TODO,
                     by = actorId,
                 )
+                markSprintMembership(task, sprintTaskIds.contains(task.taskId))
             }
         }
 
@@ -194,4 +207,13 @@ class TaskService(
             priority = priority,
             actorId = actorId,
         )
+
+    private fun markSprintMembership(
+        task: Task,
+        wasInActiveSprint: Boolean,
+    ) {
+        task.domainEvents().filterIsInstance<TaskDomainEvent>().forEach { event ->
+            sprintMembershipRegistry.register(event.eventId, wasInActiveSprint)
+        }
+    }
 }

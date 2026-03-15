@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.transaction.helper.Tx
@@ -19,6 +21,7 @@ import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
 import pizza.psycho.sos.project.project.application.port.out.ProjectSprintParticipationQuery
 import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
+import pizza.psycho.sos.project.project.application.service.dto.ProjectQuery
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
@@ -50,7 +53,21 @@ class ProjectServiceTests {
         justRun { eventPublisher.publishAndClearAll(any()) }
         justRun { eventPublisher.publish(any<TaskRemovedFromSprintEvent>()) }
         every { projectRepository.findActiveProjectIdsByTaskIds(any(), any()) } returns emptyList()
+        every { projectRepository.findActiveTaskIdsByProjectId(any(), any()) } returns emptyList()
+        every { projectRepository.findActiveTaskIdsByProjectId(any(), any(), any()) } returns PageImpl(emptyList())
         every { sprintParticipationQuery.findActiveSprintIdsByProjectId(any(), any()) } returns emptyList()
+        every { sprintParticipationQuery.findActiveSprintIdsByProjectIds(any(), any()) } returns emptyMap()
+        every { taskPort.findByIdIn(any<Collection<UUID>>(), any()) } answers {
+            firstArg<Collection<UUID>>().map { id ->
+                TaskSnapshot(
+                    id = id,
+                    title = "task-$id",
+                    status = Status.TODO,
+                    assigneeId = null,
+                    dueDate = null,
+                )
+            }
+        }
     }
 
     @AfterEach
@@ -117,6 +134,56 @@ class ProjectServiceTests {
     }
 
     @Test
+    fun `프로젝트 태스크 조회 시 활성 태스크 ID만 사용한다`() {
+        val workspaceId = WorkspaceId(UUID.randomUUID())
+        val projectId = UUID.randomUUID()
+        val activeTaskId = UUID.randomUUID()
+        val deletedTaskId = UUID.randomUUID()
+        val pageable = PageRequest.of(0, 10)
+        val command = ProjectQuery.FindTasksInProject(workspaceId, projectId, pageable)
+        val project =
+            Project
+                .create(
+                    workspaceId = workspaceId,
+                    name = "프로젝트",
+                ).apply {
+                    id = projectId
+                    addTask(activeTaskId)
+                    addTask(deletedTaskId)
+                }
+        val taskSnapshot =
+            TaskSnapshot(
+                id = activeTaskId,
+                title = "활성 태스크",
+                status = Status.TODO,
+                assigneeId = null,
+                dueDate = null,
+            )
+
+        every { projectRepository.findActiveProjectByIdOrNull(projectId, workspaceId) } returns project
+        every {
+            projectRepository.findActiveTaskIdsByProjectId(
+                projectId = projectId,
+                workspaceId = workspaceId,
+                pageable = pageable,
+            )
+        } returns PageImpl(listOf(activeTaskId), pageable, 1)
+        every { taskPort.findByIdIn(listOf(activeTaskId), workspaceId) } returns listOf(taskSnapshot)
+
+        val result = projectService.getTasksInProject(command)
+
+        assertTrue(result is ProjectResult.TaskList)
+        verify(exactly = 1) {
+            projectRepository.findActiveTaskIdsByProjectId(
+                projectId = projectId,
+                workspaceId = workspaceId,
+                pageable = pageable,
+            )
+        }
+        verify(exactly = 1) { taskPort.findByIdIn(listOf(activeTaskId), workspaceId) }
+    }
+
+    @Test
     fun `프로젝트가 없으면 태스크 생성 시 IdNotFound를 반환한다`() {
         val workspaceId = WorkspaceId(UUID.randomUUID())
         val command =
@@ -154,6 +221,7 @@ class ProjectServiceTests {
                 }
 
         every { projectRepository.findActiveProjectByIdOrNull(projectId, workspaceId) } returns project
+        every { projectRepository.findActiveTaskIdsByProjectId(projectId, workspaceId) } returns listOf(taskId1, taskId2)
         every { taskPort.deleteByIdIn(listOf(taskId1, taskId2), deletedBy, workspaceId) } returns 2
 
         val command = ProjectCommand.Remove(workspaceId, projectId, deletedBy)
@@ -189,6 +257,7 @@ class ProjectServiceTests {
                 }
 
         every { projectRepository.findActiveProjectByIdOrNull(projectId, workspaceId) } returns project
+        every { projectRepository.findActiveTaskIdsByProjectId(projectId, workspaceId) } returns listOf(uniqueTaskId, sharedTaskId)
         every {
             projectRepository.findActiveProjectIdsByTaskIds(listOf(uniqueTaskId, sharedTaskId), workspaceId)
         } returns
@@ -205,6 +274,9 @@ class ProjectServiceTests {
         result as ProjectResult.Remove
         assertEquals(1, result.taskCount)
         verify { taskPort.deleteByIdIn(listOf(uniqueTaskId), deletedBy, workspaceId) }
+        verify(exactly = 1) {
+            projectRepository.findActiveProjectIdsByTaskIds(listOf(uniqueTaskId, sharedTaskId), workspaceId)
+        }
     }
 
     @Test
@@ -228,6 +300,7 @@ class ProjectServiceTests {
                 }
 
         every { projectRepository.findActiveProjectByIdOrNull(projectId, workspaceId) } returns project
+        every { projectRepository.findActiveTaskIdsByProjectId(projectId, workspaceId) } returns listOf(sharedTaskId)
         every {
             projectRepository.findActiveProjectIdsByTaskIds(listOf(sharedTaskId), workspaceId)
         } returns
@@ -237,8 +310,8 @@ class ProjectServiceTests {
             )
         every { sprintParticipationQuery.findActiveSprintIdsByProjectId(projectId, workspaceId.value) } returns listOf(sprintId)
         every {
-            sprintParticipationQuery.findActiveSprintIdsByProjectId(otherProjectId, workspaceId.value)
-        } returns listOf(otherSprintId)
+            sprintParticipationQuery.findActiveSprintIdsByProjectIds(setOf(otherProjectId), workspaceId.value)
+        } returns mapOf(otherProjectId to setOf(otherSprintId))
 
         val result = projectService.remove(ProjectCommand.Remove(workspaceId, projectId, deletedBy))
 
@@ -253,6 +326,36 @@ class ProjectServiceTests {
                 },
             )
         }
+        verify(exactly = 0) { sprintParticipationQuery.findActiveSprintIdsByProjectId(otherProjectId, workspaceId.value) }
+    }
+
+    @Test
+    fun `프로젝트 삭제 시 이미 삭제된 태스크에 대해서는 sprint 제거 이벤트를 발행하지 않는다`() {
+        val workspaceId = WorkspaceId(UUID.randomUUID())
+        val projectId = UUID.randomUUID()
+        val deletedBy = UUID.randomUUID()
+        val deletedTaskId = UUID.randomUUID()
+        val sprintId = UUID.randomUUID()
+
+        val project =
+            Project
+                .create(
+                    workspaceId = workspaceId,
+                    name = "삭제 대상 프로젝트",
+                ).apply {
+                    id = projectId
+                    addTask(deletedTaskId)
+                }
+
+        every { projectRepository.findActiveProjectByIdOrNull(projectId, workspaceId) } returns project
+        every { projectRepository.findActiveTaskIdsByProjectId(projectId, workspaceId) } returns emptyList()
+        every { sprintParticipationQuery.findActiveSprintIdsByProjectId(projectId, workspaceId.value) } returns listOf(sprintId)
+
+        val result = projectService.remove(ProjectCommand.Remove(workspaceId, projectId, deletedBy))
+
+        assertTrue(result is ProjectResult.Remove)
+        verify(exactly = 0) { eventPublisher.publish(any<TaskRemovedFromSprintEvent>()) }
+        verify(exactly = 0) { taskPort.deleteByIdIn(any(), any(), any()) }
     }
 
     @Test

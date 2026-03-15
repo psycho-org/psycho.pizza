@@ -143,11 +143,17 @@ class SprintService(
             val projectSnapshots = loadProjectSnapshots(projectIds, command.workspaceId)
             publishTaskRemovedFromSprintEvents(
                 sprintId = command.sprintId,
-                taskIds = projectSnapshots.flatMap(ProjectSnapshot::taskIds),
+                taskIds = projectSnapshots.flatMap(ProjectSnapshot::taskIds).distinct(),
                 workspaceId = command.workspaceId,
                 actorId = command.deletedBy,
             )
-            val deletedTaskCount = deleteTasks(projectSnapshots, command.deletedBy, command.workspaceId)
+            val deletedTaskCount =
+                deleteTasks(
+                    projectSnapshots.flatMap(ProjectSnapshot::taskIds).distinct(),
+                    projectSnapshots,
+                    command.deletedBy,
+                    command.workspaceId,
+                )
             val deletedProjectCount = deleteProjects(projectIds, command.deletedBy, command.workspaceId)
             val deletedSprintCount = deleteSprint(command.sprintId, command.deletedBy, command.workspaceId)
 
@@ -326,13 +332,13 @@ class SprintService(
         }
 
     private fun deleteTasks(
+        candidateTaskIds: Collection<UUID>,
         projectSnapshots: List<ProjectSnapshot>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
     ): Int {
         val removedProjectIds = projectSnapshots.mapTo(mutableSetOf()) { it.projectId }
-        val taskIds = projectSnapshots.flatMap { it.taskIds }.distinct()
-        val deletableTaskIds = deletableTaskIds(taskIds, removedProjectIds, workspaceId)
+        val deletableTaskIds = deletableTaskIds(candidateTaskIds, removedProjectIds, workspaceId)
         return if (deletableTaskIds.isEmpty()) {
             0
         } else {

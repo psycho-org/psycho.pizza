@@ -54,6 +54,17 @@ class SprintServiceTests {
         every { Tx.writable(any<() -> Any>()) } answers { firstArg<() -> Any>().invoke() }
         every { Tx.readable(any<() -> Any>()) } answers { firstArg<() -> Any>().invoke() }
         every { projectPort.findActiveProjectIdsByTaskIds(any(), any()) } returns emptyList()
+        every { taskPort.findByIdIn(any<Collection<UUID>>(), any()) } answers {
+            firstArg<Collection<UUID>>().map { id ->
+                TaskSnapshot(
+                    id = id,
+                    title = "task-$id",
+                    status = pizza.psycho.sos.project.task.domain.model.vo.Status.TODO,
+                    assigneeId = null,
+                    dueDate = null,
+                )
+            }
+        }
     }
 
     @AfterEach
@@ -316,6 +327,34 @@ class SprintServiceTests {
                 },
             )
         }
+    }
+
+    @Test
+    fun `스프린트 삭제 시 이미 삭제된 태스크에 대해서는 제거 이벤트를 발행하지 않는다`() {
+        val deletedBy = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        val sprint =
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId).apply {
+                addProject(projectId)
+            }
+        val snapshot =
+            ProjectSnapshot(
+                projectId = projectId,
+                workspaceId = workspaceId,
+                name = "Project 1",
+                taskIds = emptyList(),
+            )
+
+        every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns sprint
+        every { projectPort.findByIdIn(listOf(projectId), workspaceId) } returns listOf(snapshot)
+        every { projectPort.deleteByIdIn(listOf(projectId), deletedBy, workspaceId) } returns 1
+        every { sprintRepository.deleteById(sprintId, deletedBy, workspaceId) } returns 1
+
+        val result = sprintService.remove(SprintCommand.Remove(workspaceId, sprintId, deletedBy))
+
+        assertTrue(result is SprintResult.Remove)
+        verify(exactly = 0) { eventPublisher.publish(any<TaskRemovedFromSprintEvent>()) }
+        verify(exactly = 0) { taskPort.deleteByIdIn(any(), any(), any()) }
     }
 
     @Test

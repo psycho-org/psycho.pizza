@@ -14,6 +14,7 @@ import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.infrastructure.persistence.SprintJpaRepository
+import pizza.psycho.sos.project.task.domain.model.entity.Task
 import java.time.Instant
 import java.util.UUID
 
@@ -95,11 +96,13 @@ class SprintRepositoryTests {
 
     @Test
     fun `deleted project does not count as active sprint task membership`() {
-        val taskId = UUID.randomUUID()
         val deletedBy = UUID.randomUUID()
         val project = Project.create("Deleted Project", workspaceId)
+        val task = Task.create("Task", "Description", null, workspaceId.value)
+        entityManager.persist(task)
         entityManager.persist(project)
         entityManager.flush()
+        val taskId = task.taskId
         project.addTask(taskId)
         entityManager.flush()
 
@@ -110,6 +113,33 @@ class SprintRepositoryTests {
         sprintRepository.saveAndFlush(sprint)
 
         project.delete(deletedBy)
+        entityManager.flush()
+        entityManager.clear()
+
+        assertFalse(sprintRepository.existsActiveSprintByTaskIdAndSprintId(taskId, sprint.sprintId, workspaceId))
+        assertFalse(sprintRepository.existsActiveSprintByTaskId(taskId, workspaceId))
+        assertTrue(sprintRepository.findActiveSprintIdsByTaskId(taskId, workspaceId).isEmpty())
+    }
+
+    @Test
+    fun `deleted task does not count as active sprint task membership`() {
+        val deletedBy = UUID.randomUUID()
+        val task = Task.create("Deleted Task", "Description", null, workspaceId.value)
+        val project = Project.create("Project", workspaceId)
+        entityManager.persist(task)
+        entityManager.persist(project)
+        entityManager.flush()
+        val taskId = task.taskId
+        project.addTask(taskId)
+        entityManager.flush()
+
+        val sprint =
+            Sprint.create("Sprint With Deleted Task", workspaceId, "goal", startDate, endDate).apply {
+                addProject(project.projectId)
+            }
+        sprintRepository.saveAndFlush(sprint)
+
+        task.delete(deletedBy)
         entityManager.flush()
         entityManager.clear()
 
@@ -167,13 +197,45 @@ class SprintRepositoryTests {
     }
 
     @Test
-    fun `findActiveSprintIdsByTaskId returns active sprint ids for task`() {
-        val taskId = UUID.randomUUID()
+    fun `findActiveSprintIdsByProjectIds returns sprint ids grouped by project`() {
         val projectA = Project.create("Project A", workspaceId)
         val projectB = Project.create("Project B", workspaceId)
         entityManager.persist(projectA)
         entityManager.persist(projectB)
         entityManager.flush()
+
+        val sprintA =
+            Sprint.create("Sprint A", workspaceId, "goal", startDate, endDate).apply {
+                addProject(projectA.projectId)
+            }
+        val sprintB =
+            Sprint.create("Sprint B", workspaceId, "goal", startDate, endDate).apply {
+                addProjects(listOf(projectA.projectId, projectB.projectId))
+            }
+        sprintRepository.saveAndFlush(sprintA)
+        sprintRepository.saveAndFlush(sprintB)
+        entityManager.clear()
+
+        val found =
+            sprintRepository.findActiveSprintIdsByProjectIds(
+                listOf(projectA.projectId, projectB.projectId),
+                workspaceId,
+            )
+
+        assertEquals(setOf(sprintA.sprintId, sprintB.sprintId), found[projectA.projectId])
+        assertEquals(setOf(sprintB.sprintId), found[projectB.projectId])
+    }
+
+    @Test
+    fun `findActiveSprintIdsByTaskId returns active sprint ids for task`() {
+        val projectA = Project.create("Project A", workspaceId)
+        val projectB = Project.create("Project B", workspaceId)
+        val task = Task.create("Task", "Description", null, workspaceId.value)
+        entityManager.persist(task)
+        entityManager.persist(projectA)
+        entityManager.persist(projectB)
+        entityManager.flush()
+        val taskId = task.taskId
         projectA.addTask(taskId)
         projectB.addTask(taskId)
         entityManager.flush()
@@ -193,5 +255,37 @@ class SprintRepositoryTests {
         val found = sprintRepository.findActiveSprintIdsByTaskId(taskId, workspaceId)
 
         assertEquals(setOf(sprintA.sprintId, sprintB.sprintId), found.toSet())
+    }
+
+    @Test
+    fun `findActiveSprintIdsByTaskIds returns sprint ids grouped by task`() {
+        val taskA = Task.create("Task A", "Description", null, workspaceId.value)
+        val taskB = Task.create("Task B", "Description", null, workspaceId.value)
+        val project = Project.create("Project", workspaceId)
+        entityManager.persist(taskA)
+        entityManager.persist(taskB)
+        entityManager.persist(project)
+        entityManager.flush()
+        val taskIdA = taskA.taskId
+        val taskIdB = taskB.taskId
+        project.addTasks(listOf(taskIdA, taskIdB))
+        entityManager.flush()
+
+        val sprintA =
+            Sprint.create("Sprint A", workspaceId, "goal", startDate, endDate).apply {
+                addProject(project.projectId)
+            }
+        val sprintB =
+            Sprint.create("Sprint B", workspaceId, "goal", startDate, endDate).apply {
+                addProject(project.projectId)
+            }
+        sprintRepository.saveAndFlush(sprintA)
+        sprintRepository.saveAndFlush(sprintB)
+        entityManager.clear()
+
+        val found = sprintRepository.findActiveSprintIdsByTaskIds(listOf(taskIdA, taskIdB), workspaceId)
+
+        assertEquals(setOf(sprintA.sprintId, sprintB.sprintId), found[taskIdA])
+        assertEquals(setOf(sprintA.sprintId, sprintB.sprintId), found[taskIdB])
     }
 }

@@ -20,13 +20,19 @@ class ProjectFacadeImpl(
     ): ProjectSnapshot =
         Tx.writable {
             val project = Project.create(workspaceId = workspaceId, name = name)
-            projectRepository.save(project).toSnapshot()
+            projectRepository.save(project).toSnapshot(emptyList())
         }
 
     override fun findProjectsByIdIn(
         projectIds: Collection<UUID>,
         workspaceId: WorkspaceId,
-    ): List<ProjectSnapshot> = projectRepository.findActiveProjectsByIdIn(projectIds, workspaceId).map { it.toSnapshot() }
+    ): List<ProjectSnapshot> {
+        val projects = projectRepository.findActiveProjectsByIdIn(projectIds, workspaceId)
+        val taskIdsByProjectId = projectRepository.findActiveTaskIdsByProjectIds(projectIds, workspaceId)
+        return projects.map { project ->
+            project.toSnapshot(taskIdsByProjectId[project.projectId].orEmpty())
+        }
+    }
 
     override fun findProgressesByProjectId(
         projectIds: List<UUID>,
@@ -50,11 +56,11 @@ class ProjectFacadeImpl(
         workspaceId: WorkspaceId,
     ): List<TaskAssignment> = projectRepository.findActiveProjectIdsByTaskIds(taskIds, workspaceId)
 
-    private fun Project.toSnapshot(): ProjectSnapshot =
+    private fun Project.toSnapshot(taskIds: List<UUID>): ProjectSnapshot =
         ProjectSnapshot(
             projectId = projectId,
             workspaceId = workspaceId,
             name = name,
-            taskIds = taskIds(),
+            taskIds = taskIds,
         )
 }
