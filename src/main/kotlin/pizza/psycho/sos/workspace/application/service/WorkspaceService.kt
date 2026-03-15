@@ -11,13 +11,15 @@ import pizza.psycho.sos.workspace.domain.exception.WorkspaceErrorCode
 import pizza.psycho.sos.workspace.domain.model.membership.Membership
 import pizza.psycho.sos.workspace.domain.model.membership.Role
 import pizza.psycho.sos.workspace.domain.model.workspace.Workspace
+import pizza.psycho.sos.workspace.domain.repository.WorkspaceCommandRepository
 import pizza.psycho.sos.workspace.domain.repository.WorkspaceMembershipQueryRepository
-import pizza.psycho.sos.workspace.domain.repository.WorkspaceRepository
+import pizza.psycho.sos.workspace.domain.repository.WorkspaceQueryRepository
 import java.util.UUID
 
 @Service
 class WorkspaceService(
-    private val workspaceRepository: WorkspaceRepository,
+    private val workspaceCommandRepository: WorkspaceCommandRepository,
+    private val workspaceQueryRepository: WorkspaceQueryRepository,
     private val workspaceMembershipQueryRepository: WorkspaceMembershipQueryRepository,
     private val accountDisplayNamePort: AccountDisplayNamePort,
 ) {
@@ -29,7 +31,7 @@ class WorkspaceService(
     ): Workspace {
         logger.info("Creating workspace. ownerAccountId={} name={}", ownerAccountId, name)
         val workspace = Workspace.create(name, description, ownerAccountId, resolveDisplayName(ownerAccountId))
-        val saved = workspaceRepository.save(workspace)
+        val saved = workspaceCommandRepository.save(workspace)
         logger.info("Workspace created. workspaceId={}", saved.id)
         return saved
     }
@@ -37,7 +39,7 @@ class WorkspaceService(
     @Transactional(readOnly = true)
     fun getWorkspace(workspaceId: UUID): Workspace {
         logger.info("Fetching workspace. workspaceId={}", workspaceId)
-        return workspaceRepository.findActiveByIdOrNull(workspaceId)
+        return workspaceQueryRepository.findActiveByIdOrNull(workspaceId)
             ?: run {
                 logger.warn("Workspace not found. workspaceId={}", workspaceId)
                 throw DomainException(WorkspaceErrorCode.WORKSPACE_NOT_FOUND)
@@ -281,7 +283,7 @@ class WorkspaceService(
     }
 
     private fun requireActiveWorkspace(workspaceId: UUID): Workspace =
-        workspaceRepository.findActiveByIdOrNull(workspaceId)
+        workspaceQueryRepository.findActiveByIdOrNull(workspaceId)
             ?: run {
                 logger.warn("Workspace not found. workspaceId={}", workspaceId)
                 throw DomainException(WorkspaceErrorCode.WORKSPACE_NOT_FOUND)

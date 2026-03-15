@@ -19,7 +19,7 @@ class WorkspaceMembershipCommandJpaRepositoryTests {
     private lateinit var workspaceMembershipCommandJpaRepository: WorkspaceMembershipCommandJpaRepository
 
     @Autowired
-    private lateinit var workspaceJpaRepository: WorkspaceJpaRepository
+    private lateinit var workspaceCommandJpaRepository: WorkspaceCommandJpaRepository
 
     @Test
     fun `softDeleteActiveNonOwnerMembershipsByAccountId soft deletes only active non-owner memberships`() {
@@ -36,9 +36,9 @@ class WorkspaceMembershipCommandJpaRepositoryTests {
             }
         val ownerWorkspace = Workspace.create("Owner", "desc", accountId)
 
-        workspaceJpaRepository.save(activeCrewWorkspace)
-        workspaceJpaRepository.save(deletedWorkspace)
-        workspaceJpaRepository.save(ownerWorkspace)
+        workspaceCommandJpaRepository.save(activeCrewWorkspace)
+        workspaceCommandJpaRepository.save(deletedWorkspace)
+        workspaceCommandJpaRepository.save(ownerWorkspace)
 
         val memberships = workspaceMembershipCommandJpaRepository.findActiveNonOwnerMembershipsByAccountId(accountId)
 
