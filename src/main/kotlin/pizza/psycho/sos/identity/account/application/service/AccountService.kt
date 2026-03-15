@@ -32,6 +32,11 @@ class AccountService(
             .findByEmailValueIgnoreCaseAndDeletedAtIsNull(Email.of(email).value)
             ?.id
 
+    fun findActiveDisplayNameByAccountIdOrNull(accountId: UUID): String? =
+        accountRepository
+            .findByIdAndDeletedAtIsNull(accountId)
+            ?.let { "${it.givenName} ${it.familyName}" }
+
     fun register(command: AccountCommand.Register): Register =
         try {
             Tx.writable { registerInTransaction(command) }
