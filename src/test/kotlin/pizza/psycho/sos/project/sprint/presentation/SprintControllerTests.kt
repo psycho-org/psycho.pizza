@@ -278,20 +278,20 @@ class SprintControllerTests {
         val userId = UUID.randomUUID()
 
         `when`(
-            sprintService.removeWithTasks(
-                SprintCommand.RemoveWithTasks(WorkspaceId(workspaceId), sprintId, userId),
+            sprintService.remove(
+                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId),
             ),
-        ).thenReturn(SprintResult.RemoveWithTasks(sprintCount = 1, projectCount = 2, taskCount = 5))
+        ).thenReturn(SprintResult.Remove(sprintCount = 1, projectCount = 2, taskCount = 5))
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId/with-tasks")
+                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
                     .param("account", userId.toString()),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.projectCount").value(2))
             .andExpect(jsonPath("$.data.taskCount").value(5))
-        verify(sprintService).removeWithTasks(
-            SprintCommand.RemoveWithTasks(WorkspaceId(workspaceId), sprintId, userId),
+        verify(sprintService).remove(
+            SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId),
         )
     }
 
@@ -302,14 +302,14 @@ class SprintControllerTests {
         val userId = UUID.randomUUID()
 
         `when`(
-            sprintService.removeWithTasks(
-                SprintCommand.RemoveWithTasks(WorkspaceId(workspaceId), sprintId, userId),
+            sprintService.remove(
+                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId),
             ),
         ).thenReturn(SprintResult.Failure.IdNotFound)
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId/with-tasks")
+                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
                     .param("account", userId.toString()),
             ).andExpect(status().is4xxClientError)
     }

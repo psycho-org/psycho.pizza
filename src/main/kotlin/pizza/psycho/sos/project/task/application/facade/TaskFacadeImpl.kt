@@ -56,12 +56,11 @@ class TaskFacadeImpl(
         workspaceId: WorkspaceId,
     ): Int = taskService.deleteTasksByIdIn(ids, deletedBy, workspaceId)
 
-    override fun resetStatusToTodo(
+    override fun moveToBacklog(
         ids: Collection<UUID>,
         actorId: UUID,
         workspaceId: WorkspaceId,
-        emitEvent: Boolean,
-    ) = taskService.resetStatusToTodo(ids, workspaceId, actorId, emitEvent)
+    ) = taskService.moveToBacklog(ids, workspaceId, actorId)
 
     private fun Task.toSnapshot(): TaskSnapshot =
         TaskSnapshot(

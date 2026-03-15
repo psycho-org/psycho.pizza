@@ -349,10 +349,10 @@ class ProjectControllerTests {
         val userId = UUID.randomUUID()
 
         `when`(
-            projectService.removeWithTasks(
-                ProjectCommand.RemoveWithTasks(WorkspaceId(workspaceId), projectId, userId),
+            projectService.remove(
+                ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, userId),
             ),
-        ).thenReturn(ProjectResult.RemoveWithTasks(projectCount = 1, taskCount = 3))
+        ).thenReturn(ProjectResult.Remove(projectCount = 1, taskCount = 3))
 
         mockMvc
             .perform(
@@ -371,8 +371,8 @@ class ProjectControllerTests {
         val userId = UUID.randomUUID()
 
         `when`(
-            projectService.removeWithTasks(
-                ProjectCommand.RemoveWithTasks(WorkspaceId(workspaceId), projectId, userId),
+            projectService.remove(
+                ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, userId),
             ),
         ).thenReturn(ProjectResult.Failure.IdNotFound)
 

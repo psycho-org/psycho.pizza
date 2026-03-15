@@ -15,6 +15,8 @@ import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.domain.event.SprintDomainEvent
 import pizza.psycho.sos.project.sprint.domain.event.SprintGoalChangedEvent
 import pizza.psycho.sos.project.sprint.domain.event.SprintPeriodChangedEvent
+import pizza.psycho.sos.project.sprint.domain.event.TaskAddedToSprintEvent
+import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.exception.SprintErrorCode
 import pizza.psycho.sos.project.sprint.domain.model.vo.Period
 import java.time.Instant
@@ -109,12 +111,46 @@ class Sprint(
         projectIds.forEach { addProject(it) }
     }
 
+    fun addProjects(
+        projectIds: Collection<UUID>,
+        taskIdsAddedToSprint: Collection<UUID>,
+        by: UUID,
+    ) {
+        addProjects(projectIds)
+        taskIdsAddedToSprint.forEach { taskId ->
+            TaskAddedToSprintEvent(
+                workspaceId = workspaceId.value,
+                sprintId = sprintId,
+                taskId = taskId,
+                actorId = by,
+                eventId = UUID.randomUUID(),
+            ).register()
+        }
+    }
+
     fun removeProject(projectId: UUID) {
         mappings.removeIf { it.projectId == projectId }
     }
 
     fun removeProjects(projectIds: Collection<UUID>) {
         projectIds.forEach { removeProject(it) }
+    }
+
+    fun removeProjects(
+        projectIds: Collection<UUID>,
+        taskIdsMovedToBacklog: Collection<UUID>,
+        by: UUID,
+    ) {
+        removeProjects(projectIds)
+        taskIdsMovedToBacklog.forEach { taskId ->
+            TaskRemovedFromSprintEvent(
+                workspaceId = workspaceId.value,
+                sprintId = sprintId,
+                taskId = taskId,
+                actorId = by,
+                eventId = UUID.randomUUID(),
+            ).register()
+        }
     }
 
     fun hasProject(projectId: UUID): Boolean = mappings.any { it.projectId == projectId }

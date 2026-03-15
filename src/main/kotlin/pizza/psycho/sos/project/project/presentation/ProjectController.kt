@@ -115,29 +115,14 @@ class ProjectController(
             projectService.modify(request.toCommand(workspaceId, projectId, accountId))
         }
 
-    fun removeProject(
-        workspaceId: UUID,
-        projectId: UUID,
-        accountId: UUID,
-    ): ApiResponse<*> =
-        handleResult {
-            projectService.remove(ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, accountId))
-        }
-
     @DeleteMapping("/{projectId}")
-    fun removeProjectWithTasks(
+    fun removeProject(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,
         @RequestParam(name = "account") accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            projectService.removeWithTasks(
-                ProjectCommand.RemoveWithTasks(
-                    WorkspaceId(workspaceId),
-                    projectId,
-                    accountId,
-                ),
-            )
+            projectService.remove(ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, accountId))
         }
 
     // ------------------------------------------------------------------------------------------------
@@ -149,14 +134,8 @@ class ProjectController(
             is ProjectResult.TaskList -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
             is ProjectResult.Remove ->
                 responseOf(
-                    message = "데이터 삭제에 성공하였습니다.",
-                    data = ProjectResponse.Remove(result.count),
-                )
-
-            is ProjectResult.RemoveWithTasks ->
-                responseOf(
                     message = "프로젝트 및 하위 태스크 삭제에 성공하였습니다.",
-                    data = ProjectResponse.RemoveWithTasks(result.projectCount, result.taskCount),
+                    data = ProjectResponse.Remove(result.projectCount, result.taskCount),
                 )
 
             is ProjectResult.Success -> responseOf(message = "데이터 수정에 성공하였습니다.", data = null)

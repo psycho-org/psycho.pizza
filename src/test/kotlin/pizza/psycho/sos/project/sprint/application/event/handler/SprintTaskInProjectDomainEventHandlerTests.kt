@@ -34,8 +34,8 @@ class SprintTaskInProjectDomainEventHandlerTests {
             sprintRepository.findActiveSprintIdsByProjectId(toProjectId, WorkspaceId(workspaceId))
         } returns listOf(sprintId)
         every {
-            sprintRepository.existsActiveSprintByTaskIdAndSprintId(taskId, sprintId, WorkspaceId(workspaceId))
-        } returns true
+            sprintRepository.findActiveSprintIdsByTaskId(taskId, WorkspaceId(workspaceId))
+        } returns listOf(sprintId)
 
         handler.handle(
             TaskRemovedFromProjectEvent(
@@ -78,8 +78,8 @@ class SprintTaskInProjectDomainEventHandlerTests {
             sprintRepository.findActiveSprintIdsByProjectId(toProjectId, WorkspaceId(workspaceId))
         } returns listOf(sprintTo)
         every {
-            sprintRepository.existsActiveSprintByTaskIdAndSprintId(taskId, sprintFrom, WorkspaceId(workspaceId))
-        } returns false
+            sprintRepository.findActiveSprintIdsByTaskId(taskId, WorkspaceId(workspaceId))
+        } returns emptyList()
 
         handler.handle(
             TaskRemovedFromProjectEvent(

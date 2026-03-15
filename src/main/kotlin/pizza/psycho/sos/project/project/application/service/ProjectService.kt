@@ -11,6 +11,7 @@ import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
 import pizza.psycho.sos.project.project.application.service.dto.ProjectQuery
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.model.entity.Project
+import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 
@@ -19,6 +20,7 @@ class ProjectService(
     private val projectRepository: ProjectRepository,
     private val eventPublisher: DomainEventPublisher,
     private val taskPort: TaskPort,
+    private val sprintTaskPolicy: SprintTaskPolicy,
 ) {
     private val log by loggerDelegate()
 
@@ -82,6 +84,7 @@ class ProjectService(
                         return@writable ProjectResult.Failure.IdNotFound
                     }
 
+            sprintTaskPolicy.validateTaskDueDateForProject(command.projectId, command.dueDate, command.workspaceId)
             val task =
                 taskPort.createTask(
                     workspaceId = command.workspaceId.value,
@@ -98,18 +101,10 @@ class ProjectService(
 
     fun remove(command: ProjectCommand.Remove): ProjectResult =
         Tx.writable {
-            projectRepository
-                .deleteById(command.projectId, command.deletedBy, command.workspaceId)
-                .let { ProjectResult.Remove(it) }
-                .also { log.info("remove success: projectId=${command.projectId}") }
-        }
-
-    fun removeWithTasks(command: ProjectCommand.RemoveWithTasks): ProjectResult =
-        Tx.writable {
             val project =
                 projectRepository.findActiveProjectByIdOrNull(command.projectId, command.workspaceId)
                     ?: run {
-                        log.warn("removeWithTasks: project not found. projectId=${command.projectId}")
+                        log.warn("remove: project not found. projectId={}", command.projectId)
                         return@writable ProjectResult.Failure.IdNotFound
                     }
 
@@ -122,7 +117,7 @@ class ProjectService(
                         .deleteByIdIn(taskIds, command.deletedBy, command.workspaceId)
                         .also {
                             log.info(
-                                "removeWithTasks: tasks soft-deleted. count={}, projectId={}",
+                                "remove: tasks soft-deleted. count={}, projectId={}",
                                 it,
                                 command.projectId,
                             )
@@ -130,8 +125,8 @@ class ProjectService(
                 }
 
             project.delete(command.deletedBy)
-            log.info("removeWithTasks success: projectId=${command.projectId}, deletedTasks=$deletedTaskCount")
-            ProjectResult.RemoveWithTasks(projectCount = 1, taskCount = deletedTaskCount)
+            log.info("remove success: projectId={}, deletedTasks={}", command.projectId, deletedTaskCount)
+            ProjectResult.Remove(projectCount = 1, taskCount = deletedTaskCount)
         }
 
     fun modify(command: ProjectCommand.Update): ProjectResult =
@@ -175,6 +170,11 @@ class ProjectService(
                         return@writable ProjectResult.Failure.IdNotFound
                     }
 
+            val taskSnapshot =
+                taskPort.findByIdIn(listOf(command.taskId), command.workspaceId).singleOrNull()
+                    ?: return@writable ProjectResult.Failure.TaskNotFound
+            sprintTaskPolicy.validateTaskAssignmentsToProject(command.toProjectId, listOf(taskSnapshot), command.workspaceId)
+
             fromProject.moveTaskTo(command.taskId, toProject, command.movedBy)
             eventPublisher.publishAndClear(fromProject)
             eventPublisher.publishAndClear(toProject)
@@ -203,6 +203,7 @@ class ProjectService(
                     log.warn("update: some taskIds not found. addTaskIds={}", addTaskIds)
                     return@with ProjectResult.Failure.TaskNotFound
                 }
+                sprintTaskPolicy.validateTaskAssignmentsToProject(projectId, existingTasks, workspaceId)
 
                 val assignments =
                     projectRepository

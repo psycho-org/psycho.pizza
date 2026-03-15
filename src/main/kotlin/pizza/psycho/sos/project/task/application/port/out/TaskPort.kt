@@ -40,12 +40,12 @@ interface TaskPort {
     ): Int
 
     /**
-     * 주어진 Task ID 들의 상태를 TO DO로 리셋한다.
+     * 주어진 Task 들을 backlog 상태로 되돌린다.
+     * backlog 전환은 스프린트 소속 해제와 함께 TO DO 상태 보정까지 포함한다.
      */
-    fun resetStatusToTodo(
+    fun moveToBacklog(
         ids: Collection<UUID>,
         actorId: UUID,
         workspaceId: WorkspaceId,
-        emitEvent: Boolean = false,
     )
 }

@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.domain.event.SprintPeriodChangedEvent
+import pizza.psycho.sos.project.sprint.domain.event.TaskAddedToSprintEvent
+import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import java.time.Instant
 import java.util.UUID
@@ -115,5 +117,30 @@ class SprintTests {
         )
 
         assertTrue(sprint.domainEvents().none { it is SprintPeriodChangedEvent })
+    }
+
+    @Test
+    fun `프로젝트 추가 시 새로 sprint 에 들어온 task 이벤트를 등록한다`() {
+        val sprint = createSprint()
+        val actorId = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+
+        sprint.addProjects(listOf(projectId), listOf(taskId), actorId)
+
+        assertTrue(sprint.domainEvents().any { it is TaskAddedToSprintEvent })
+    }
+
+    @Test
+    fun `프로젝트 제거 시 backlog 로 이동한 task 이벤트를 등록한다`() {
+        val sprint = createSprint()
+        val actorId = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        sprint.addProject(projectId)
+
+        sprint.removeProjects(listOf(projectId), listOf(taskId), actorId)
+
+        assertTrue(sprint.domainEvents().any { it is TaskRemovedFromSprintEvent })
     }
 }

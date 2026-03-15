@@ -104,14 +104,11 @@ class SprintTaskInProjectDomainEventHandler(
             return
         }
 
+        val remainingSprintIds = sprintRepository.findActiveSprintIdsByTaskId(event.taskId, workspaceId).toSet()
+
         sprintIds.forEach { sprintId ->
             val key = TaskSprintKey(event.workspaceId, sprintId, event.taskId)
-            val stillInSprint =
-                sprintRepository.existsActiveSprintByTaskIdAndSprintId(
-                    taskId = event.taskId,
-                    sprintId = sprintId,
-                    workspaceId = workspaceId,
-                )
+            val stillInSprint = remainingSprintIds.contains(sprintId)
             if (stillInSprint) {
                 suppressedMoveKeys.add(key)
                 log.debug(

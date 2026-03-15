@@ -51,6 +51,26 @@ interface SprintJpaRepository :
 
     @Query(
         """
+        select distinct s.id
+        from Sprint s
+            join SprintProjectMapping sp on sp.sprint = s
+            join pizza.psycho.sos.project.project.domain.model.entity.Project p
+                on p.id = sp.projectId
+            join pizza.psycho.sos.project.project.domain.model.entity.ProjectTaskMapping ptm
+                on ptm.project = p
+        where s.workspaceId = :workspaceId
+          and s.deletedAt is null
+          and p.deletedAt is null
+          and ptm.taskId = :taskId
+        """,
+    )
+    override fun findActiveSprintIdsByTaskId(
+        taskId: UUID,
+        workspaceId: WorkspaceId,
+    ): List<UUID>
+
+    @Query(
+        """
         select case when count(s) > 0 then true else false end
         from Sprint s
             join SprintProjectMapping sp on sp.sprint = s
@@ -84,6 +104,24 @@ interface SprintJpaRepository :
         projectId: UUID,
         workspaceId: WorkspaceId,
     ): List<UUID>
+
+    @Query(
+        """
+        select s
+        from Sprint s
+            join SprintProjectMapping sp on sp.sprint = s
+            join pizza.psycho.sos.project.project.domain.model.entity.Project p
+                on p.id = sp.projectId
+        where s.workspaceId = :workspaceId
+          and s.deletedAt is null
+          and p.deletedAt is null
+          and p.id = :projectId
+        """,
+    )
+    override fun findActiveSprintsByProjectId(
+        projectId: UUID,
+        workspaceId: WorkspaceId,
+    ): List<Sprint>
 
     @Query(
         """

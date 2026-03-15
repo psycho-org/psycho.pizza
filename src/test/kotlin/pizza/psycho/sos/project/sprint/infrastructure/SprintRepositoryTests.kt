@@ -115,6 +115,7 @@ class SprintRepositoryTests {
 
         assertFalse(sprintRepository.existsActiveSprintByTaskIdAndSprintId(taskId, sprint.sprintId, workspaceId))
         assertFalse(sprintRepository.existsActiveSprintByTaskId(taskId, workspaceId))
+        assertTrue(sprintRepository.findActiveSprintIdsByTaskId(taskId, workspaceId).isEmpty())
     }
 
     @Test
@@ -139,5 +140,58 @@ class SprintRepositoryTests {
 
         assertFalse(sprintRepository.existsActiveSprintByProjectId(project.projectId, workspaceId))
         assertTrue(sprintRepository.findActiveSprintIdsByProjectId(project.projectId, workspaceId).isEmpty())
+        assertTrue(sprintRepository.findActiveSprintsByProjectId(project.projectId, workspaceId).isEmpty())
+    }
+
+    @Test
+    fun `findActiveSprintsByProjectId returns active sprints for project`() {
+        val project = Project.create("Project", workspaceId)
+        entityManager.persist(project)
+        entityManager.flush()
+
+        val sprintA =
+            Sprint.create("Sprint A", workspaceId, "goal", startDate, endDate).apply {
+                addProject(project.projectId)
+            }
+        val sprintB =
+            Sprint.create("Sprint B", workspaceId, "goal", startDate, endDate).apply {
+                addProject(project.projectId)
+            }
+        sprintRepository.saveAndFlush(sprintA)
+        sprintRepository.saveAndFlush(sprintB)
+        entityManager.clear()
+
+        val found = sprintRepository.findActiveSprintsByProjectId(project.projectId, workspaceId)
+
+        assertEquals(setOf(sprintA.sprintId, sprintB.sprintId), found.map { it.sprintId }.toSet())
+    }
+
+    @Test
+    fun `findActiveSprintIdsByTaskId returns active sprint ids for task`() {
+        val taskId = UUID.randomUUID()
+        val projectA = Project.create("Project A", workspaceId)
+        val projectB = Project.create("Project B", workspaceId)
+        entityManager.persist(projectA)
+        entityManager.persist(projectB)
+        entityManager.flush()
+        projectA.addTask(taskId)
+        projectB.addTask(taskId)
+        entityManager.flush()
+
+        val sprintA =
+            Sprint.create("Sprint A", workspaceId, "goal", startDate, endDate).apply {
+                addProject(projectA.projectId)
+            }
+        val sprintB =
+            Sprint.create("Sprint B", workspaceId, "goal", startDate, endDate).apply {
+                addProject(projectB.projectId)
+            }
+        sprintRepository.saveAndFlush(sprintA)
+        sprintRepository.saveAndFlush(sprintB)
+        entityManager.clear()
+
+        val found = sprintRepository.findActiveSprintIdsByTaskId(taskId, workspaceId)
+
+        assertEquals(setOf(sprintA.sprintId, sprintB.sprintId), found.toSet())
     }
 }
