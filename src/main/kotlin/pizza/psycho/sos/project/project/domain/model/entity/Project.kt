@@ -12,6 +12,7 @@ import pizza.psycho.sos.common.event.AggregateRoot
 import pizza.psycho.sos.common.event.DomainEvent
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.project.domain.event.ProjectDeletedEvent
 import pizza.psycho.sos.project.project.domain.event.ProjectDomainEvent
 import pizza.psycho.sos.project.project.domain.event.TaskAddedToProjectEvent
 import pizza.psycho.sos.project.project.domain.event.TaskProjectChangedEvent
@@ -174,6 +175,25 @@ class Project(
     fun hasTask(taskId: UUID): Boolean = mappings.any { it.taskId == taskId }
 
     fun taskIds(): List<UUID> = mappings.map { it.taskId }
+
+    override fun delete(by: UUID) {
+        delete(by, null)
+    }
+
+    fun delete(
+        by: UUID,
+        reason: String?,
+    ) {
+        super.delete(by)
+        ProjectDeletedEvent(
+            workspaceId = workspaceId.value,
+            actorId = by,
+            projectId = projectId,
+            projectName = name,
+            reason = reason,
+            eventId = UUID.randomUUID(),
+        ).register()
+    }
 
     private fun ProjectDomainEvent.register() = registerEvent(this)
 

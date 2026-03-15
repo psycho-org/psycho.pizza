@@ -24,6 +24,7 @@ import pizza.psycho.sos.project.task.application.port.out.TaskSprintParticipatio
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
 import pizza.psycho.sos.project.task.application.service.dto.TaskQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult
+import pizza.psycho.sos.project.task.domain.event.TaskDeletedEvent
 import pizza.psycho.sos.project.task.domain.model.entity.Task
 import pizza.psycho.sos.project.task.domain.repository.TaskRepository
 import java.time.Instant
@@ -58,6 +59,8 @@ class TaskServiceTests {
             val lambda = firstArg<() -> Any>()
             lambda()
         }
+        every { domainEventPublisher.publishAndClear(any()) } returns Unit
+        every { domainEventPublisher.publish(any<TaskDeletedEvent>()) } returns Unit
     }
 
     @AfterEach
@@ -168,5 +171,46 @@ class TaskServiceTests {
         val result = taskService.getInformation(command)
 
         assertTrue(result is TaskResult.Failure.IdNotFound)
+    }
+
+    @Test
+    fun `태스크 삭제 시 reason 이벤트를 발행하고 삭제 결과를 반환한다`() {
+        val workspaceId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val deletedBy = UUID.randomUUID()
+        val task =
+            Task
+                .create(
+                    title = "삭제할 태스크",
+                    description = "설명",
+                    assigneeId = null,
+                    workspaceId = workspaceId,
+                ).apply {
+                    id = taskId
+                }
+
+        every { taskRepository.findActiveTaskByIdOrNull(taskId, WorkspaceId(workspaceId)) } returns task
+        every { sprintParticipationQuery.existsActiveSprintByTaskId(taskId, workspaceId) } returns false
+
+        val result =
+            taskService.remove(
+                TaskCommand.RemoveTask(
+                    workspaceId = workspaceId,
+                    id = taskId,
+                    deletedBy = deletedBy,
+                    reason = "삭제 사유",
+                ),
+            )
+
+        assertTrue(result is TaskResult.Remove)
+        result as TaskResult.Remove
+        assertEquals(1, result.count)
+        assertTrue(
+            task.domainEvents().any {
+                it is TaskDeletedEvent &&
+                    it.taskId == taskId &&
+                    it.reason == "삭제 사유"
+            },
+        )
     }
 }

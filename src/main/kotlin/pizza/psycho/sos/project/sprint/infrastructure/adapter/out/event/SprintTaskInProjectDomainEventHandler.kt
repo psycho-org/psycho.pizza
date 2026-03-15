@@ -6,6 +6,7 @@ import org.springframework.transaction.event.TransactionalEventListener
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.project.domain.event.ProjectDeletedEvent
 import pizza.psycho.sos.project.project.domain.event.ProjectDomainEvent
 import pizza.psycho.sos.project.project.domain.event.TaskAddedToProjectEvent
 import pizza.psycho.sos.project.project.domain.event.TaskProjectChangedEvent
@@ -71,7 +72,9 @@ class SprintTaskInProjectDomainEventHandler(
                     actorId = event.actorId,
                 )
 
-            is TaskProjectChangedEvent -> Unit
+            is TaskProjectChangedEvent,
+            is ProjectDeletedEvent,
+            -> Unit
         }
     }
 

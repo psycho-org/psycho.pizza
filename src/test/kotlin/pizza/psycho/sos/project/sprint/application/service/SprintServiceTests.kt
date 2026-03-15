@@ -25,6 +25,7 @@ import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintResult
+import pizza.psycho.sos.project.sprint.domain.event.SprintDeletedEvent
 import pizza.psycho.sos.project.sprint.domain.event.SprintPeriodChangedEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
@@ -57,6 +58,7 @@ class SprintServiceTests {
         every { projectPort.findActiveProjectIdsByTaskIds(any(), any()) } returns emptyList()
         every { sprintRepository.findActiveSprintIdsByProjectIds(any(), any()) } returns emptyMap()
         every { taskPort.moveSprintTasksToBacklog(any(), any(), any(), any()) } returns Unit
+        every { eventPublisher.publish(any<SprintDeletedEvent>()) } returns Unit
         every { taskPort.findByIdIn(any<Collection<UUID>>(), any()) } answers {
             firstArg<Collection<UUID>>().map { id ->
                 TaskSnapshot(
@@ -254,11 +256,9 @@ class SprintServiceTests {
         every { projectPort.findByIdIn(listOf(projectId1, projectId2), workspaceId) } returns listOf(snapshot1, snapshot2)
         every { taskPort.deleteByIdIn(any(), deletedBy, workspaceId) } returns 2
         every { projectPort.deleteByIdIn(any(), deletedBy, workspaceId) } returns 2
-        every { sprintRepository.deleteById(sprintId, deletedBy, workspaceId) } returns 1
-
         val result =
             sprintService.remove(
-                SprintCommand.Remove(workspaceId, sprintId, deletedBy),
+                SprintCommand.Remove(workspaceId, sprintId, deletedBy, "삭제 사유"),
             )
 
         assertTrue(result is SprintResult.Remove)
@@ -267,7 +267,6 @@ class SprintServiceTests {
         assertEquals(2, result.taskCount)
         verify { taskPort.deleteByIdIn(match { it.size == 2 }, deletedBy, workspaceId) }
         verify { projectPort.deleteByIdIn(match { it.size == 2 }, deletedBy, workspaceId) }
-        verify { sprintRepository.deleteById(sprintId, deletedBy, workspaceId) }
     }
 
     @Test
@@ -301,9 +300,7 @@ class SprintServiceTests {
             )
         every { taskPort.deleteByIdIn(listOf(uniqueTaskId), deletedBy, workspaceId) } returns 1
         every { projectPort.deleteByIdIn(listOf(projectId), deletedBy, workspaceId) } returns 1
-        every { sprintRepository.deleteById(sprintId, deletedBy, workspaceId) } returns 1
-
-        val result = sprintService.remove(SprintCommand.Remove(workspaceId, sprintId, deletedBy))
+        val result = sprintService.remove(SprintCommand.Remove(workspaceId, sprintId, deletedBy, "삭제 사유"))
 
         assertTrue(result is SprintResult.Remove)
         result as SprintResult.Remove
@@ -354,9 +351,7 @@ class SprintServiceTests {
             )
         } returns setOf(sharedTaskId)
         every { projectPort.deleteByIdIn(listOf(projectId), deletedBy, workspaceId) } returns 1
-        every { sprintRepository.deleteById(sprintId, deletedBy, workspaceId) } returns 1
-
-        val result = sprintService.remove(SprintCommand.Remove(workspaceId, sprintId, deletedBy))
+        val result = sprintService.remove(SprintCommand.Remove(workspaceId, sprintId, deletedBy, "삭제 사유"))
 
         assertTrue(result is SprintResult.Remove)
         verify(exactly = 1) {
@@ -392,9 +387,7 @@ class SprintServiceTests {
         every { projectPort.findByIdIn(listOf(projectId), workspaceId) } returns listOf(snapshot)
         every { taskPort.deleteByIdIn(any(), deletedBy, workspaceId) } returns 1
         every { projectPort.deleteByIdIn(listOf(projectId), deletedBy, workspaceId) } returns 1
-        every { sprintRepository.deleteById(sprintId, deletedBy, workspaceId) } returns 1
-
-        val result = sprintService.remove(SprintCommand.Remove(workspaceId, sprintId, deletedBy))
+        val result = sprintService.remove(SprintCommand.Remove(workspaceId, sprintId, deletedBy, "삭제 사유"))
 
         assertTrue(result is SprintResult.Remove)
         verify(exactly = 1) {
@@ -432,12 +425,21 @@ class SprintServiceTests {
         every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns sprint
         every { projectPort.findByIdIn(listOf(projectId), workspaceId) } returns listOf(snapshot)
         every { projectPort.deleteByIdIn(listOf(projectId), deletedBy, workspaceId) } returns 1
-        every { sprintRepository.deleteById(sprintId, deletedBy, workspaceId) } returns 1
-
-        val result = sprintService.remove(SprintCommand.Remove(workspaceId, sprintId, deletedBy))
+        val result = sprintService.remove(SprintCommand.Remove(workspaceId, sprintId, deletedBy, "삭제 사유"))
 
         assertTrue(result is SprintResult.Remove)
-        verify(exactly = 0) { eventPublisher.publish(any<TaskRemovedFromSprintEvent>()) }
+        verify(exactly = 0) {
+            eventPublisher.publish(
+                match { it is TaskRemovedFromSprintEvent },
+            )
+        }
+        assertTrue(
+            sprint.domainEvents().any {
+                it is SprintDeletedEvent &&
+                    it.sprintId == sprintId &&
+                    it.reason == "삭제 사유"
+            },
+        )
         verify(exactly = 0) { taskPort.deleteByIdIn(any(), any(), any()) }
     }
 
@@ -447,7 +449,7 @@ class SprintServiceTests {
 
         val result =
             sprintService.remove(
-                SprintCommand.Remove(workspaceId, sprintId, UUID.randomUUID()),
+                SprintCommand.Remove(workspaceId, sprintId, UUID.randomUUID(), "삭제 사유"),
             )
 
         assertTrue(result is SprintResult.Failure.IdNotFound)

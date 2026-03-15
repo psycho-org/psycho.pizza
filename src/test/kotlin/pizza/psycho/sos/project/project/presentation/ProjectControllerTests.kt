@@ -350,14 +350,16 @@ class ProjectControllerTests {
 
         `when`(
             projectService.remove(
-                ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, userId),
+                ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, userId, "삭제 사유"),
             ),
         ).thenReturn(ProjectResult.Remove(projectCount = 1, taskCount = 3))
 
         mockMvc
             .perform(
                 delete("/api/v1/workspaces/$workspaceId/projects/$projectId")
-                    .param("account", "$userId"),
+                    .param("account", "$userId")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"reason":"삭제 사유"}"""),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.message").value("프로젝트 및 하위 태스크 삭제에 성공하였습니다."))
             .andExpect(jsonPath("$.data.projectCount").value(1))
@@ -372,14 +374,16 @@ class ProjectControllerTests {
 
         `when`(
             projectService.remove(
-                ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, userId),
+                ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, userId, "삭제 사유"),
             ),
         ).thenReturn(ProjectResult.Failure.IdNotFound)
 
         mockMvc
             .perform(
                 delete("/api/v1/workspaces/$workspaceId/projects/$projectId")
-                    .param("account", "$userId"),
+                    .param("account", "$userId")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"reason":"삭제 사유"}"""),
             ).andExpect(status().is4xxClientError)
     }
 }

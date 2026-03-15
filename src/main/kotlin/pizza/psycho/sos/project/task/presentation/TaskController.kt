@@ -64,9 +64,10 @@ class TaskController(
         @PathVariable workspaceId: UUID,
         @PathVariable id: UUID,
         @RequestParam(name = "account") accountId: UUID,
+        @Valid @RequestBody request: TaskRequest.Delete,
     ): ApiResponse<*> =
         handleResult {
-            taskService.remove(TaskCommand.RemoveTask(workspaceId, id, accountId))
+            taskService.remove(TaskCommand.RemoveTask(workspaceId, id, accountId, request.reason))
         }
 
     @PatchMapping("/{id}")

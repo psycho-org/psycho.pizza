@@ -279,19 +279,21 @@ class SprintControllerTests {
 
         `when`(
             sprintService.remove(
-                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId),
+                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId, "삭제 사유"),
             ),
         ).thenReturn(SprintResult.Remove(sprintCount = 1, projectCount = 2, taskCount = 5))
 
         mockMvc
             .perform(
                 delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
-                    .param("account", userId.toString()),
+                    .param("account", userId.toString())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"reason":"삭제 사유"}"""),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.projectCount").value(2))
             .andExpect(jsonPath("$.data.taskCount").value(5))
         verify(sprintService).remove(
-            SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId),
+            SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId, "삭제 사유"),
         )
     }
 
@@ -303,14 +305,16 @@ class SprintControllerTests {
 
         `when`(
             sprintService.remove(
-                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId),
+                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId, "삭제 사유"),
             ),
         ).thenReturn(SprintResult.Failure.IdNotFound)
 
         mockMvc
             .perform(
                 delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
-                    .param("account", userId.toString()),
+                    .param("account", userId.toString())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"reason":"삭제 사유"}"""),
             ).andExpect(status().is4xxClientError)
     }
 }
