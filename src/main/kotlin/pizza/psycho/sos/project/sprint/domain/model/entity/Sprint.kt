@@ -15,6 +15,8 @@ import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.domain.event.SprintDomainEvent
 import pizza.psycho.sos.project.sprint.domain.event.SprintGoalChangedEvent
 import pizza.psycho.sos.project.sprint.domain.event.SprintPeriodChangedEvent
+import pizza.psycho.sos.project.sprint.domain.event.TaskAddedToSprintEvent
+import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.exception.SprintErrorCode
 import pizza.psycho.sos.project.sprint.domain.model.vo.Period
 import java.time.Instant
@@ -78,11 +80,16 @@ class Sprint(
         by: UUID,
     ) {
         val previousPeriod = this.period
-        this.period =
-            period.copy(
-                startDate = startDate ?: period.startDate,
-                endDate = endDate ?: period.endDate,
+        val nextPeriod =
+            previousPeriod.copy(
+                startDate = startDate ?: previousPeriod.startDate,
+                endDate = endDate ?: previousPeriod.endDate,
             )
+        if (previousPeriod == nextPeriod) {
+            return
+        }
+
+        this.period = nextPeriod
 
         SprintPeriodChangedEvent(
             workspaceId = workspaceId.value,
@@ -104,12 +111,46 @@ class Sprint(
         projectIds.forEach { addProject(it) }
     }
 
+    fun addProjects(
+        projectIds: Collection<UUID>,
+        taskIdsAddedToSprint: Collection<UUID>,
+        by: UUID,
+    ) {
+        addProjects(projectIds)
+        taskIdsAddedToSprint.forEach { taskId ->
+            TaskAddedToSprintEvent(
+                workspaceId = workspaceId.value,
+                sprintId = sprintId,
+                taskId = taskId,
+                actorId = by,
+                eventId = UUID.randomUUID(),
+            ).register()
+        }
+    }
+
     fun removeProject(projectId: UUID) {
         mappings.removeIf { it.projectId == projectId }
     }
 
     fun removeProjects(projectIds: Collection<UUID>) {
         projectIds.forEach { removeProject(it) }
+    }
+
+    fun removeProjects(
+        projectIds: Collection<UUID>,
+        taskIdsMovedToBacklog: Collection<UUID>,
+        by: UUID,
+    ) {
+        removeProjects(projectIds)
+        taskIdsMovedToBacklog.forEach { taskId ->
+            TaskRemovedFromSprintEvent(
+                workspaceId = workspaceId.value,
+                sprintId = sprintId,
+                taskId = taskId,
+                actorId = by,
+                eventId = UUID.randomUUID(),
+            ).register()
+        }
     }
 
     fun hasProject(projectId: UUID): Boolean = mappings.any { it.projectId == projectId }
@@ -136,8 +177,13 @@ class Sprint(
         }
 
         private fun requireGoalNotBlank(goal: String?) {
-            if (goal?.isBlank() == true) {
-                throw DomainException(SprintErrorCode.GOAL_NOT_EMPTY_OR_BLANK)
+            goal?.let {
+                if (it.isBlank()) {
+                    throw DomainException(SprintErrorCode.GOAL_NOT_EMPTY_OR_BLANK)
+                }
+                if (it.length > 120) {
+                    throw DomainException(SprintErrorCode.GOAL_LENGTH_TOO_LONG)
+                }
             }
         }
     }

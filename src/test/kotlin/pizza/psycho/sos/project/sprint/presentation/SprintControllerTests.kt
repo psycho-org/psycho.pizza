@@ -272,7 +272,7 @@ class SprintControllerTests {
     }
 
     @Test
-    fun `스프린트 삭제 시 삭제 결과를 반환한다`() {
+    fun `스프린트와 하위 프로젝트 삭제 시 결과를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val sprintId = UUID.randomUUID()
         val userId = UUID.randomUUID()
@@ -281,36 +281,17 @@ class SprintControllerTests {
             sprintService.remove(
                 SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId),
             ),
-        ).thenReturn(SprintResult.Remove(1))
+        ).thenReturn(SprintResult.Remove(sprintCount = 1, projectCount = 2, taskCount = 5))
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId/$userId"),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.data.count").value(1))
-    }
-
-    @Test
-    fun `스프린트와 하위 프로젝트 삭제 시 결과를 반환한다`() {
-        val workspaceId = UUID.randomUUID()
-        val sprintId = UUID.randomUUID()
-        val userId = UUID.randomUUID()
-
-        `when`(
-            sprintService.removeWithTasks(
-                SprintCommand.RemoveWithTasks(WorkspaceId(workspaceId), sprintId, userId),
-            ),
-        ).thenReturn(SprintResult.RemoveWithTasks(sprintCount = 1, projectCount = 2, taskCount = 5))
-
-        mockMvc
-            .perform(
-                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId/with-tasks")
+                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
                     .param("account", userId.toString()),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.projectCount").value(2))
             .andExpect(jsonPath("$.data.taskCount").value(5))
-        verify(sprintService).removeWithTasks(
-            SprintCommand.RemoveWithTasks(WorkspaceId(workspaceId), sprintId, userId),
+        verify(sprintService).remove(
+            SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId),
         )
     }
 
@@ -328,7 +309,8 @@ class SprintControllerTests {
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId/$userId"),
+                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
+                    .param("account", userId.toString()),
             ).andExpect(status().is4xxClientError)
     }
 }

@@ -40,10 +40,6 @@ sealed interface SprintResult {
     ) : SprintResult
 
     data class Remove(
-        val count: Int,
-    ) : SprintResult
-
-    data class RemoveWithTasks(
         val sprintCount: Int,
         val projectCount: Int,
         val taskCount: Int,

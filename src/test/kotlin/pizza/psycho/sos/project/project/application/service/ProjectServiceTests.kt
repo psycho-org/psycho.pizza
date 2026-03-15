@@ -21,6 +21,7 @@ import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.model.entity.Project
+import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
@@ -33,6 +34,7 @@ class ProjectServiceTests {
     private val projectRepository = mockk<ProjectRepository>()
     private val taskPort = mockk<TaskPort>()
     private val eventPublisher = mockk<DomainEventPublisher>()
+    private val sprintTaskPolicy = mockk<SprintTaskPolicy>(relaxed = true)
     private val projectSprintParticipationQuery = mockk<ProjectSprintParticipationQuery>()
     private val sprintTaskPeriodPolicy = mockk<SprintTaskPeriodPolicy>()
     private val projectService =
@@ -42,6 +44,7 @@ class ProjectServiceTests {
             taskPort,
             projectSprintParticipationQuery,
             sprintTaskPeriodPolicy,
+            sprintTaskPolicy,
         )
 
     @BeforeEach
@@ -167,12 +170,12 @@ class ProjectServiceTests {
         every { projectRepository.findActiveProjectByIdOrNull(projectId, workspaceId) } returns project
         every { taskPort.deleteByIdIn(listOf(taskId1, taskId2), deletedBy, workspaceId) } returns 2
 
-        val command = ProjectCommand.RemoveWithTasks(workspaceId, projectId, deletedBy)
+        val command = ProjectCommand.Remove(workspaceId, projectId, deletedBy)
 
-        val result = projectService.removeWithTasks(command)
+        val result = projectService.remove(command)
 
-        assertTrue(result is ProjectResult.RemoveWithTasks)
-        result as ProjectResult.RemoveWithTasks
+        assertTrue(result is ProjectResult.Remove)
+        result as ProjectResult.Remove
         assertEquals(1, result.projectCount)
         assertEquals(2, result.taskCount)
 
@@ -182,11 +185,11 @@ class ProjectServiceTests {
     @Test
     fun `존재하지 않는 프로젝트 삭제 시 IdNotFound를 반환한다`() {
         val workspaceId = WorkspaceId(UUID.randomUUID())
-        val command = ProjectCommand.RemoveWithTasks(workspaceId, UUID.randomUUID(), UUID.randomUUID())
+        val command = ProjectCommand.Remove(workspaceId, UUID.randomUUID(), UUID.randomUUID())
 
         every { projectRepository.findActiveProjectByIdOrNull(command.projectId, workspaceId) } returns null
 
-        val result = projectService.removeWithTasks(command)
+        val result = projectService.remove(command)
 
         assertTrue(result is ProjectResult.Failure.IdNotFound)
     }

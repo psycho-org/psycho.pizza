@@ -106,7 +106,6 @@ class Project(
         }
         this.removeTask(taskId, by)
         to.addTask(taskId, by)
-        to.addTask(taskId)
 
         TaskProjectChangedEvent(
             workspaceId = this.workspaceId.value,

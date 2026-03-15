@@ -30,13 +30,7 @@ sealed interface SprintCommand {
         val workspaceId: WorkspaceId,
         val sprintId: UUID,
         val deletedBy: UUID,
-    )
-
-    data class RemoveWithTasks(
-        val workspaceId: WorkspaceId,
-        val sprintId: UUID,
-        val deletedBy: UUID,
-    )
+    ) : SprintCommand
 
     data class CreateProject(
         val workspaceId: WorkspaceId,

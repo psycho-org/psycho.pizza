@@ -39,10 +39,9 @@ interface TaskFacade {
         workspaceId: WorkspaceId,
     ): Int
 
-    fun resetStatusToTodo(
+    fun moveToBacklog(
         ids: Collection<UUID>,
         actorId: UUID,
         workspaceId: WorkspaceId,
-        emitEvent: Boolean = false,
     )
 }

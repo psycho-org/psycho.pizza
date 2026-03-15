@@ -8,6 +8,7 @@ import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.sprint.domain.model.vo.Period
 import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
 import pizza.psycho.sos.project.task.application.port.out.TaskSprintParticipationQuery
@@ -26,6 +27,7 @@ import java.util.UUID
 class TaskService(
     private val taskRepository: TaskRepository,
     private val domainEventPublisher: DomainEventPublisher,
+    private val sprintTaskPolicy: SprintTaskPolicy,
     private val taskSprintParticipationQuery: TaskSprintParticipationQuery,
     private val sprintTaskPeriodPolicy: SprintTaskPeriodPolicy,
 ) {
@@ -100,13 +102,13 @@ class TaskService(
         }
 
     /**
-     * 주어진 Task 들의 상태를 TO DO로 되돌린다. (예: 스프린트에서 분리될 때)
+     * 주어진 Task 들을 backlog 로 되돌린다.
+     * backlog 전환 시 상태는 TO DO 로 보정된다.
      */
-    fun resetStatusToTodo(
+    fun moveToBacklog(
         ids: Collection<UUID>,
         workspaceId: WorkspaceId,
         actorId: UUID,
-        emitEvent: Boolean,
     ) = Tx.writable {
         if (ids.isEmpty()) return@writable
 
@@ -118,7 +120,6 @@ class TaskService(
                 task.changeStatus(
                     status = Status.TODO,
                     by = actorId,
-                    emitEvent = emitEvent,
                 )
             }
         }
@@ -166,6 +167,7 @@ class TaskService(
                     else -> Unit
                 }
             }
+            sprintTaskPolicy.validateTaskDueDateChange(task.taskId, spec.dueDate, workspaceId)
             task.apply(spec)
 
             domainEventPublisher.publishAndClear(task)

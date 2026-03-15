@@ -14,11 +14,13 @@ import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.common.entity.BaseEntity
+import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectPort
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
+import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintResult
@@ -26,6 +28,7 @@ import pizza.psycho.sos.project.sprint.domain.event.SprintPeriodChangedEvent
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
+import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 import java.time.Instant
 import java.util.UUID
 
@@ -34,7 +37,9 @@ class SprintServiceTests {
     private val sprintRepository = mockk<SprintRepository>()
     private val projectPort = mockk<ProjectPort>()
     private val taskPort = mockk<TaskPort>()
-    private val sprintService = SprintService(sprintRepository, projectPort, taskPort)
+    private val eventPublisher = mockk<DomainEventPublisher>(relaxed = true)
+    private val sprintTaskPolicy = mockk<SprintTaskPolicy>(relaxed = true)
+    private val sprintService = SprintService(sprintRepository, projectPort, taskPort, eventPublisher, sprintTaskPolicy)
 
     private val workspaceId = WorkspaceId(UUID.randomUUID())
     private val sprintId = UUID.randomUUID()
@@ -212,12 +217,12 @@ class SprintServiceTests {
         every { sprintRepository.deleteById(sprintId, deletedBy, workspaceId) } returns 1
 
         val result =
-            sprintService.removeWithTasks(
-                SprintCommand.RemoveWithTasks(workspaceId, sprintId, deletedBy),
+            sprintService.remove(
+                SprintCommand.Remove(workspaceId, sprintId, deletedBy),
             )
 
-        assertTrue(result is SprintResult.RemoveWithTasks)
-        result as SprintResult.RemoveWithTasks
+        assertTrue(result is SprintResult.Remove)
+        result as SprintResult.Remove
         assertEquals(2, result.projectCount)
         assertEquals(2, result.taskCount)
         verify { taskPort.deleteByIdIn(match { it.size == 2 }, deletedBy, workspaceId) }
@@ -226,15 +231,114 @@ class SprintServiceTests {
     }
 
     @Test
-    fun `removeWithTasks는 스프린트가 없으면 IdNotFound를 반환한다`() {
+    fun `remove는 스프린트가 없으면 IdNotFound를 반환한다`() {
         every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns null
 
         val result =
-            sprintService.removeWithTasks(
-                SprintCommand.RemoveWithTasks(workspaceId, sprintId, UUID.randomUUID()),
+            sprintService.remove(
+                SprintCommand.Remove(workspaceId, sprintId, UUID.randomUUID()),
             )
 
         assertTrue(result is SprintResult.Failure.IdNotFound)
+    }
+
+    @Test
+    fun `modify - 프로젝트 제거 시 backlog 대상 task 를 식별해 이동시킨다`() {
+        val actorId = UUID.randomUUID()
+        val removedProjectId = UUID.randomUUID()
+        val keptProjectId = UUID.randomUUID()
+        val sharedTaskId = UUID.randomUUID()
+        val backlogTaskId = UUID.randomUUID()
+        val sprint =
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId).apply {
+                addProjects(listOf(removedProjectId, keptProjectId))
+            }
+        val removedProject =
+            ProjectSnapshot(
+                projectId = removedProjectId,
+                workspaceId = workspaceId,
+                name = "Removed",
+                taskIds = listOf(sharedTaskId, backlogTaskId),
+            )
+        val keptProject =
+            ProjectSnapshot(
+                projectId = keptProjectId,
+                workspaceId = workspaceId,
+                name = "Kept",
+                taskIds = listOf(sharedTaskId),
+            )
+
+        every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns sprint
+        every { projectPort.findByIdIn(listOf(removedProjectId, keptProjectId), workspaceId) } returns listOf(removedProject, keptProject)
+        every { sprintTaskPolicy.tasksMovingToBacklog(listOf(removedProject), listOf(keptProject)) } returns setOf(backlogTaskId)
+        every { taskPort.moveToBacklog(setOf(backlogTaskId), actorId, workspaceId) } returns Unit
+
+        val result =
+            sprintService.modify(
+                SprintCommand.Update(
+                    workspaceId = workspaceId,
+                    sprintId = sprintId,
+                    removeProjectIds = listOf(removedProjectId),
+                    by = actorId,
+                ),
+            )
+
+        assertTrue(result is SprintResult.Success)
+        verify { taskPort.moveToBacklog(setOf(backlogTaskId), actorId, workspaceId) }
+    }
+
+    @Test
+    fun `modify - 프로젝트 추가 시 새로 sprint 에 들어오는 task 에 대해 이벤트를 등록한다`() {
+        val actorId = UUID.randomUUID()
+        val keptProjectId = UUID.randomUUID()
+        val addedProjectId = UUID.randomUUID()
+        val existingTaskId = UUID.randomUUID()
+        val addedTaskId = UUID.randomUUID()
+        val sprint =
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId).apply {
+                addProjects(listOf(keptProjectId))
+            }
+        val keptProject =
+            ProjectSnapshot(
+                projectId = keptProjectId,
+                workspaceId = workspaceId,
+                name = "Kept",
+                taskIds = listOf(existingTaskId),
+            )
+        val addedProject =
+            ProjectSnapshot(
+                projectId = addedProjectId,
+                workspaceId = workspaceId,
+                name = "Added",
+                taskIds = listOf(existingTaskId, addedTaskId),
+            )
+
+        every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns sprint
+        every { projectPort.findByIdIn(listOf(keptProjectId), workspaceId) } returns listOf(keptProject)
+        every { projectPort.findByIdIn(listOf(addedProjectId), workspaceId) } returns listOf(addedProject)
+        every { sprintTaskPolicy.tasksEnteringSprint(listOf(keptProject), listOf(addedProject)) } returns setOf(addedTaskId)
+        every { taskPort.findByIdIn(listOf(addedTaskId), workspaceId) } returns
+            listOf(
+                TaskSnapshot(
+                    id = addedTaskId,
+                    title = "Task",
+                    status = pizza.psycho.sos.project.task.domain.model.vo.Status.TODO,
+                    dueDate = startDate.plusSeconds(3600),
+                ),
+            )
+
+        val result =
+            sprintService.modify(
+                SprintCommand.Update(
+                    workspaceId = workspaceId,
+                    sprintId = sprintId,
+                    addProjectIds = listOf(addedProjectId),
+                    by = actorId,
+                ),
+            )
+
+        assertTrue(result is SprintResult.Success)
+        assertTrue(sprint.domainEvents().any { it is pizza.psycho.sos.project.sprint.domain.event.TaskAddedToSprintEvent })
     }
 }
 

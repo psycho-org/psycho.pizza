@@ -14,6 +14,8 @@ data class Period(
     @Column(name = "end_date", nullable = false)
     val endDate: Instant,
 ) {
+    fun contains(target: Instant): Boolean = !target.isBefore(startDate) && !target.isAfter(endDate)
+
     init {
         if (!startDate.isBefore(endDate)) {
             throw DomainException(INVALID_DATE_RANGE, "startDate cannot be after endDate")

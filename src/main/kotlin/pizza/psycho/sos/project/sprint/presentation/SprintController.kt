@@ -89,24 +89,14 @@ class SprintController(
             sprintService.modify(request.toCommand(workspaceId, sprintId, accountId))
         }
 
-    @DeleteMapping("/{sprintId}/{userId}")
+    @DeleteMapping("/{sprintId}")
     fun removeSprint(
-        @PathVariable workspaceId: UUID,
-        @PathVariable sprintId: UUID,
-        @PathVariable userId: UUID,
-    ): ApiResponse<*> =
-        handleResult {
-            sprintService.remove(SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId))
-        }
-
-    @DeleteMapping("/{sprintId}/with-tasks")
-    fun removeSprintWithTasks(
         @PathVariable workspaceId: UUID,
         @PathVariable sprintId: UUID,
         @RequestParam(value = "account") accountId: UUID,
     ): ApiResponse<*> =
         handleResult {
-            sprintService.removeWithTasks(SprintCommand.RemoveWithTasks(WorkspaceId(workspaceId), sprintId, accountId))
+            sprintService.remove(SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, accountId))
         }
 
     // ------------------------------------------------------------------------------------------------
@@ -119,14 +109,8 @@ class SprintController(
             is SprintResult.SprintPage -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
             is SprintResult.Remove ->
                 responseOf(
-                    message = "데이터 삭제에 성공하였습니다.",
-                    data = SprintResponse.Remove(result.count),
-                )
-
-            is SprintResult.RemoveWithTasks ->
-                responseOf(
                     message = "스프린트 및 하위 프로젝트, 태스크 삭제에 성공하였습니다.",
-                    data = SprintResponse.RemoveWithTasks(result.sprintCount, result.projectCount, result.taskCount),
+                    data = SprintResponse.Remove(result.sprintCount, result.projectCount, result.taskCount),
                 )
 
             is SprintResult.Success -> responseOf<Unit>(message = "Data modification was successful.")
