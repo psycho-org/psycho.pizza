@@ -10,4 +10,9 @@ interface ProjectSprintParticipationQuery {
         projectId: UUID,
         workspaceId: UUID,
     ): Boolean
+
+    fun findActiveSprintIdsByProjectId(
+        projectId: UUID,
+        workspaceId: UUID,
+    ): List<UUID>
 }

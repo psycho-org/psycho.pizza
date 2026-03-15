@@ -18,4 +18,13 @@ class ProjectSprintParticipationQueryImpl(
             projectId = projectId,
             workspaceId = WorkspaceId(workspaceId),
         )
+
+    override fun findActiveSprintIdsByProjectId(
+        projectId: UUID,
+        workspaceId: UUID,
+    ): List<UUID> =
+        sprintRepository.findActiveSprintIdsByProjectId(
+            projectId = projectId,
+            workspaceId = WorkspaceId(workspaceId),
+        )
 }

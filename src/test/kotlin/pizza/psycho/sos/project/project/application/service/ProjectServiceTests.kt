@@ -16,11 +16,13 @@ import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
+import pizza.psycho.sos.project.project.application.port.out.ProjectSprintParticipationQuery
 import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
+import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 import pizza.psycho.sos.project.task.domain.model.vo.Status
@@ -33,7 +35,9 @@ class ProjectServiceTests {
     private val taskPort = mockk<TaskPort>()
     private val eventPublisher = mockk<DomainEventPublisher>()
     private val sprintTaskPolicy = mockk<SprintTaskPolicy>(relaxed = true)
-    private val projectService = ProjectService(projectRepository, eventPublisher, taskPort, sprintTaskPolicy)
+    private val sprintParticipationQuery = mockk<ProjectSprintParticipationQuery>()
+    private val projectService =
+        ProjectService(projectRepository, eventPublisher, taskPort, sprintTaskPolicy, sprintParticipationQuery)
 
     @BeforeEach
     fun setUp() {
@@ -44,7 +48,9 @@ class ProjectServiceTests {
         justRun { eventPublisher.publishAndClearAll(any()) }
         justRun { eventPublisher.publishAndClear(any()) }
         justRun { eventPublisher.publishAndClearAll(any()) }
+        justRun { eventPublisher.publish(any<TaskRemovedFromSprintEvent>()) }
         every { projectRepository.findActiveProjectIdsByTaskIds(any(), any()) } returns emptyList()
+        every { sprintParticipationQuery.findActiveSprintIdsByProjectId(any(), any()) } returns emptyList()
     }
 
     @AfterEach
@@ -199,6 +205,54 @@ class ProjectServiceTests {
         result as ProjectResult.Remove
         assertEquals(1, result.taskCount)
         verify { taskPort.deleteByIdIn(listOf(uniqueTaskId), deletedBy, workspaceId) }
+    }
+
+    @Test
+    fun `프로젝트 삭제 시 살아남는 태스크가 떠나는 sprint 에 대해 제거 이벤트를 발행한다`() {
+        val workspaceId = WorkspaceId(UUID.randomUUID())
+        val projectId = UUID.randomUUID()
+        val otherProjectId = UUID.randomUUID()
+        val deletedBy = UUID.randomUUID()
+        val sprintId = UUID.randomUUID()
+        val otherSprintId = UUID.randomUUID()
+        val sharedTaskId = UUID.randomUUID()
+
+        val project =
+            Project
+                .create(
+                    workspaceId = workspaceId,
+                    name = "삭제 대상 프로젝트",
+                ).apply {
+                    id = projectId
+                    addTask(sharedTaskId)
+                }
+
+        every { projectRepository.findActiveProjectByIdOrNull(projectId, workspaceId) } returns project
+        every {
+            projectRepository.findActiveProjectIdsByTaskIds(listOf(sharedTaskId), workspaceId)
+        } returns
+            listOf(
+                TaskAssignment(sharedTaskId, projectId),
+                TaskAssignment(sharedTaskId, otherProjectId),
+            )
+        every { sprintParticipationQuery.findActiveSprintIdsByProjectId(projectId, workspaceId.value) } returns listOf(sprintId)
+        every {
+            sprintParticipationQuery.findActiveSprintIdsByProjectId(otherProjectId, workspaceId.value)
+        } returns listOf(otherSprintId)
+
+        val result = projectService.remove(ProjectCommand.Remove(workspaceId, projectId, deletedBy))
+
+        assertTrue(result is ProjectResult.Remove)
+        verify(exactly = 1) {
+            eventPublisher.publish(
+                match<TaskRemovedFromSprintEvent> {
+                    it.workspaceId == workspaceId.value &&
+                        it.sprintId == sprintId &&
+                        it.taskId == sharedTaskId &&
+                        it.actorId == deletedBy
+                },
+            )
+        }
     }
 
     @Test

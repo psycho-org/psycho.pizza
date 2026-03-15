@@ -7,6 +7,7 @@ import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
+import pizza.psycho.sos.project.project.application.port.out.ProjectSprintParticipationQuery
 import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
@@ -14,6 +15,7 @@ import pizza.psycho.sos.project.project.application.service.dto.ProjectQuery
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
+import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 import java.util.UUID
@@ -24,6 +26,7 @@ class ProjectService(
     private val eventPublisher: DomainEventPublisher,
     private val taskPort: TaskPort,
     private val sprintTaskPolicy: SprintTaskPolicy,
+    private val sprintParticipationQuery: ProjectSprintParticipationQuery,
 ) {
     private val log by loggerDelegate()
 
@@ -113,6 +116,12 @@ class ProjectService(
 
             val taskIds = project.taskIds()
             val deletableTaskIds = deletableTaskIds(taskIds, setOf(project.projectId), command.workspaceId)
+            publishTaskRemovedFromSprintEvents(
+                projectId = project.projectId,
+                taskIds = taskIds,
+                workspaceId = command.workspaceId,
+                actorId = command.deletedBy,
+            )
             val deletedTaskCount =
                 if (deletableTaskIds.isEmpty()) {
                     0
@@ -247,6 +256,60 @@ class ProjectService(
     // ----------------------------------------------------------------------------------------------
 
     private fun Page<TaskSnapshot>.toResult(): Page<ProjectResult.Task> = map { it.toResult() }
+
+    private fun publishTaskRemovedFromSprintEvents(
+        projectId: UUID,
+        taskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+        actorId: UUID,
+    ) {
+        if (taskIds.isEmpty()) {
+            return
+        }
+
+        val removedSprintIds = sprintParticipationQuery.findActiveSprintIdsByProjectId(projectId, workspaceId.value)
+        if (removedSprintIds.isEmpty()) {
+            return
+        }
+
+        val assignmentsByTaskId =
+            projectRepository
+                .findActiveProjectIdsByTaskIds(taskIds, workspaceId)
+                .groupBy(TaskAssignment::taskId) { it.projectId }
+        val sprintIdsByProjectId = mutableMapOf(projectId to removedSprintIds)
+
+        taskIds.distinct().forEach { taskId ->
+            val remainingSprintIds =
+                assignmentsByTaskId[taskId]
+                    .orEmpty()
+                    .asSequence()
+                    .filterNot { it == projectId }
+                    .flatMap { assignedProjectId ->
+                        sprintIdsByProjectId
+                            .getOrPut(assignedProjectId) {
+                                sprintParticipationQuery.findActiveSprintIdsByProjectId(
+                                    assignedProjectId,
+                                    workspaceId.value,
+                                )
+                            }.asSequence()
+                    }.toSet()
+
+            removedSprintIds
+                .asSequence()
+                .filterNot(remainingSprintIds::contains)
+                .forEach { sprintId ->
+                    eventPublisher.publish(
+                        TaskRemovedFromSprintEvent(
+                            workspaceId = workspaceId.value,
+                            sprintId = sprintId,
+                            taskId = taskId,
+                            actorId = actorId,
+                            eventId = UUID.randomUUID(),
+                        ),
+                    )
+                }
+        }
+    }
 
     private fun deletableTaskIds(
         candidateTaskIds: Collection<UUID>,
