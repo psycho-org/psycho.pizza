@@ -1,4 +1,8 @@
 spring:
+  cloud:
+    aws:
+      region:
+        static: ap-northeast-2
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -63,3 +67,9 @@ springdoc:
 
 server:
   forward-headers-strategy: framework
+
+app:
+  sqs:
+    request-queue-url: ${SQS_REQUEST_QUEUE_URL}
+    result-queue-url: ${SQS_RESULT_QUEUE_URL}
+    region: ap-northeast-2

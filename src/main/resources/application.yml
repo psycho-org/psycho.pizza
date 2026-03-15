@@ -21,3 +21,9 @@ mail:
     verify-base-url: http://localhost:8080/api/v1/mails/verify
     verify-success-url: http://localhost:8080/mail/verify-success.html
     verify-failure-url: http://localhost:8080/mail/verify-failure.html
+
+app:
+  sqs:
+    request-queue-url: ""
+    result-queue-url: ""
+    region: ap-northeast-2
