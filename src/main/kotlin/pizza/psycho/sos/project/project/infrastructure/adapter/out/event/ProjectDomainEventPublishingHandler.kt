@@ -12,6 +12,7 @@ import pizza.psycho.sos.project.project.domain.event.TaskProjectChangedEvent
 import pizza.psycho.sos.project.project.domain.event.TaskRemovedFromProjectEvent
 import pizza.psycho.sos.project.project.domain.event.TasksAddedToProjectEvent
 import pizza.psycho.sos.project.project.domain.event.TasksRemovedFromProjectEvent
+import pizza.psycho.sos.audit.application.listener.event.TaskProjectChangedEvent as AuditTaskProjectChangedEvent
 
 @Component
 class ProjectDomainEventPublishingHandler(
@@ -50,7 +51,7 @@ class ProjectDomainEventPublishingHandler(
 
                 eventPublisher
                     .publish(
-                        pizza.psycho.sos.audit.application.listener.event.TaskProjectChangedEvent(
+                        AuditTaskProjectChangedEvent(
                             workspaceId = event.workspaceId,
                             taskId = event.taskId,
                             actorId = event.actorId,
