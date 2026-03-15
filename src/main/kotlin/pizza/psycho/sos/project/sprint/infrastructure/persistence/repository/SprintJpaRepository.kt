@@ -1,4 +1,4 @@
-package pizza.psycho.sos.project.sprint.infrastructure.persistence
+package pizza.psycho.sos.project.sprint.infrastructure.persistence.repository
 
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query

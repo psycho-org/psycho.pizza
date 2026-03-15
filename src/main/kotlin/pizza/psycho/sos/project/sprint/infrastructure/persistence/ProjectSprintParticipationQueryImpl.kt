@@ -1,4 +1,4 @@
-package pizza.psycho.sos.project.sprint.infrastructure
+package pizza.psycho.sos.project.sprint.infrastructure.persistence
 
 import org.springframework.stereotype.Component
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId

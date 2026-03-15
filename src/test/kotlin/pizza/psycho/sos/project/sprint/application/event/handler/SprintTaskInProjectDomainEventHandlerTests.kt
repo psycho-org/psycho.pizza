@@ -11,6 +11,7 @@ import pizza.psycho.sos.project.project.domain.event.TaskRemovedFromProjectEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskAddedToSprintEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
+import pizza.psycho.sos.project.sprint.infrastructure.adapter.out.event.SprintTaskInProjectDomainEventHandler
 import java.util.UUID
 
 class SprintTaskInProjectDomainEventHandlerTests {

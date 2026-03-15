@@ -1,4 +1,4 @@
-package pizza.psycho.sos.project.project.application.event.handler
+package pizza.psycho.sos.project.project.infrastructure.adapter.out.event
 
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
@@ -10,7 +10,6 @@ import pizza.psycho.sos.project.project.domain.event.ProjectDomainEvent
 import pizza.psycho.sos.project.project.domain.event.TaskAddedToProjectEvent
 import pizza.psycho.sos.project.project.domain.event.TaskProjectChangedEvent
 import pizza.psycho.sos.project.project.domain.event.TaskRemovedFromProjectEvent
-import pizza.psycho.sos.audit.application.listener.event.TaskProjectChangedEvent as AuditTaskProjectChangedEvent
 
 @Component
 class ProjectDomainEventPublishingHandler(
@@ -49,7 +48,7 @@ class ProjectDomainEventPublishingHandler(
 
                 eventPublisher
                     .publish(
-                        AuditTaskProjectChangedEvent(
+                        pizza.psycho.sos.audit.application.listener.event.TaskProjectChangedEvent(
                             workspaceId = event.workspaceId,
                             taskId = event.taskId,
                             actorId = event.actorId,

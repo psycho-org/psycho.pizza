@@ -1,4 +1,4 @@
-package pizza.psycho.sos.project.sprint.application.event.handler
+package pizza.psycho.sos.project.sprint.infrastructure.adapter.out.event
 
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
