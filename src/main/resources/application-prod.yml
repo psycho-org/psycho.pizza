@@ -55,10 +55,6 @@ mail:
     verify-success-url: ${MAIL_TOKEN_VERIFY_SUCCESS_URL}
     verify-failure-url: ${MAIL_TOKEN_VERIFY_FAILURE_URL}
 
-openai:
-  api-key: ${OPENAI_API_KEY}
-  model: gpt-4.1-mini
-
 springdoc:
   api-docs:
     enabled: true

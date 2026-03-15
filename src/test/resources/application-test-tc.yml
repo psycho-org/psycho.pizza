@@ -21,7 +21,3 @@ challenge:
   otp-max-attempts: 3
   cooldown-seconds: 0
   confirmation-token-ttl-seconds: 300
-
-openai:
-  api-key: TEST-dummy-api-key
-  model: gpt-4.1-miniguswo 

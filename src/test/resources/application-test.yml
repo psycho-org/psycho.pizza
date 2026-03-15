@@ -30,10 +30,6 @@ challenge:
   cooldown-seconds: 60
   confirmation-token-ttl-seconds: 300
 
-openai:
-  api-key: test-dummy-api-key
-  model: gpt-test-model
-
 app:
   sqs:
     request-queue-url: ""
