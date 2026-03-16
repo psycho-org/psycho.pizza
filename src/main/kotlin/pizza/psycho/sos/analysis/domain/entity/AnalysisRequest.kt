@@ -1,10 +1,14 @@
 package pizza.psycho.sos.analysis.domain.entity
 
+import com.fasterxml.jackson.core.JsonProcessingException
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Table
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import pizza.psycho.sos.analysis.domain.exception.AnalysisErrorCode
 import pizza.psycho.sos.analysis.domain.vo.AnalysisRequestStatus
 import pizza.psycho.sos.analysis.domain.vo.AnalysisTargetType
@@ -43,6 +47,11 @@ class AnalysisRequest(
     var errorMessage: String? = null
         protected set
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "result", columnDefinition = "JSONB")
+    var result: String? = null
+        protected set
+
     /**
      * QUEUED -> RUNNING
      * - startedAt을 기록하고
@@ -74,6 +83,29 @@ class AnalysisRequest(
         }
         status = AnalysisRequestStatus.DONE
         completedAt = Instant.now()
+    }
+
+    /**
+     * RUNNING -> DONE with result
+     */
+    fun complete(result: Any?) {
+        if (status != AnalysisRequestStatus.RUNNING) {
+            throw DomainException(
+                AnalysisErrorCode.INVALID_ANALYSIS_STATE,
+                "분석 요청 상태가 RUNNING일 때만 완료할 수 있습니다. (현재 상태=$status)",
+            )
+        }
+        status = AnalysisRequestStatus.DONE
+        completedAt = Instant.now()
+        this.result =
+            try {
+                result?.let { objectMapper.writeValueAsString(it) }
+            } catch (e: JsonProcessingException) {
+                throw DomainException(
+                    AnalysisErrorCode.INVALID_ANALYSIS_STATE,
+                    "분석 결과를 JSON 문자열로 직렬화하지 못했습니다.",
+                )
+            }
     }
 
     /**
@@ -109,6 +141,8 @@ class AnalysisRequest(
     }
 
     companion object {
+        private val objectMapper = jacksonObjectMapper()
+
         fun create(
             workspaceId: UUID,
             sprintId: UUID,

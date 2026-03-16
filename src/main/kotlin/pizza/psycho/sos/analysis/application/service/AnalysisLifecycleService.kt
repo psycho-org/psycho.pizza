@@ -32,6 +32,15 @@ class AnalysisLifecycleService(
         analysisRequest.markAsFailed(errorMessage)
     }
 
+    @Transactional
+    fun completeAnalysis(
+        id: UUID,
+        result: Any?,
+    ) {
+        val analysisRequest = getAnalysisRequestEntity(id)
+        analysisRequest.complete(result)
+    }
+
     private fun getAnalysisRequestEntity(id: UUID): AnalysisRequest =
         analysisRequestRepository
             .findById(id)
