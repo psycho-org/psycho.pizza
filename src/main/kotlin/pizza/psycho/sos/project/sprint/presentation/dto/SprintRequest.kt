@@ -30,4 +30,9 @@ sealed interface SprintRequest {
         @field:NotBlank
         val name: String,
     ) : SprintRequest
+
+    data class Delete(
+        @field:NotBlank
+        val reason: String,
+    ) : SprintRequest
 }

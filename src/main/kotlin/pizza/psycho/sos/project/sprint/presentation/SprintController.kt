@@ -24,6 +24,7 @@ import pizza.psycho.sos.project.sprint.application.service.dto.SprintResult
 import pizza.psycho.sos.project.sprint.domain.exception.SprintErrorCode
 import pizza.psycho.sos.project.sprint.presentation.dto.SprintRequest
 import pizza.psycho.sos.project.sprint.presentation.dto.SprintResponse
+import pizza.psycho.sos.project.task.domain.model.vo.Status
 import java.util.UUID
 
 @RestController
@@ -68,6 +69,16 @@ class SprintController(
             sprintService.getProjectsInSprint(SprintQuery.FindProjectsInSprint(WorkspaceId(workspaceId), sprintId))
         }
 
+    @GetMapping("/{sprintId}/tasks")
+    fun findTasksInSprint(
+        @PathVariable workspaceId: UUID,
+        @PathVariable sprintId: UUID,
+        @RequestParam status: Status,
+    ): ApiResponse<*> =
+        handleResult {
+            sprintService.getTasksInSprint(SprintQuery.FindTasksInSprint(WorkspaceId(workspaceId), sprintId, status))
+        }
+
     @PostMapping("/{sprintId}/projects")
     fun createProjectInSprint(
         @PathVariable workspaceId: UUID,
@@ -94,9 +105,10 @@ class SprintController(
         @PathVariable workspaceId: UUID,
         @PathVariable sprintId: UUID,
         @RequestParam(value = "account") accountId: UUID,
+        @Valid @RequestBody request: SprintRequest.Delete,
     ): ApiResponse<*> =
         handleResult {
-            sprintService.remove(SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, accountId))
+            sprintService.remove(SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, accountId, request.reason))
         }
 
     // ------------------------------------------------------------------------------------------------
@@ -105,6 +117,7 @@ class SprintController(
         when (val result: SprintResult = function()) {
             is SprintResult.SprintInfo -> responseOf(data = result.toResponse())
             is SprintResult.ProjectList -> responseOf(data = result.projects.map { it.toResponse() })
+            is SprintResult.TaskList -> responseOf(data = result.tasks.map { it.toResponse() })
             is SprintResult.ProjectCreated -> responseOf(data = result.project.toResponse())
             is SprintResult.SprintPage -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
             is SprintResult.Remove ->
@@ -173,5 +186,17 @@ class SprintController(
                     completedCount = progress.completedCount,
                     progress = progress.progress,
                 ),
+        )
+
+    private fun SprintResult.Task.toResponse(): SprintResponse.Task =
+        SprintResponse.Task(
+            id = id,
+            title = title,
+            status = status,
+            priority = priority,
+            projectId = projectId,
+            projectName = projectName,
+            assigneeId = assigneeId,
+            dueDate = dueDate,
         )
 }

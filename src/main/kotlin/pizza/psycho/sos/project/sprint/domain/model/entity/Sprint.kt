@@ -12,6 +12,7 @@ import pizza.psycho.sos.common.event.AggregateRoot
 import pizza.psycho.sos.common.event.DomainEvent
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.sprint.domain.event.SprintDeletedEvent
 import pizza.psycho.sos.project.sprint.domain.event.SprintDomainEvent
 import pizza.psycho.sos.project.sprint.domain.event.SprintGoalChangedEvent
 import pizza.psycho.sos.project.sprint.domain.event.SprintPeriodChangedEvent
@@ -156,6 +157,25 @@ class Sprint(
     fun hasProject(projectId: UUID): Boolean = mappings.any { it.projectId == projectId }
 
     fun projectIds(): List<UUID> = mappings.map { it.projectId }
+
+    override fun delete(by: UUID) {
+        delete(by, null)
+    }
+
+    fun delete(
+        by: UUID,
+        reason: String?,
+    ) {
+        super.delete(by)
+        SprintDeletedEvent(
+            workspaceId = workspaceId.value,
+            sprintId = sprintId,
+            actorId = by,
+            sprintName = name,
+            reason = reason,
+            eventId = UUID.randomUUID(),
+        ).register()
+    }
 
     private fun SprintDomainEvent.register() = registerEvent(this)
 

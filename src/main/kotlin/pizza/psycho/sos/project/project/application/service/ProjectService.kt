@@ -217,7 +217,7 @@ class ProjectService(
                     0
                 } else {
                     taskPort
-                        .deleteByIdIn(deletableTaskIds, command.deletedBy, command.workspaceId)
+                        .deleteByIdIn(deletableTaskIds, command.deletedBy, command.workspaceId, command.reason)
                         .also {
                             log.info(
                                 "remove: tasks soft-deleted. count={}, projectId={}",
@@ -227,7 +227,8 @@ class ProjectService(
                         }
                 }
 
-            project.delete(command.deletedBy)
+            project.delete(command.deletedBy, command.reason)
+            eventPublisher.publishAndClear(project)
             log.info("remove success: projectId={}, deletedTasks={}", command.projectId, deletedTaskCount)
             ProjectResult.Remove(projectCount = 1, taskCount = deletedTaskCount)
         }
@@ -277,6 +278,7 @@ class ProjectService(
             val taskSnapshot =
                 taskPort.findByIdIn(listOf(command.taskId), command.workspaceId).singleOrNull()
                     ?: return@writable ProjectResult.Failure.TaskNotFound
+            validateMoveTaskAssignments(command)?.let { return@writable it }
             sprintTaskPolicy.validateTaskAssignmentsToProject(command.toProjectId, listOf(taskSnapshot), command.workspaceId)
             moveTaskToBacklogIfLeavingLastSprint(fromProject, toProject, command)
 
@@ -332,6 +334,29 @@ class ProjectService(
 
             null
         }
+
+    private fun validateMoveTaskAssignments(command: ProjectCommand.MoveTask): ProjectResult.Failure? {
+        val assignments =
+            projectRepository.findActiveProjectIdsByTaskIds(listOf(command.taskId), command.workspaceId)
+
+        if (assignments.isEmpty()) {
+            log.warn("moveTask: task assignment not found. taskId={}, fromProjectId={}", command.taskId, command.fromProjectId)
+            return ProjectResult.Failure.TaskNotFound
+        }
+
+        val conflictingAssignments = assignments.filter { it.projectId != command.fromProjectId }
+        if (conflictingAssignments.isNotEmpty()) {
+            log.warn(
+                "moveTask: task assigned to another project. taskId={}, fromProjectId={}, conflicts={}",
+                command.taskId,
+                command.fromProjectId,
+                conflictingAssignments,
+            )
+            return ProjectResult.Failure.TaskAlreadyAssigned
+        }
+
+        return null
+    }
 
     private fun applyUpdates(
         project: Project,

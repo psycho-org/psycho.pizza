@@ -48,6 +48,11 @@ class TaskService(
             TaskResult.TaskList(it.toResult())
         }
 
+    fun getBacklog(command: TaskQuery.FindBacklogTasks): TaskResult.TaskList =
+        taskRepository.findAllActiveBacklogTasks(WorkspaceId(command.workspaceId), command.pageable).let {
+            TaskResult.TaskList(it.toResult())
+        }
+
     fun getInformation(command: TaskQuery.FindTask): TaskResult =
         taskRepository
             .findActiveTaskByIdOrNull(id = command.id, workspaceId = WorkspaceId(command.workspaceId))
@@ -55,12 +60,21 @@ class TaskService(
             ?: TaskResult.Failure.IdNotFound
 
     fun remove(command: TaskCommand.RemoveTask): TaskResult =
-        this
-            .deleteTaskById(
-                id = command.id,
-                deletedBy = command.deletedBy,
-                workspaceId = WorkspaceId(command.workspaceId),
-            ).let { TaskResult.Remove(it) }
+        Tx.writable {
+            val deletedCount =
+                taskRepository
+                    .findActiveTaskByIdOrNull(command.id, WorkspaceId(command.workspaceId))
+                    ?.also {
+                        val wasInActiveSprint =
+                            sprintParticipationQuery.existsActiveSprintByTaskId(it.taskId, command.workspaceId)
+                        it.delete(command.deletedBy, command.reason)
+                        markSprintMembership(it, wasInActiveSprint)
+                        domainEventPublisher.publishAndClear(it)
+                    }?.let { 1 }
+                    ?: 0
+
+            TaskResult.Remove(deletedCount)
+        }
 
     fun saveTask(command: TaskCommand.AddTask): Task = taskRepository.save(command.toDomain())
 
@@ -96,6 +110,7 @@ class TaskService(
         ids: Collection<UUID>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
+        reason: String? = null,
     ): Int =
         Tx.writable {
             if (ids.isEmpty()) return@writable 0
@@ -104,7 +119,7 @@ class TaskService(
                 taskRepository
                     .findAllByIdIn(ids, workspaceId)
                     .onEach {
-                        it.delete(deletedBy)
+                        it.delete(deletedBy, reason)
                         markSprintMembership(it, sprintTaskIds.contains(it.taskId))
                     }
 

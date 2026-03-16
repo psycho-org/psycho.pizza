@@ -30,6 +30,7 @@ sealed interface SprintCommand {
         val workspaceId: WorkspaceId,
         val sprintId: UUID,
         val deletedBy: UUID,
+        val reason: String,
     ) : SprintCommand
 
     data class CreateProject(

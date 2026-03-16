@@ -203,6 +203,59 @@ class SprintControllerTests {
     }
 
     @Test
+    fun `스프린트 내 태스크 목록을 status 파라미터로 필터링해 반환한다`() {
+        val workspaceId = UUID.randomUUID()
+        val sprintId = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val dueDate = Instant.parse("2026-01-10T00:00:00Z")
+
+        `when`(
+            sprintService.getTasksInSprint(
+                SprintQuery.FindTasksInSprint(
+                    WorkspaceId(workspaceId),
+                    sprintId,
+                    pizza.psycho.sos.project.task.domain.model.vo.Status.TODO,
+                ),
+            ),
+        ).thenReturn(
+            SprintResult.TaskList(
+                listOf(
+                    SprintResult.Task(
+                        id = taskId,
+                        title = "태스크",
+                        status = pizza.psycho.sos.project.task.domain.model.vo.Status.TODO,
+                        priority = pizza.psycho.sos.project.task.domain.model.vo.Priority.HIGH,
+                        projectId = projectId,
+                        projectName = "프로젝트",
+                        assigneeId = null,
+                        dueDate = dueDate,
+                    ),
+                ),
+            ),
+        )
+
+        mockMvc
+            .perform(
+                get("/api/v1/workspaces/$workspaceId/sprints/$sprintId/tasks")
+                    .param("status", "TODO"),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.data[0].status").value("TODO"))
+            .andExpect(jsonPath("$.data[0].priority").value("HIGH"))
+            .andExpect(jsonPath("$.data[0].id").value(taskId.toString()))
+            .andExpect(jsonPath("$.data[0].projectId").value(projectId.toString()))
+            .andExpect(jsonPath("$.data[0].projectName").value("프로젝트"))
+
+        verify(sprintService).getTasksInSprint(
+            SprintQuery.FindTasksInSprint(
+                WorkspaceId(workspaceId),
+                sprintId,
+                pizza.psycho.sos.project.task.domain.model.vo.Status.TODO,
+            ),
+        )
+    }
+
+    @Test
     fun `스프린트에서 프로젝트 생성 시 결과를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val sprintId = UUID.randomUUID()
@@ -279,19 +332,21 @@ class SprintControllerTests {
 
         `when`(
             sprintService.remove(
-                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId),
+                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId, "삭제 사유"),
             ),
         ).thenReturn(SprintResult.Remove(sprintCount = 1, projectCount = 2, taskCount = 5))
 
         mockMvc
             .perform(
                 delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
-                    .param("account", userId.toString()),
+                    .param("account", userId.toString())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"reason":"삭제 사유"}"""),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.projectCount").value(2))
             .andExpect(jsonPath("$.data.taskCount").value(5))
         verify(sprintService).remove(
-            SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId),
+            SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId, "삭제 사유"),
         )
     }
 
@@ -303,14 +358,16 @@ class SprintControllerTests {
 
         `when`(
             sprintService.remove(
-                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId),
+                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId, "삭제 사유"),
             ),
         ).thenReturn(SprintResult.Failure.IdNotFound)
 
         mockMvc
             .perform(
                 delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
-                    .param("account", userId.toString()),
+                    .param("account", userId.toString())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"reason":"삭제 사유"}"""),
             ).andExpect(status().is4xxClientError)
     }
 }

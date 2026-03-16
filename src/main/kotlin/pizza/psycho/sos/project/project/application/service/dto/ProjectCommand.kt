@@ -23,6 +23,7 @@ sealed interface ProjectCommand {
         val workspaceId: WorkspaceId,
         val projectId: UUID,
         val deletedBy: UUID,
+        val reason: String,
     ) : ProjectCommand
 
     data class CreateTask(
