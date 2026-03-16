@@ -38,6 +38,7 @@ interface TaskFacade {
         ids: Collection<UUID>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
+        reason: String? = null,
     ): Int
 
     fun moveToBacklog(

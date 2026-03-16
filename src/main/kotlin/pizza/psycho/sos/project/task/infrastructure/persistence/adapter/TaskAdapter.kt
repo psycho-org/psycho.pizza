@@ -51,7 +51,8 @@ class TaskAdapter(
         ids: Collection<UUID>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
-    ): Int = taskFacade.deleteTasksByIdIn(ids, deletedBy, workspaceId)
+        reason: String?,
+    ): Int = taskFacade.deleteTasksByIdIn(ids, deletedBy, workspaceId, reason)
 
     override fun moveToBacklog(
         ids: Collection<UUID>,

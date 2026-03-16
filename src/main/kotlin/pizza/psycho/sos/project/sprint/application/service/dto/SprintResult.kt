@@ -2,6 +2,8 @@ package pizza.psycho.sos.project.sprint.application.service.dto
 
 import org.springframework.data.domain.Page
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.task.domain.model.vo.Priority
+import pizza.psycho.sos.project.task.domain.model.vo.Status
 import java.time.Instant
 import java.util.UUID
 
@@ -29,6 +31,21 @@ sealed interface SprintResult {
 
     data class ProjectList(
         val projects: List<Project>,
+    ) : SprintResult
+
+    data class Task(
+        val id: UUID,
+        val title: String,
+        val status: Status,
+        val priority: Priority? = null,
+        val projectId: UUID,
+        val projectName: String,
+        val assigneeId: UUID? = null,
+        val dueDate: Instant? = null,
+    )
+
+    data class TaskList(
+        val tasks: List<Task>,
     ) : SprintResult
 
     data class SprintPage(

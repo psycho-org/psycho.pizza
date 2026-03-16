@@ -48,6 +48,11 @@ class TaskService(
             TaskResult.TaskList(it.toResult())
         }
 
+    fun getBacklog(command: TaskQuery.FindBacklogTasks): TaskResult.TaskList =
+        taskRepository.findAllActiveBacklogTasks(WorkspaceId(command.workspaceId), command.pageable).let {
+            TaskResult.TaskList(it.toResult())
+        }
+
     fun getInformation(command: TaskQuery.FindTask): TaskResult =
         taskRepository
             .findActiveTaskByIdOrNull(id = command.id, workspaceId = WorkspaceId(command.workspaceId))
@@ -105,6 +110,7 @@ class TaskService(
         ids: Collection<UUID>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
+        reason: String? = null,
     ): Int =
         Tx.writable {
             if (ids.isEmpty()) return@writable 0
@@ -113,7 +119,7 @@ class TaskService(
                 taskRepository
                     .findAllByIdIn(ids, workspaceId)
                     .onEach {
-                        it.delete(deletedBy)
+                        it.delete(deletedBy, reason)
                         markSprintMembership(it, sprintTaskIds.contains(it.taskId))
                     }
 
