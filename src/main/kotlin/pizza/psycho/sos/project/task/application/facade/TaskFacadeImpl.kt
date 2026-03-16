@@ -75,6 +75,7 @@ class TaskFacadeImpl(
             id = taskId,
             title = title,
             status = status,
+            priority = priority,
             assigneeId = assigneeId.value,
             dueDate = dueDate.value,
         )

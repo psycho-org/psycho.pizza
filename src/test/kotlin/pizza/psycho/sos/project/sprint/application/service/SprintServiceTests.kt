@@ -33,6 +33,8 @@ import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
 import pizza.psycho.sos.project.task.application.port.out.dto.SprintTaskMembershipSnapshot
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
+import pizza.psycho.sos.project.task.domain.model.vo.Priority
+import pizza.psycho.sos.project.task.domain.model.vo.Status
 import java.time.Instant
 import java.util.UUID
 
@@ -148,6 +150,43 @@ class SprintServiceTests {
         assertTrue(result is SprintResult.ProjectList)
         result as SprintResult.ProjectList
         assertTrue(result.projects.isEmpty())
+    }
+
+    @Test
+    fun `스프린트 태스크 목록 조회 시 요청한 status 의 태스크만 반환한다`() {
+        val todoTaskId = UUID.randomUUID()
+        val doneTaskId = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        val sprint =
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId).apply {
+                addProject(projectId)
+            }
+        val project =
+            ProjectSnapshot(
+                projectId = projectId,
+                workspaceId = workspaceId,
+                name = "Project A",
+                taskIds = listOf(todoTaskId, doneTaskId),
+            )
+
+        every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns sprint
+        every { projectPort.findByIdIn(listOf(projectId), workspaceId) } returns listOf(project)
+        every { taskPort.findByIdIn(listOf(todoTaskId, doneTaskId), workspaceId) } returns
+            listOf(
+                TaskSnapshot(todoTaskId, "Todo Task", Status.TODO, Priority.HIGH, null, null),
+                TaskSnapshot(doneTaskId, "Done Task", Status.DONE, Priority.LOW, null, null),
+            )
+
+        val result = sprintService.getTasksInSprint(SprintQuery.FindTasksInSprint(workspaceId, sprintId, Status.TODO))
+
+        assertTrue(result is SprintResult.TaskList)
+        result as SprintResult.TaskList
+        assertEquals(1, result.tasks.size)
+        assertEquals(Status.TODO, result.tasks.single().status)
+        assertEquals(Priority.HIGH, result.tasks.single().priority)
+        assertEquals("Todo Task", result.tasks.single().title)
+        assertEquals(projectId, result.tasks.single().projectId)
+        assertEquals("Project A", result.tasks.single().projectName)
     }
 
     @Test

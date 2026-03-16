@@ -87,6 +87,48 @@ class SprintService(
                 .also { log.info("getProjectsInSprint success: sprintId=${command.sprintId}") }
         }
 
+    fun getTasksInSprint(command: SprintQuery.FindTasksInSprint): SprintResult =
+        Tx.readable {
+            log.debug("getTasksInSprint: sprintId={}, workspaceId={}", command.sprintId, command.workspaceId)
+
+            val sprint =
+                findActiveSprint(command.sprintId, command.workspaceId)
+                    ?: run {
+                        log.warn("getTasksInSprint: sprint not found. sprintId={}", command.sprintId)
+                        return@readable SprintResult.Failure.IdNotFound
+                    }
+
+            val projects = loadProjectSnapshots(sprint.projectIds(), command.workspaceId)
+            if (projects.isEmpty()) {
+                return@readable SprintResult.TaskList(emptyList())
+            }
+
+            val projectInfoByTaskId = mutableMapOf<UUID, Pair<UUID, String>>()
+            val orderedTaskIds = mutableListOf<UUID>()
+
+            projects.forEach { project ->
+                project.taskIds.forEach { taskId ->
+                    if (taskId !in projectInfoByTaskId) {
+                        orderedTaskIds += taskId
+                        projectInfoByTaskId[taskId] = project.projectId to project.name
+                    }
+                }
+            }
+
+            val tasksById = loadTaskSnapshots(orderedTaskIds, command.workspaceId).associateBy(TaskSnapshot::id)
+            val tasks =
+                orderedTaskIds
+                    .mapNotNull { taskId ->
+                        val task = tasksById[taskId] ?: return@mapNotNull null
+                        val (projectId, projectName) = projectInfoByTaskId.getValue(taskId)
+                        task.toResult(projectId, projectName)
+                    }.filter { it.status == command.status }
+
+            SprintResult
+                .TaskList(tasks)
+                .also { log.info("getTasksInSprint success: sprintId={}, status={}", command.sprintId, command.status) }
+        }
+
     fun createProject(command: SprintCommand.CreateProject): SprintResult =
         Tx.writable {
             log.debug("createProject: sprintId={}, workspaceId={}", command.sprintId, command.workspaceId)
@@ -426,5 +468,20 @@ class SprintService(
                     completedCount = progress?.completedCount?.toInt() ?: 0,
                     progress = progress?.value ?: 0.0,
                 ),
+        )
+
+    private fun TaskSnapshot.toResult(
+        projectId: UUID,
+        projectName: String,
+    ): SprintResult.Task =
+        SprintResult.Task(
+            id = id,
+            title = title,
+            status = status,
+            priority = priority,
+            projectId = projectId,
+            projectName = projectName,
+            assigneeId = assigneeId,
+            dueDate = dueDate,
         )
 }
