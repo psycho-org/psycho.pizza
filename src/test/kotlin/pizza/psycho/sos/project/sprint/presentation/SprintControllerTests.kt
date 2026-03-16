@@ -330,15 +330,15 @@ class SprintControllerTests {
     fun `스프린트와 하위 프로젝트 삭제 시 결과를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val sprintId = UUID.randomUUID()
-        val userId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
 
         `when`(
             sprintService.remove(
-                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId, "삭제 사유"),
+                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, accountId, "삭제 사유"),
             ),
         ).thenReturn(SprintResult.Remove(sprintCount = 1, projectCount = 2, taskCount = 5))
 
-        withPrincipal(userId) {
+        withPrincipal(accountId) {
             mockMvc
                 .perform(
                     delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
@@ -349,7 +349,7 @@ class SprintControllerTests {
                 .andExpect(jsonPath("$.data.taskCount").value(5))
         }
         verify(sprintService).remove(
-            SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId, "삭제 사유"),
+            SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, accountId, "삭제 사유"),
         )
     }
 
@@ -357,15 +357,15 @@ class SprintControllerTests {
     fun `존재하지 않는 스프린트 삭제 시 에러를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val sprintId = UUID.randomUUID()
-        val userId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
 
         `when`(
             sprintService.remove(
-                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId, "삭제 사유"),
+                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, accountId, "삭제 사유"),
             ),
         ).thenReturn(SprintResult.Failure.IdNotFound)
 
-        withPrincipal(userId) {
+        withPrincipal(accountId) {
             mockMvc
                 .perform(
                     delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")

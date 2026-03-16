@@ -350,15 +350,15 @@ class ProjectControllerTests {
     fun `프로젝트와 하위 태스크 삭제 시 삭제 결과를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val projectId = UUID.randomUUID()
-        val userId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
 
         `when`(
             projectService.remove(
-                ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, userId, "삭제 사유"),
+                ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, accountId, "삭제 사유"),
             ),
         ).thenReturn(ProjectResult.Remove(projectCount = 1, taskCount = 3))
 
-        withPrincipal(userId) {
+        withPrincipal(accountId) {
             mockMvc
                 .perform(
                     delete("/api/v1/workspaces/$workspaceId/projects/$projectId")
@@ -375,15 +375,15 @@ class ProjectControllerTests {
     fun `존재하지 않는 프로젝트와 하위 태스크 삭제 시 에러를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val projectId = UUID.randomUUID()
-        val userId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
 
         `when`(
             projectService.remove(
-                ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, userId, "삭제 사유"),
+                ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, accountId, "삭제 사유"),
             ),
         ).thenReturn(ProjectResult.Failure.IdNotFound)
 
-        withPrincipal(userId) {
+        withPrincipal(accountId) {
             mockMvc
                 .perform(
                     delete("/api/v1/workspaces/$workspaceId/projects/$projectId")
