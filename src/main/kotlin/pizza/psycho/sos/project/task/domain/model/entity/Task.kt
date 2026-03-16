@@ -141,7 +141,7 @@ class Task protected constructor(
         by: UUID? = null,
     ) {
         val old = this.dueDate
-        this.dueDate = TaskDueDate.withValidation(dueDate)
+        this.dueDate = TaskDueDate(dueDate)
 
         TaskDueDateChangedEvent(
             workspaceId = this.workspaceId.value,
@@ -289,7 +289,7 @@ class Task protected constructor(
                 description = description,
                 assigneeId = AssigneeId(assigneeId),
                 workspaceId = WorkspaceId(workspaceId),
-                dueDate = TaskDueDate.withValidation(dueDate),
+                dueDate = TaskDueDate(dueDate),
             )
     }
 

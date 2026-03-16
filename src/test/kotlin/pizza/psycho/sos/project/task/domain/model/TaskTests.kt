@@ -2,7 +2,6 @@ package pizza.psycho.sos.project.task.domain.model
 
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.project.task.domain.event.TaskDueDateChangedEvent
-import pizza.psycho.sos.project.task.domain.exception.InvalidDueDateException
 import pizza.psycho.sos.project.task.domain.model.entity.Task
 import pizza.psycho.sos.project.task.domain.model.vo.AssigneeId
 import pizza.psycho.sos.project.task.domain.model.vo.Status
@@ -11,7 +10,6 @@ import java.time.Instant
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 @ActiveProfiles("test")
@@ -139,12 +137,13 @@ class TaskTests {
     }
 
     @Test
-    fun `changeDueDate - 과거 마감일은 거부된다`() {
+    fun `changeDueDate - 과거 마감일도 설정된다`() {
         val task = createTask()
+        val dueDate = Instant.now().minusSeconds(3600)
 
-        assertFailsWith<InvalidDueDateException> {
-            task.changeDueDate(Instant.now().minusSeconds(3600), assigneeId)
-        }
+        task.changeDueDate(dueDate, assigneeId)
+
+        assertEquals(dueDate, task.dueDate.value)
     }
 
     @Test
@@ -192,26 +191,10 @@ class TaskDueDateTests {
     }
 
     @Test
-    fun `withValidation - 미래 날짜를 허용한다`() {
-        val future = Instant.now().plusSeconds(3600)
-        val dueDate = TaskDueDate.withValidation(future)
+    fun `TaskDueDate - 전달한 날짜 값을 그대로 가진다`() {
+        val dueAt = Instant.now().plusSeconds(3600)
+        val dueDate = TaskDueDate(dueAt)
 
-        assertEquals(future, dueDate.value)
-    }
-
-    @Test
-    fun `withValidation - 과거 날짜는 거부된다`() {
-        val past = Instant.now().minusSeconds(3600)
-
-        assertFailsWith<InvalidDueDateException> {
-            TaskDueDate.withValidation(past)
-        }
-    }
-
-    @Test
-    fun `withValidation - null이면 빈 TaskDueDate가 생성된다`() {
-        val dueDate = TaskDueDate.withValidation(null)
-
-        assertNull(dueDate.value)
+        assertEquals(dueAt, dueDate.value)
     }
 }
