@@ -1,4 +1,4 @@
-package pizza.psycho.sos.project.project.application.event.handler
+package pizza.psycho.sos.project.project.infrastructure.adapter.out.event
 
 import org.springframework.stereotype.Component
 import org.springframework.transaction.event.TransactionPhase
@@ -6,8 +6,13 @@ import org.springframework.transaction.event.TransactionalEventListener
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.project.project.application.port.out.ProjectSprintParticipationQuery
+import pizza.psycho.sos.project.project.domain.event.ProjectDeletedEvent
 import pizza.psycho.sos.project.project.domain.event.ProjectDomainEvent
+import pizza.psycho.sos.project.project.domain.event.TaskAddedToProjectEvent
 import pizza.psycho.sos.project.project.domain.event.TaskProjectChangedEvent
+import pizza.psycho.sos.project.project.domain.event.TaskRemovedFromProjectEvent
+import pizza.psycho.sos.project.project.domain.event.TasksAddedToProjectEvent
+import pizza.psycho.sos.project.project.domain.event.TasksRemovedFromProjectEvent
 import pizza.psycho.sos.audit.application.listener.event.TaskProjectChangedEvent as AuditTaskProjectChangedEvent
 
 @Component
@@ -58,6 +63,14 @@ class ProjectDomainEventPublishingHandler(
                         ),
                     ).also { log.info("Published TaskProjectChangedEvent to Audit module: $event") }
             }
+
+            // Sprint 관련 처리에서 사용하지 않는 Project 이벤트들
+            is TaskAddedToProjectEvent,
+            is ProjectDeletedEvent,
+            is TaskRemovedFromProjectEvent,
+            is TasksAddedToProjectEvent,
+            is TasksRemovedFromProjectEvent,
+            -> Unit
         }
     }
 }

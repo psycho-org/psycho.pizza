@@ -1,0 +1,1 @@
+ALTER TABLE public.sprints ADD COLUMN goal VARCHAR(120) NULL;

@@ -1,5 +1,6 @@
 package pizza.psycho.sos.project.project.application.port.out
 
+import pizza.psycho.sos.project.sprint.application.port.out.dto.SprintPeriodSnapshot
 import java.util.UUID
 
 /**
@@ -10,4 +11,19 @@ interface ProjectSprintParticipationQuery {
         projectId: UUID,
         workspaceId: UUID,
     ): Boolean
+
+    fun findActiveSprintPeriodsByProjectId(
+        projectId: UUID,
+        workspaceId: UUID,
+    ): List<SprintPeriodSnapshot>
+
+    fun findActiveSprintIdsByProjectId(
+        projectId: UUID,
+        workspaceId: UUID,
+    ): List<UUID>
+
+    fun findActiveSprintIdsByProjectIds(
+        projectIds: Collection<UUID>,
+        workspaceId: UUID,
+    ): Map<UUID, Set<UUID>>
 }

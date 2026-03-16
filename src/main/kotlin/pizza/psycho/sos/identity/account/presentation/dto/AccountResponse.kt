@@ -14,4 +14,11 @@ sealed interface AccountResponse {
     }
 
     data object Withdrawn : AccountResponse
+
+    sealed interface Policy : AccountResponse {
+        data class Password(
+            val regex: String,
+            val message: String,
+        ) : Policy
+    }
 }

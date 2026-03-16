@@ -44,10 +44,19 @@ class TaskController(
     @GetMapping
     fun findAllTasks(
         @PathVariable workspaceId: UUID,
-        @PageableDefault(page = 1, size = 10) pageable: Pageable,
+        @PageableDefault(page = 0, size = 10) pageable: Pageable,
     ): ApiResponse<*> =
         handleResult {
             taskService.getAll(TaskQuery.FindTasks(workspaceId, pageable))
+        }
+
+    @GetMapping("/backlog")
+    fun findBacklogTasks(
+        @PathVariable workspaceId: UUID,
+        @PageableDefault(page = 0, size = 10) pageable: Pageable,
+    ): ApiResponse<*> =
+        handleResult {
+            taskService.getBacklog(TaskQuery.FindBacklogTasks(workspaceId, pageable))
         }
 
     @GetMapping("/{id}")
@@ -64,9 +73,10 @@ class TaskController(
         @PathVariable workspaceId: UUID,
         @PathVariable id: UUID,
         @RequestParam(name = "account") accountId: UUID,
+        @Valid @RequestBody request: TaskRequest.Delete,
     ): ApiResponse<*> =
         handleResult {
-            taskService.remove(TaskCommand.RemoveTask(workspaceId, id, accountId))
+            taskService.remove(TaskCommand.RemoveTask(workspaceId, id, accountId, request.reason))
         }
 
     @PatchMapping("/{id}")
@@ -89,6 +99,7 @@ class TaskController(
             is TaskResult.TaskList -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
             is TaskResult.Failure.IdNotFound -> throw DomainException(TaskErrorCode.TASK_NOT_FOUND)
             is TaskResult.Failure.TaskInformationNotFound -> throw DomainException(TaskErrorCode.TASK_INFO_NOT_FOUND)
+            is TaskResult.Failure.InvalidRequest -> throw DomainException(TaskErrorCode.INVALID_REQUEST)
         }
 
     private fun TaskRequest.Create.toCommand(spaceId: UUID) =

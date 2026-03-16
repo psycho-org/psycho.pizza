@@ -13,6 +13,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
@@ -152,6 +153,45 @@ class TaskControllerTests {
     }
 
     @Test
+    fun `backlog 태스크 목록 조회 시 페이지네이션된 태스크 리스트를 반환한다`() {
+        val workspaceId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val pageable = PageRequest.of(0, 10)
+
+        val page =
+            PageImpl(
+                listOf(
+                    TaskResult.TaskListInfo(
+                        id = taskId,
+                        title = "백로그 태스크",
+                        status = Status.TODO,
+                        assignee = null,
+                        dueDate = null,
+                    ),
+                ),
+                pageable,
+                1,
+            )
+
+        `when`(
+            taskService.getBacklog(
+                TaskQuery.FindBacklogTasks(workspaceId, pageable),
+            ),
+        ).thenReturn(TaskResult.TaskList(page))
+
+        mockMvc
+            .perform(
+                get("/api/v1/workspaces/$workspaceId/tasks/backlog")
+                    .param("page", "0")
+                    .param("size", "10"),
+            ).andExpect(status().isOk)
+
+        verify(taskService).getBacklog(
+            TaskQuery.FindBacklogTasks(workspaceId, pageable),
+        )
+    }
+
+    @Test
     fun `특정 태스크 조회 시 태스크 상세 정보를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val taskId = UUID.randomUUID()
@@ -239,5 +279,36 @@ class TaskControllerTests {
                     ),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.assignee").isEmpty)
+    }
+
+    @Test
+    fun `태스크 삭제 시 삭제 결과를 반환한다`() {
+        val workspaceId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
+
+        `when`(
+            taskService.remove(
+                TaskCommand.RemoveTask(
+                    workspaceId = workspaceId,
+                    id = taskId,
+                    deletedBy = accountId,
+                    reason = "삭제 사유",
+                ),
+            ),
+        ).thenReturn(TaskResult.Remove(1))
+
+        mockMvc
+            .perform(
+                delete("/api/v1/workspaces/$workspaceId/tasks/$taskId")
+                    .param("account", accountId.toString())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"reason":"삭제 사유"}"""),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.count").value(1))
+
+        verify(taskService).remove(
+            TaskCommand.RemoveTask(workspaceId, taskId, accountId, "삭제 사유"),
+        )
     }
 }

@@ -1,6 +1,7 @@
 package pizza.psycho.sos.workspace.infrastructure.persistence.repository
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
@@ -18,18 +19,18 @@ class WorkspaceMembershipQueryJpaRepositoryTests {
     private lateinit var workspaceMembershipQueryJpaRepository: WorkspaceMembershipQueryJpaRepository
 
     @Autowired
-    private lateinit var workspaceJpaRepository: WorkspaceJpaRepository
+    private lateinit var workspaceCommandJpaRepository: WorkspaceCommandJpaRepository
 
     @Test
     fun `findActiveWorkspaceMembershipsByAccountId returns active memberships`() {
         val ownerAccountId = UUID.fromString("00000000-0000-0000-0000-000000000908")
         val crewWorkspace =
             Workspace.create("Zeta", "desc", UUID.fromString("00000000-0000-0000-0000-000000000903")).also {
-                it.addMembership(ownerAccountId, Role.CREW)
+                it.addMembership(ownerAccountId, role = Role.CREW)
             }
 
-        workspaceJpaRepository.save(Workspace.create("Epsilon", "desc", ownerAccountId))
-        workspaceJpaRepository.save(crewWorkspace)
+        workspaceCommandJpaRepository.save(Workspace.create("Epsilon", "desc", ownerAccountId))
+        workspaceCommandJpaRepository.save(crewWorkspace)
 
         val memberships = workspaceMembershipQueryJpaRepository.findActiveWorkspaceMembershipsByAccountId(ownerAccountId)
 
@@ -45,21 +46,68 @@ class WorkspaceMembershipQueryJpaRepositoryTests {
 
         val deletedMembershipWorkspace = Workspace.create("Eta", "desc", ownerAccountId)
         deletedMembershipWorkspace.memberships.first().delete(UUID.fromString("00000000-0000-0000-0000-000000000910"))
-        workspaceJpaRepository.save(deletedMembershipWorkspace)
+        workspaceCommandJpaRepository.save(deletedMembershipWorkspace)
 
         val deletedWorkspace =
             Workspace.create("Theta", "desc", ownerAccountId).also {
                 it.delete(UUID.fromString("00000000-0000-0000-0000-000000000911"))
             }
-        workspaceJpaRepository.save(deletedWorkspace)
+        workspaceCommandJpaRepository.save(deletedWorkspace)
 
         val activeWorkspace = Workspace.create("Iota", "desc", ownerAccountId)
-        workspaceJpaRepository.save(activeWorkspace)
+        workspaceCommandJpaRepository.save(activeWorkspace)
 
         val memberships = workspaceMembershipQueryJpaRepository.findActiveWorkspaceMembershipsByAccountId(ownerAccountId)
 
         assertEquals(1, memberships.size)
         assertEquals("Iota", memberships.first().workspaceTitle)
         assertEquals(Role.OWNER, memberships.first().role)
+    }
+
+    @Test
+    fun `existsActiveOwnerMembershipByAccountId returns true only for active owner membership`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000912")
+        workspaceCommandJpaRepository.save(Workspace.create("Kappa", "desc", accountId))
+        workspaceCommandJpaRepository.save(
+            Workspace.create("Lambda", "desc", UUID.fromString("00000000-0000-0000-0000-000000000913")).also {
+                it.addMembership(accountId, role = Role.CREW)
+            },
+        )
+
+        val result = workspaceMembershipQueryJpaRepository.existsActiveOwnerMembershipByAccountId(accountId)
+
+        assertEquals(true, result)
+    }
+
+    @Test
+    fun `existsActiveOwnerMembershipByAccountId returns false when only non-owner memberships exist`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000916")
+        workspaceCommandJpaRepository.save(
+            Workspace.create("Nu", "desc", UUID.fromString("00000000-0000-0000-0000-000000000917")).also {
+                it.addMembership(accountId, role = Role.CREW)
+            },
+        )
+
+        val result = workspaceMembershipQueryJpaRepository.existsActiveOwnerMembershipByAccountId(accountId)
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun `findActiveMembersByWorkspaceId returns membership display name without account join`() {
+        val ownerAccountId = UUID.fromString("00000000-0000-0000-0000-000000000914")
+        val crewAccountId = UUID.fromString("00000000-0000-0000-0000-000000000915")
+        val workspace =
+            Workspace.create("Mu", "desc", ownerAccountId).also {
+                it.addMembership(crewAccountId, role = Role.CREW).displayName = "Crew Display"
+            }
+        workspace.memberships.first { it.accountId == ownerAccountId }.displayName = "Owner Display"
+        val savedWorkspace = workspaceCommandJpaRepository.save(workspace)
+
+        val members = workspaceMembershipQueryJpaRepository.findActiveMembersByWorkspaceId(savedWorkspace.id!!)
+
+        assertEquals(2, members.size)
+        assertEquals(setOf("Owner Display", "Crew Display"), members.map { it.name }.toSet())
+        assertEquals(setOf(Role.OWNER, Role.CREW), members.map { it.role }.toSet())
     }
 }

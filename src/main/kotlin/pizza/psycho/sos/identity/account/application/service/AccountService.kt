@@ -26,11 +26,17 @@ class AccountService(
     private val refreshTokenService: RefreshTokenService,
     private val challengeService: ChallengeService,
     private val workspaceOwnershipQueryService: WorkspaceOwnershipQueryService,
+    private val workspaceMembershipCleanupPort: WorkspaceMembershipCleanupPort,
 ) {
     fun findActiveAccountIdByEmailOrNull(email: String): UUID? =
         accountRepository
             .findByEmailValueIgnoreCaseAndDeletedAtIsNull(Email.of(email).value)
             ?.id
+
+    fun findActiveDisplayNameByAccountIdOrNull(accountId: UUID): String? =
+        accountRepository
+            .findByIdAndDeletedAtIsNull(accountId)
+            ?.let { "${it.givenName} ${it.familyName}" }
 
     fun register(command: AccountCommand.Register): Register =
         try {
@@ -106,6 +112,10 @@ class AccountService(
             return Withdraw.Failure.OwnerWorkspaceExists
         }
 
+        workspaceMembershipCleanupPort.softDeleteActiveMembershipsByAccountId(
+            accountId = command.accountId,
+            deletedBy = command.accountId,
+        )
         account.delete(command.accountId)
         accountRepository.save(account)
         refreshTokenService.revokeAllByAccountId(command.accountId)
