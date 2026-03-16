@@ -3,6 +3,7 @@ package pizza.psycho.sos.project.sprint.presentation
 import jakarta.validation.Valid
 import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -16,6 +17,7 @@ import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.response.ApiResponse
 import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.common.support.pagination.PageInfoSupport
+import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.application.service.SprintService
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
@@ -94,21 +96,28 @@ class SprintController(
         @PathVariable workspaceId: UUID,
         @PathVariable sprintId: UUID,
         @Valid @RequestBody request: SprintRequest.Update,
-        @RequestParam(value = "account") accountId: UUID,
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
     ): ApiResponse<*> =
         handleResult {
-            sprintService.modify(request.toCommand(workspaceId, sprintId, accountId))
+            sprintService.modify(request.toCommand(workspaceId, sprintId, principal.accountId))
         }
 
     @DeleteMapping("/{sprintId}")
     fun removeSprint(
         @PathVariable workspaceId: UUID,
         @PathVariable sprintId: UUID,
-        @RequestParam(value = "account") accountId: UUID,
         @Valid @RequestBody request: SprintRequest.Delete,
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
     ): ApiResponse<*> =
         handleResult {
-            sprintService.remove(SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, accountId, request.reason))
+            sprintService.remove(
+                SprintCommand.Remove(
+                    WorkspaceId(workspaceId),
+                    sprintId,
+                    principal.accountId,
+                    request.reason,
+                ),
+            )
         }
 
     // ------------------------------------------------------------------------------------------------
