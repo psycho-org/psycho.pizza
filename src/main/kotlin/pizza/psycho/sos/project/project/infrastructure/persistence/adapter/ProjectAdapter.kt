@@ -5,6 +5,7 @@ import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.facade.ProjectFacade
 import pizza.psycho.sos.project.project.application.port.out.ProjectPort
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
+import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import java.util.UUID
 
@@ -38,4 +39,9 @@ class ProjectAdapter(
         deletedBy: UUID,
         workspaceId: WorkspaceId,
     ): Int = projectFacade.deleteProjectsByIdIn(projectIds, deletedBy, workspaceId)
+
+    override fun findActiveProjectIdsByTaskIds(
+        taskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<TaskAssignment> = projectFacade.findActiveProjectIdsByTaskIds(taskIds, workspaceId)
 }

@@ -11,6 +11,7 @@ enum class ProjectErrorCode(
     PROJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "Project not found"),
     PROJECT_NAME_NULL(HttpStatus.BAD_REQUEST, "Project name is null."),
     TASK_NOT_FOUND(HttpStatus.NOT_FOUND, "Task not found"),
+    TASK_ALREADY_ASSIGNED(HttpStatus.BAD_REQUEST, "Task already assigned to another project"),
     SAME_PROJECT(HttpStatus.BAD_REQUEST, "Same project"),
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "Invalid request"),
     ;

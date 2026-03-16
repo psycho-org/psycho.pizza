@@ -2,6 +2,7 @@ package pizza.psycho.sos.project.project.application.port.out
 
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
+import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import java.util.UUID
 
@@ -32,4 +33,9 @@ interface ProjectPort {
         deletedBy: UUID,
         workspaceId: WorkspaceId,
     ): Int
+
+    fun findActiveProjectIdsByTaskIds(
+        taskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<TaskAssignment>
 }

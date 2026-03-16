@@ -8,6 +8,7 @@ sealed interface SprintResponse {
         val workspaceId: UUID,
         val sprintId: UUID,
         val name: String,
+        val goal: String? = null,
         val startDate: Instant,
         val endDate: Instant,
     ) : SprintResponse
@@ -25,10 +26,6 @@ sealed interface SprintResponse {
     )
 
     data class Remove(
-        val count: Int,
-    )
-
-    data class RemoveWithTasks(
         val sprintCount: Int,
         val projectCount: Int,
         val taskCount: Int,

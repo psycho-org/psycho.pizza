@@ -13,7 +13,11 @@ import pizza.psycho.sos.common.event.DomainEvent
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.domain.event.ProjectDomainEvent
+import pizza.psycho.sos.project.project.domain.event.TaskAddedToProjectEvent
 import pizza.psycho.sos.project.project.domain.event.TaskProjectChangedEvent
+import pizza.psycho.sos.project.project.domain.event.TaskRemovedFromProjectEvent
+import pizza.psycho.sos.project.project.domain.event.TasksAddedToProjectEvent
+import pizza.psycho.sos.project.project.domain.event.TasksRemovedFromProjectEvent
 import pizza.psycho.sos.project.project.domain.exception.ProjectErrorCode
 import java.util.UUID
 
@@ -43,22 +47,104 @@ class Project(
         this.name = name
     }
 
-    fun addTask(taskId: UUID) {
+    fun addTask(
+        taskId: UUID,
+        by: UUID? = null,
+    ) {
         if (mappings.none { it.taskId == taskId }) {
             mappings += ProjectTaskMapping(project = this, taskId = taskId, workspaceId = this.workspaceId)
+
+            TaskAddedToProjectEvent(
+                workspaceId = this.workspaceId.value,
+                actorId = by,
+                taskId = taskId,
+                projectId = this.projectId,
+                eventId = UUID.randomUUID(),
+            ).register()
         }
     }
 
-    fun addTasks(taskIds: Collection<UUID>) {
-        taskIds.forEach { addTask(it) }
+    fun addTasks(
+        taskIds: Collection<UUID>,
+        by: UUID? = null,
+    ) {
+        val addedTaskIds =
+            taskIds
+                .distinct()
+                .filterNot(this::hasTask)
+
+        addedTaskIds.forEach { taskId ->
+            mappings += ProjectTaskMapping(project = this, taskId = taskId, workspaceId = this.workspaceId)
+        }
+
+        when (addedTaskIds.size) {
+            0 -> Unit
+            1 ->
+                TaskAddedToProjectEvent(
+                    workspaceId = this.workspaceId.value,
+                    actorId = by,
+                    taskId = addedTaskIds.single(),
+                    projectId = this.projectId,
+                    eventId = UUID.randomUUID(),
+                ).register()
+
+            else ->
+                TasksAddedToProjectEvent(
+                    workspaceId = this.workspaceId.value,
+                    actorId = by,
+                    taskIds = addedTaskIds,
+                    projectId = this.projectId,
+                    eventId = UUID.randomUUID(),
+                ).register()
+        }
     }
 
-    fun removeTasks(taskIds: Collection<UUID>) {
-        taskIds.forEach { removeTask(it) }
+    fun removeTasks(
+        taskIds: Collection<UUID>,
+        by: UUID? = null,
+    ) {
+        val removedTaskIds =
+            taskIds
+                .distinct()
+                .filter { taskId -> mappings.removeIf { it.taskId == taskId } }
+
+        when (removedTaskIds.size) {
+            0 -> Unit
+            1 ->
+                TaskRemovedFromProjectEvent(
+                    workspaceId = this.workspaceId.value,
+                    actorId = by,
+                    taskId = removedTaskIds.single(),
+                    projectId = this.projectId,
+                    eventId = UUID.randomUUID(),
+                ).register()
+
+            else ->
+                TasksRemovedFromProjectEvent(
+                    workspaceId = this.workspaceId.value,
+                    actorId = by,
+                    taskIds = removedTaskIds,
+                    projectId = this.projectId,
+                    eventId = UUID.randomUUID(),
+                ).register()
+        }
     }
 
-    fun removeTask(taskId: UUID) {
-        mappings.removeIf { it.taskId == taskId }
+    fun removeTask(
+        taskId: UUID,
+        by: UUID? = null,
+    ) {
+        val removed = mappings.removeIf { it.taskId == taskId }
+
+        if (removed) {
+            TaskRemovedFromProjectEvent(
+                workspaceId = this.workspaceId.value,
+                actorId = by,
+                taskId = taskId,
+                projectId = this.projectId,
+                eventId = UUID.randomUUID(),
+            ).register()
+        }
     }
 
     fun moveTaskTo(
@@ -72,9 +158,8 @@ class Project(
         if (this.projectId == to.projectId) {
             throw DomainException(ProjectErrorCode.SAME_PROJECT)
         }
-
-        this.removeTask(taskId)
-        to.addTask(taskId)
+        this.removeTask(taskId, by)
+        to.addTask(taskId, by)
 
         TaskProjectChangedEvent(
             workspaceId = this.workspaceId.value,
