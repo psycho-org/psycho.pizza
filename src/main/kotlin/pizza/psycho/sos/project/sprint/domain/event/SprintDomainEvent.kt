@@ -53,3 +53,13 @@ data class TaskRemovedFromSprintEvent(
     override val eventId: UUID,
     override val occurredAt: Instant = Instant.now(),
 ) : SprintDomainEvent
+
+data class SprintDeletedEvent(
+    override val workspaceId: UUID,
+    override val sprintId: UUID,
+    override val actorId: UUID?,
+    val sprintName: String,
+    val reason: String? = null,
+    override val eventId: UUID,
+    override val occurredAt: Instant = Instant.now(),
+) : SprintDomainEvent

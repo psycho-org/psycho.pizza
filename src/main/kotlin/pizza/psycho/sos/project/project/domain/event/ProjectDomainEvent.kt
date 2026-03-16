@@ -62,3 +62,13 @@ data class TaskProjectChangedEvent(
     override val eventId: UUID,
     override val occurredAt: Instant = Instant.now(),
 ) : ProjectDomainEvent
+
+data class ProjectDeletedEvent(
+    override val workspaceId: UUID,
+    override val actorId: UUID?,
+    val projectId: UUID,
+    val projectName: String,
+    val reason: String? = null,
+    override val eventId: UUID,
+    override val occurredAt: Instant = Instant.now(),
+) : ProjectDomainEvent

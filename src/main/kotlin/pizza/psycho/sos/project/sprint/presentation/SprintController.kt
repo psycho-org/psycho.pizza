@@ -94,9 +94,10 @@ class SprintController(
         @PathVariable workspaceId: UUID,
         @PathVariable sprintId: UUID,
         @RequestParam(value = "account") accountId: UUID,
+        @Valid @RequestBody request: SprintRequest.Delete,
     ): ApiResponse<*> =
         handleResult {
-            sprintService.remove(SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, accountId))
+            sprintService.remove(SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, accountId, request.reason))
         }
 
     // ------------------------------------------------------------------------------------------------

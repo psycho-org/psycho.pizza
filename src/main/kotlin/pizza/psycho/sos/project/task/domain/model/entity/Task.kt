@@ -248,12 +248,20 @@ class Task protected constructor(
     }
 
     override fun delete(by: UUID) {
+        delete(by, null)
+    }
+
+    fun delete(
+        by: UUID,
+        reason: String?,
+    ) {
         super.delete(by)
         TaskDeletedEvent(
             workspaceId = this.workspaceId.value,
             actorId = by,
             taskId = this.taskId,
             taskTitle = this.title,
+            reason = reason,
             eventId = UUID.randomUUID(),
         ).register()
     }

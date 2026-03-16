@@ -227,7 +227,8 @@ class ProjectService(
                         }
                 }
 
-            project.delete(command.deletedBy)
+            project.delete(command.deletedBy, command.reason)
+            eventPublisher.publishAndClear(project)
             log.info("remove success: projectId={}, deletedTasks={}", command.projectId, deletedTaskCount)
             ProjectResult.Remove(projectCount = 1, taskCount = deletedTaskCount)
         }

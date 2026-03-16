@@ -13,6 +13,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
@@ -239,5 +240,36 @@ class TaskControllerTests {
                     ),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.assignee").isEmpty)
+    }
+
+    @Test
+    fun `태스크 삭제 시 삭제 결과를 반환한다`() {
+        val workspaceId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
+
+        `when`(
+            taskService.remove(
+                TaskCommand.RemoveTask(
+                    workspaceId = workspaceId,
+                    id = taskId,
+                    deletedBy = accountId,
+                    reason = "삭제 사유",
+                ),
+            ),
+        ).thenReturn(TaskResult.Remove(1))
+
+        mockMvc
+            .perform(
+                delete("/api/v1/workspaces/$workspaceId/tasks/$taskId")
+                    .param("account", accountId.toString())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"reason":"삭제 사유"}"""),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.count").value(1))
+
+        verify(taskService).remove(
+            TaskCommand.RemoveTask(workspaceId, taskId, accountId, "삭제 사유"),
+        )
     }
 }

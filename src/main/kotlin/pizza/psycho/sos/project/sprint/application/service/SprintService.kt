@@ -172,7 +172,8 @@ class SprintService(
                     command.workspaceId,
                 )
             val deletedProjectCount = deleteProjects(projectIds, command.deletedBy, command.workspaceId)
-            val deletedSprintCount = deleteSprint(command.sprintId, command.deletedBy, command.workspaceId)
+            sprint.delete(command.deletedBy, command.reason)
+            val deletedSprintCount = 1
 
             log.info(
                 "remove success: sprintId={}, projects={}, tasks={}",
@@ -404,12 +405,6 @@ class SprintService(
             assignmentsByTaskId[taskId].orEmpty().all(removedProjectIds::contains)
         }
     }
-
-    private fun deleteSprint(
-        sprintId: UUID,
-        deletedBy: UUID,
-        workspaceId: WorkspaceId,
-    ): Int = sprintRepository.deleteById(sprintId, deletedBy, workspaceId)
 
     private fun Sprint.toResult(): SprintResult.SprintInfo =
         SprintResult.SprintInfo(

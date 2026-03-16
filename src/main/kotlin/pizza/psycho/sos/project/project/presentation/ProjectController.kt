@@ -120,9 +120,10 @@ class ProjectController(
         @PathVariable workspaceId: UUID,
         @PathVariable projectId: UUID,
         @RequestParam(name = "account") accountId: UUID,
+        @Valid @RequestBody request: ProjectRequest.Delete,
     ): ApiResponse<*> =
         handleResult {
-            projectService.remove(ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, accountId))
+            projectService.remove(ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, accountId, request.reason))
         }
 
     // ------------------------------------------------------------------------------------------------

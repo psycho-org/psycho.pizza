@@ -5,6 +5,7 @@ import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.log.loggerDelegate
+import pizza.psycho.sos.project.sprint.domain.event.SprintDeletedEvent
 import pizza.psycho.sos.project.sprint.domain.event.SprintDomainEvent
 import pizza.psycho.sos.project.sprint.domain.event.SprintGoalChangedEvent
 import pizza.psycho.sos.project.sprint.domain.event.SprintPeriodChangedEvent
@@ -77,6 +78,8 @@ class SprintDomainEventPublishingHandler(
                             occurredAt = event.occurredAt,
                         ),
                     ).also { log.info("Published TaskRemovedFromSprintEvent to Audit module: {}", event) }
+
+            is SprintDeletedEvent -> Unit
         }
     }
 }

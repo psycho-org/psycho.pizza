@@ -31,4 +31,9 @@ sealed interface ProjectRequest {
     data class MoveTask(
         val toProjectId: UUID,
     ) : ProjectRequest
+
+    data class Delete(
+        @field:NotBlank
+        val reason: String,
+    ) : ProjectRequest
 }
