@@ -204,6 +204,29 @@ class SprintServiceTests {
     }
 
     @Test
+    fun `modify - addProjectIds 에 중복 ID가 있으면 InvalidRequest를 반환한다`() {
+        val sprint =
+            Sprint.create("Sprint A", workspaceId, "Goal A", startDate, endDate).withId(sprintId)
+        val actorId = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        every { sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId) } returns sprint
+
+        val result =
+            sprintService.modify(
+                SprintCommand.Update(
+                    workspaceId = workspaceId,
+                    sprintId = sprintId,
+                    addProjectIds = listOf(projectId, projectId),
+                    by = actorId,
+                ),
+            )
+
+        assertTrue(result is SprintResult.Failure.InvalidRequest)
+        verify(exactly = 0) { projectPort.findByIdIn(any<Collection<UUID>>(), any()) }
+        verify(exactly = 0) { eventPublisher.publishAndClear(any()) }
+    }
+
+    @Test
     fun `스프린트 삭제 시 프로젝트와 태스크 삭제 개수를 반환한다`() {
         val deletedBy = UUID.randomUUID()
         val projectId1 = UUID.randomUUID()

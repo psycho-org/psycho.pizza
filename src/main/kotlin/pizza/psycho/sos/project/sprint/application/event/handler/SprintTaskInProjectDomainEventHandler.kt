@@ -98,7 +98,7 @@ class SprintTaskInProjectDomainEventHandler(
         }
 
         taskIds.distinct().forEach { taskId ->
-            sprintIds.forEach { sprintId ->
+            sprintIds.forEach sprintLoop@{ sprintId ->
                 val key = TaskSprintKey(workspaceId, sprintId, taskId)
                 if (suppressedMoveKeys.remove(key)) {
                     log.debug(
@@ -107,7 +107,7 @@ class SprintTaskInProjectDomainEventHandler(
                         sprintId,
                         projectId,
                     )
-                    return@forEach
+                    return@sprintLoop
                 }
                 val isNewEmission = markEmissionIfNew(key)
                 if (!isNewEmission) {
@@ -117,7 +117,7 @@ class SprintTaskInProjectDomainEventHandler(
                         sprintId,
                         projectId,
                     )
-                    return@forEach
+                    return@sprintLoop
                 }
                 eventPublisher.publish(
                     TaskAddedToSprintEvent(
@@ -159,7 +159,7 @@ class SprintTaskInProjectDomainEventHandler(
 
         taskIds.distinct().forEach { taskId ->
             val remainingSprintIds = remainingSprintIdsByTaskId[taskId].orEmpty()
-            sprintIds.forEach { sprintId ->
+            sprintIds.forEach sprintLoop@{ sprintId ->
                 val key = TaskSprintKey(workspaceId, sprintId, taskId)
                 val stillInSprint = remainingSprintIds.contains(sprintId)
                 if (stillInSprint) {
@@ -170,7 +170,7 @@ class SprintTaskInProjectDomainEventHandler(
                         sprintId,
                         projectId,
                     )
-                    return@forEach
+                    return@sprintLoop
                 } else {
                     suppressedMoveKeys.remove(key)
                 }

@@ -27,6 +27,7 @@ sealed interface ProjectResult {
         val status: Status,
         val assignee: Assignee? = null,
         val dueDate: Instant? = null,
+        val isWithinSprintPeriod: Boolean? = null,
     ) : ProjectResult
 
     data class TaskList(

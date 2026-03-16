@@ -4,9 +4,13 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import pizza.psycho.sos.common.event.DomainEventPublisher
+import pizza.psycho.sos.common.patch.Patch
+import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
+import pizza.psycho.sos.project.sprint.domain.model.vo.Period
+import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
 import pizza.psycho.sos.project.task.application.event.handler.TaskEventSprintMembershipRegistry
 import pizza.psycho.sos.project.task.application.port.out.TaskSprintParticipationQuery
 import pizza.psycho.sos.project.task.application.port.out.dto.SprintTaskMembershipSnapshot
@@ -29,7 +33,11 @@ class TaskService(
     private val sprintTaskPolicy: SprintTaskPolicy,
     private val sprintParticipationQuery: TaskSprintParticipationQuery,
     private val sprintMembershipRegistry: TaskEventSprintMembershipRegistry,
+    private val taskSprintParticipationQuery: TaskSprintParticipationQuery,
+    private val sprintTaskPeriodPolicy: SprintTaskPeriodPolicy,
 ) {
+    private val log by loggerDelegate()
+
     fun create(command: TaskCommand.AddTask): TaskResult =
         Tx.writable {
             saveTask(command).toResult()
@@ -153,6 +161,37 @@ class TaskService(
                     ?: return@writable TaskResult.Failure.IdNotFound
 
             val spec = command.toUpdateSpec()
+            val sprintPeriods =
+                taskSprintParticipationQuery.findActiveSprintPeriodsByTaskId(
+                    taskId = task.taskId,
+                    workspaceId = task.workspaceId.value,
+                )
+
+            if (sprintPeriods.isNotEmpty()) {
+                when (val dueDatePatch = spec.dueDate) {
+                    is Patch.Value -> {
+                        val dueDate = dueDatePatch.value
+                        val violates =
+                            sprintPeriods.any { snapshot ->
+                                !sprintTaskPeriodPolicy.isTaskDueDateWithinSprint(
+                                    Period(snapshot.startDate, snapshot.endDate),
+                                    dueDate,
+                                )
+                            }
+                        if (violates) {
+                            log.warn(
+                                "update task dueDate outside sprint period. taskId={}, dueDate={}, sprintIds={}",
+                                task.taskId,
+                                dueDate,
+                                sprintPeriods.map { it.sprintId },
+                            )
+                            return@writable TaskResult.Failure.InvalidRequest
+                        }
+                    }
+
+                    else -> Unit
+                }
+            }
             sprintTaskPolicy.validateTaskDueDateChange(task.taskId, spec.dueDate, workspaceId)
             task.apply(spec)
 
