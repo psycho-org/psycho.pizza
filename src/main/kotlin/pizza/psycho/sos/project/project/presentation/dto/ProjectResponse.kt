@@ -24,6 +24,7 @@ sealed interface ProjectResponse {
         val status: Status,
         val assignee: Assignee? = null,
         val dueDate: Instant? = null,
+        val isWithinSprintPeriod: Boolean? = null,
     ) : ProjectResponse
 
     data class Assignee(
@@ -33,10 +34,6 @@ sealed interface ProjectResponse {
     )
 
     data class Remove(
-        val count: Int,
-    )
-
-    data class RemoveWithTasks(
         val projectCount: Int,
         val taskCount: Int,
     )

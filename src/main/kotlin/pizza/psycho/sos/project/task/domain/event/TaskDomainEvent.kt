@@ -52,6 +52,7 @@ data class TaskDeletedEvent(
     override val actorId: UUID?,
     override val taskId: UUID,
     val taskTitle: String, // 삭제 시 기록용
+    val reason: String? = null,
     override val eventId: UUID,
     override val occurredAt: Instant = Instant.now(),
 ) : TaskDomainEvent

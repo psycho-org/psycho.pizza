@@ -1,13 +1,21 @@
 package pizza.psycho.sos.project.sprint.presentation
 
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.doReturn
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
 import org.springframework.http.MediaType
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
@@ -17,18 +25,22 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import pizza.psycho.sos.common.response.pagedResponseOf
+import pizza.psycho.sos.common.support.pagination.PageInfoSupport
 import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryService
+import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.application.service.SprintService
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
+import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintResult
+import pizza.psycho.sos.project.sprint.presentation.dto.SprintResponse
 import java.time.Instant
 import java.util.UUID
 
 @WebMvcTest(
     controllers = [SprintController::class],
-    excludeAutoConfiguration = [SecurityAutoConfiguration::class],
 )
 @AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
@@ -40,10 +52,51 @@ class SprintControllerTests {
     private lateinit var sprintService: SprintService
 
     @MockitoBean
+    private lateinit var pageInfoSupport: PageInfoSupport
+
+    @MockitoBean
     private lateinit var accessTokenProvider: AccessTokenProvider
 
     @MockitoBean
     private lateinit var activeAccountPrincipalQueryService: ActiveAccountPrincipalQueryService
+
+    @Test
+    fun `스프린트 목록을 페이지로 조회한다`() {
+        val workspaceId = UUID.randomUUID()
+        val sprintId = UUID.randomUUID()
+        val pageable = PageRequest.of(0, 10)
+        val startDate = Instant.parse("2026-01-01T00:00:00Z")
+        val endDate = Instant.parse("2026-01-10T00:00:00Z")
+
+        val sprintInfo =
+            SprintResult.SprintInfo(
+                workspaceId = WorkspaceId(workspaceId),
+                sprintId = sprintId,
+                name = "Sprint",
+                goal = "Goal",
+                startDate = startDate,
+                endDate = endDate,
+            )
+
+        val sprintPage = PageImpl(listOf(sprintInfo), pageable, 1)
+        val mappedPage = sprintPage.map { it.toResponseDto() }
+        val pagedResponse = pagedResponseOf(mappedPage)
+        val query = SprintQuery.FindAll(WorkspaceId(workspaceId), pageable)
+
+        doReturn(SprintResult.SprintPage(sprintPage)).`when`(sprintService).getSprints(any())
+        doReturn(pagedResponse).`when`(pageInfoSupport).toPageResponse(any<Page<SprintResponse.Information>>())
+
+        mockMvc
+            .perform(
+                get("/api/v1/workspaces/$workspaceId/sprints")
+                    .param("page", "1")
+                    .param("size", "10"),
+            ).andExpect(status().isOk)
+
+        val captor = argumentCaptor<SprintQuery.FindAll>()
+        verify(sprintService).getSprints(captor.capture())
+        assertEquals(workspaceId, captor.firstValue.workspaceId.value)
+    }
 
     @Test
     fun `스프린트 생성 시 생성된 정보가 반환된다`() {
@@ -59,6 +112,7 @@ class SprintControllerTests {
                     name = "새 스프린트",
                     startDate = startDate,
                     endDate = endDate,
+                    goal = "새 목표",
                 ),
             ),
         ).thenReturn(
@@ -66,6 +120,7 @@ class SprintControllerTests {
                 workspaceId = WorkspaceId(workspaceId),
                 sprintId = sprintId,
                 name = "새 스프린트",
+                goal = "새 목표",
                 startDate = startDate,
                 endDate = endDate,
             ),
@@ -80,13 +135,15 @@ class SprintControllerTests {
                         {
                             "name": "새 스프린트",
                             "startDate": "$startDate",
-                            "endDate": "$endDate"
+                            "endDate": "$endDate",
+                            "goal": "새 목표"
                         }
                         """.trimIndent(),
                     ),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.sprintId").value(sprintId.toString()))
             .andExpect(jsonPath("$.data.name").value("새 스프린트"))
+            .andExpect(jsonPath("$.data.goal").value("새 목표"))
     }
 
     @Test
@@ -98,13 +155,14 @@ class SprintControllerTests {
 
         `when`(
             sprintService.getSprint(
-                SprintCommand.Get(WorkspaceId(workspaceId), sprintId),
+                SprintQuery.Find(WorkspaceId(workspaceId), sprintId),
             ),
         ).thenReturn(
             SprintResult.SprintInfo(
                 workspaceId = WorkspaceId(workspaceId),
                 sprintId = sprintId,
                 name = "조회 스프린트",
+                goal = "조회 목표",
                 startDate = startDate,
                 endDate = endDate,
             ),
@@ -115,6 +173,7 @@ class SprintControllerTests {
                 get("/api/v1/workspaces/$workspaceId/sprints/$sprintId"),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.name").value("조회 스프린트"))
+            .andExpect(jsonPath("$.data.goal").value("조회 목표"))
     }
 
     @Test
@@ -124,7 +183,7 @@ class SprintControllerTests {
         val projectId = UUID.randomUUID()
 
         `when`(
-            sprintService.getProjectsInSprint(SprintCommand.GetProjects(WorkspaceId(workspaceId), sprintId)),
+            sprintService.getProjectsInSprint(SprintQuery.FindProjectsInSprint(WorkspaceId(workspaceId), sprintId)),
         ).thenReturn(
             SprintResult.ProjectList(
                 listOf(
@@ -142,6 +201,59 @@ class SprintControllerTests {
                 get("/api/v1/workspaces/$workspaceId/sprints/$sprintId/projects"),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data[0].projectId").value(projectId.toString()))
+    }
+
+    @Test
+    fun `스프린트 내 태스크 목록을 status 파라미터로 필터링해 반환한다`() {
+        val workspaceId = UUID.randomUUID()
+        val sprintId = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val dueDate = Instant.parse("2026-01-10T00:00:00Z")
+
+        `when`(
+            sprintService.getTasksInSprint(
+                SprintQuery.FindTasksInSprint(
+                    WorkspaceId(workspaceId),
+                    sprintId,
+                    pizza.psycho.sos.project.task.domain.model.vo.Status.TODO,
+                ),
+            ),
+        ).thenReturn(
+            SprintResult.TaskList(
+                listOf(
+                    SprintResult.Task(
+                        id = taskId,
+                        title = "태스크",
+                        status = pizza.psycho.sos.project.task.domain.model.vo.Status.TODO,
+                        priority = pizza.psycho.sos.project.task.domain.model.vo.Priority.HIGH,
+                        projectId = projectId,
+                        projectName = "프로젝트",
+                        assigneeId = null,
+                        dueDate = dueDate,
+                    ),
+                ),
+            ),
+        )
+
+        mockMvc
+            .perform(
+                get("/api/v1/workspaces/$workspaceId/sprints/$sprintId/tasks")
+                    .param("status", "TODO"),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.data[0].status").value("TODO"))
+            .andExpect(jsonPath("$.data[0].priority").value("HIGH"))
+            .andExpect(jsonPath("$.data[0].id").value(taskId.toString()))
+            .andExpect(jsonPath("$.data[0].projectId").value(projectId.toString()))
+            .andExpect(jsonPath("$.data[0].projectName").value("프로젝트"))
+
+        verify(sprintService).getTasksInSprint(
+            SprintQuery.FindTasksInSprint(
+                WorkspaceId(workspaceId),
+                sprintId,
+                pizza.psycho.sos.project.task.domain.model.vo.Status.TODO,
+            ),
+        )
     }
 
     @Test
@@ -178,6 +290,7 @@ class SprintControllerTests {
         val workspaceId = UUID.randomUUID()
         val sprintId = UUID.randomUUID()
         val addProjectId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
 
         `when`(
             sprintService.modify(
@@ -189,66 +302,54 @@ class SprintControllerTests {
                     endDate = null,
                     addProjectIds = listOf(addProjectId),
                     removeProjectIds = emptyList(),
+                    by = accountId,
                 ),
             ),
         ).thenReturn(SprintResult.Success)
 
-        mockMvc
-            .perform(
-                patch("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(
-                        """
-                        {
-                            "name": "수정된 스프린트",
-                            "addProjectIds": ["$addProjectId"],
-                            "removeProjectIds": []
-                        }
-                        """.trimIndent(),
-                    ),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.message").value("데이터 수정에 성공하였습니다."))
-    }
-
-    @Test
-    fun `스프린트 삭제 시 삭제 결과를 반환한다`() {
-        val workspaceId = UUID.randomUUID()
-        val sprintId = UUID.randomUUID()
-        val userId = UUID.randomUUID()
-
-        `when`(
-            sprintService.remove(
-                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId),
-            ),
-        ).thenReturn(SprintResult.Remove(1))
-
-        mockMvc
-            .perform(
-                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId/$userId"),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.data.count").value(1))
+        withPrincipal(accountId) {
+            mockMvc
+                .perform(
+                    patch("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """
+                            {
+                                "name": "수정된 스프린트",
+                                "addProjectIds": ["$addProjectId"],
+                                "removeProjectIds": []
+                            }
+                            """.trimIndent(),
+                        ),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.message").value("Data modification was successful."))
+        }
     }
 
     @Test
     fun `스프린트와 하위 프로젝트 삭제 시 결과를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val sprintId = UUID.randomUUID()
-        val userId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
 
         `when`(
-            sprintService.removeWithTasks(
-                SprintCommand.RemoveWithTasks(WorkspaceId(workspaceId), sprintId, userId),
+            sprintService.remove(
+                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, accountId, "삭제 사유"),
             ),
-        ).thenReturn(SprintResult.RemoveWithTasks(sprintCount = 1, projectCount = 2, taskCount = 5))
+        ).thenReturn(SprintResult.Remove(sprintCount = 1, projectCount = 2, taskCount = 5))
 
-        mockMvc
-            .perform(
-                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId/$userId/with-tasks"),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.data.projectCount").value(2))
-            .andExpect(jsonPath("$.data.taskCount").value(5))
-        verify(sprintService).removeWithTasks(
-            SprintCommand.RemoveWithTasks(WorkspaceId(workspaceId), sprintId, userId),
+        withPrincipal(accountId) {
+            mockMvc
+                .perform(
+                    delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"reason":"삭제 사유"}"""),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.projectCount").value(2))
+                .andExpect(jsonPath("$.data.taskCount").value(5))
+        }
+        verify(sprintService).remove(
+            SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, accountId, "삭제 사유"),
         )
     }
 
@@ -256,17 +357,50 @@ class SprintControllerTests {
     fun `존재하지 않는 스프린트 삭제 시 에러를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val sprintId = UUID.randomUUID()
-        val userId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
 
         `when`(
             sprintService.remove(
-                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId),
+                SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, accountId, "삭제 사유"),
             ),
         ).thenReturn(SprintResult.Failure.IdNotFound)
 
-        mockMvc
-            .perform(
-                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId/$userId"),
-            ).andExpect(status().is4xxClientError)
+        withPrincipal(accountId) {
+            mockMvc
+                .perform(
+                    delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"reason":"삭제 사유"}"""),
+                ).andExpect(status().is4xxClientError)
+        }
+    }
+
+    private fun withPrincipal(
+        accountId: UUID,
+        block: () -> Unit,
+    ) {
+        val context = SecurityContextHolder.createEmptyContext()
+        context.authentication =
+            UsernamePasswordAuthenticationToken(
+                AuthenticatedAccountPrincipal(accountId = accountId, email = "test@psycho.pizza"),
+                null,
+                emptyList(),
+            )
+        SecurityContextHolder.setContext(context)
+        try {
+            block()
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
     }
 }
+
+private fun SprintResult.SprintInfo.toResponseDto(): SprintResponse.Information =
+    SprintResponse.Information(
+        workspaceId = workspaceId.value,
+        sprintId = sprintId,
+        name = name,
+        goal = goal,
+        startDate = startDate,
+        endDate = endDate,
+    )

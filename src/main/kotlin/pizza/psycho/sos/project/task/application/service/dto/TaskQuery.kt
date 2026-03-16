@@ -9,6 +9,11 @@ sealed interface TaskQuery {
         val pageable: Pageable,
     ) : TaskQuery
 
+    data class FindBacklogTasks(
+        val workspaceId: UUID,
+        val pageable: Pageable,
+    ) : TaskQuery
+
     data class FindTask(
         val workspaceId: UUID,
         val id: UUID,

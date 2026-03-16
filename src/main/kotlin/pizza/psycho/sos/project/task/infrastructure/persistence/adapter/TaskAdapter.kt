@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.task.application.facade.TaskFacade
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
+import pizza.psycho.sos.project.task.application.port.out.dto.SprintTaskMembershipSnapshot
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 import java.time.Instant
 import java.util.UUID
@@ -50,11 +51,19 @@ class TaskAdapter(
         ids: Collection<UUID>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
-    ): Int = taskFacade.deleteTasksByIdIn(ids, deletedBy, workspaceId)
+        reason: String?,
+    ): Int = taskFacade.deleteTasksByIdIn(ids, deletedBy, workspaceId, reason)
 
-    override fun resetStatusToTodo(
+    override fun moveToBacklog(
         ids: Collection<UUID>,
-        actorId: UUID,
+        actorId: UUID?,
         workspaceId: WorkspaceId,
-    ) = taskFacade.resetStatusToTodo(ids, actorId, workspaceId)
+    ) = taskFacade.moveToBacklog(ids, actorId, workspaceId)
+
+    override fun moveSprintTasksToBacklog(
+        ids: Collection<UUID>,
+        actorId: UUID?,
+        workspaceId: WorkspaceId,
+        membershipSnapshot: SprintTaskMembershipSnapshot,
+    ) = taskFacade.moveSprintTasksToBacklog(ids, actorId, workspaceId, membershipSnapshot)
 }

@@ -19,6 +19,7 @@ sealed interface TaskCommand {
         val workspaceId: UUID,
         val id: UUID,
         val deletedBy: UUID,
+        val reason: String,
     ) : TaskCommand
 
     data class UpdateTask(

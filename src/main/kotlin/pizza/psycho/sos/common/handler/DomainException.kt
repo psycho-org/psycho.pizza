@@ -10,6 +10,7 @@ open class DomainException(
             null,
         ),
     override val cause: Throwable? = null,
+    val meta: ErrorMeta? = null,
 ) : RuntimeException(message, cause) {
     @Deprecated(
         message =
@@ -19,5 +20,5 @@ open class DomainException(
     constructor(
         message: String,
         cause: Throwable? = null,
-    ) : this(null, message, cause)
+    ) : this(null, message, cause, null)
 }

@@ -8,9 +8,7 @@ import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectPort
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
-import pizza.psycho.sos.project.sprint.application.service.SprintService
-import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
-import pizza.psycho.sos.project.sprint.application.service.dto.SprintResult
+import pizza.psycho.sos.project.sprint.application.port.out.SprintPort
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
 import java.time.Instant
@@ -19,7 +17,7 @@ import java.util.UUID
 
 @Service
 class SprintAnalysisMetricService(
-    private val sprintService: SprintService,
+    private val sprintService: SprintPort,
     private val taskService: TaskPort,
     private val projectService: ProjectPort,
     private val analysisMetricCountService: AnalysisMetricCountService,
@@ -33,48 +31,24 @@ class SprintAnalysisMetricService(
         sprintId: UUID,
     ): SprintAnalysisInput {
         val sprint =
-            when (
-                val result =
-                    sprintService.getSprint(
-                        SprintCommand.Get(
-                            workspaceId = WorkspaceId(workspaceId),
-                            sprintId = sprintId,
-                        ),
-                    )
-            ) {
-                is SprintResult.SprintInfo -> result
-                else -> throw DomainException(AnalysisErrorCode.SPRINT_NOT_FOUND)
-            }
+            sprintService.findByIdWithProjects(
+                sprintId = sprintId,
+                workspaceId = WorkspaceId(workspaceId),
+            ) ?: throw DomainException(AnalysisErrorCode.SPRINT_NOT_FOUND)
 
         val projectsInSprint =
-            when (
-                val result =
-                    sprintService.getProjectsInSprint(
-                        SprintCommand.GetProjects(
-                            workspaceId = WorkspaceId(workspaceId),
-                            sprintId = sprintId,
-                        ),
-                    )
-            ) {
-                is SprintResult.ProjectList -> result.projects
-                else -> emptyList()
-            }
-
-        val projectSnapshots =
             projectService.findByIdIn(
-                projectIds = projectsInSprint.map { it.projectId },
+                projectIds = sprint.projectIds,
                 workspaceId = WorkspaceId(workspaceId),
             )
 
-        val taskIds = projectSnapshots.flatMap(ProjectSnapshot::taskIds).distinct()
-
-        val tasks =
+        val tasksInProject =
             taskService.findByIdIn(
-                ids = taskIds,
+                ids = projectsInSprint.flatMap(ProjectSnapshot::taskIds).distinct(),
                 workspaceId = WorkspaceId(workspaceId),
             )
 
-        val snapshot = calculateSnapshot(tasks)
+        val snapshot = calculateSnapshot(tasksInProject)
 
         val eventCounts =
             analysisMetricCountService.getCounts(
@@ -82,7 +56,6 @@ class SprintAnalysisMetricService(
                 sprintId = sprintId,
             )
 
-        // 6. input 반환
         return SprintAnalysisInput(
             schemaVersion = "0.1.0",
             context =
@@ -93,7 +66,7 @@ class SprintAnalysisMetricService(
                             id = sprint.sprintId,
                             name = sprint.name,
                             periodDays = calculatePeriodDays(sprint.startDate, sprint.endDate),
-                            totalTasksCount = tasks.size,
+                            totalTasksCount = tasksInProject.size,
                         ),
                 ),
             summary =

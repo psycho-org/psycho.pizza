@@ -4,15 +4,17 @@ import org.junit.jupiter.api.Test
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.MediaType
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
@@ -20,6 +22,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.common.config.PageableProperties
 import pizza.psycho.sos.common.support.pagination.PageInfoSupport
 import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryService
+import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import pizza.psycho.sos.project.task.application.service.TaskService
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
@@ -30,7 +33,6 @@ import java.util.UUID
 
 @WebMvcTest(
     controllers = [TaskController::class],
-    excludeAutoConfiguration = [SecurityAutoConfiguration::class],
 )
 @AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
@@ -152,6 +154,45 @@ class TaskControllerTests {
     }
 
     @Test
+    fun `backlog 태스크 목록 조회 시 페이지네이션된 태스크 리스트를 반환한다`() {
+        val workspaceId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val pageable = PageRequest.of(0, 10)
+
+        val page =
+            PageImpl(
+                listOf(
+                    TaskResult.TaskListInfo(
+                        id = taskId,
+                        title = "백로그 태스크",
+                        status = Status.TODO,
+                        assignee = null,
+                        dueDate = null,
+                    ),
+                ),
+                pageable,
+                1,
+            )
+
+        `when`(
+            taskService.getBacklog(
+                TaskQuery.FindBacklogTasks(workspaceId, pageable),
+            ),
+        ).thenReturn(TaskResult.TaskList(page))
+
+        mockMvc
+            .perform(
+                get("/api/v1/workspaces/$workspaceId/tasks/backlog")
+                    .param("page", "0")
+                    .param("size", "10"),
+            ).andExpect(status().isOk)
+
+        verify(taskService).getBacklog(
+            TaskQuery.FindBacklogTasks(workspaceId, pageable),
+        )
+    }
+
+    @Test
     fun `특정 태스크 조회 시 태스크 상세 정보를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val taskId = UUID.randomUUID()
@@ -239,5 +280,56 @@ class TaskControllerTests {
                     ),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.data.assignee").isEmpty)
+    }
+
+    @Test
+    fun `태스크 삭제 시 삭제 결과를 반환한다`() {
+        val workspaceId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
+
+        `when`(
+            taskService.remove(
+                TaskCommand.RemoveTask(
+                    workspaceId = workspaceId,
+                    id = taskId,
+                    deletedBy = accountId,
+                    reason = "삭제 사유",
+                ),
+            ),
+        ).thenReturn(TaskResult.Remove(1))
+
+        withPrincipal(accountId) {
+            mockMvc
+                .perform(
+                    delete("/api/v1/workspaces/$workspaceId/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"reason":"삭제 사유"}"""),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.count").value(1))
+        }
+
+        verify(taskService).remove(
+            TaskCommand.RemoveTask(workspaceId, taskId, accountId, "삭제 사유"),
+        )
+    }
+
+    private fun withPrincipal(
+        accountId: UUID,
+        block: () -> Unit,
+    ) {
+        val context = SecurityContextHolder.createEmptyContext()
+        context.authentication =
+            UsernamePasswordAuthenticationToken(
+                AuthenticatedAccountPrincipal(accountId = accountId, email = "test@psycho.pizza"),
+                null,
+                emptyList(),
+            )
+        SecurityContextHolder.setContext(context)
+        try {
+            block()
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
     }
 }

@@ -13,6 +13,7 @@ import pizza.psycho.sos.common.message.channel.mail.send.application.model.MailS
 import pizza.psycho.sos.common.message.channel.mail.send.application.port.MailSender
 import pizza.psycho.sos.common.message.channel.mail.send.presentation.dto.MailSendStatus
 import pizza.psycho.sos.common.message.channel.mail.template.application.service.MailTemplateService
+import pizza.psycho.sos.common.message.channel.mail.template.domain.data.EmailAlreadyExistsTemplateData
 import pizza.psycho.sos.common.message.channel.mail.template.domain.data.MailTemplateData
 import pizza.psycho.sos.common.message.channel.mail.template.domain.data.OtpTemplateData
 import pizza.psycho.sos.common.message.channel.mail.template.domain.data.WorkspaceInviteTemplateData
@@ -179,6 +180,68 @@ class MailSendServiceTests {
         assertEquals("user@psycho.pizza", requestSlot.captured.to)
         assertEquals("초대합니다", requestSlot.captured.subject)
         assertEquals("<p>hello</p>", requestSlot.captured.htmlContent)
+        verify(exactly = 1) { mailTemplateService.render(any()) }
+        verify(exactly = 1) { mailSender.send(any()) }
+        verify(exactly = 0) {
+            mailAuthTokenService.issue(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
+    }
+
+    @Test
+    fun `이미 가입된 이메일 안내 메일은 템플릿을 렌더링해 로그인 링크와 함께 발송한다`() {
+        val template =
+            MailTemplate(
+                mailType = MessageType.EMAIL_ALREADY_EXISTS,
+                title = "[psycho] 이미 가입된 이메일 안내",
+                description = "email exists",
+                actionType = null,
+                tokenAuthEnabled = false,
+                tokenExpireHours = null,
+                htmlContent = "<a href=\"\${url}\">login</a>",
+            )
+        val rendered =
+            RenderedMailTemplate(
+                title = "이미 가입된 이메일입니다",
+                htmlContent = "<a href=\"https://psycho.pizza/login\">login</a>",
+            )
+
+        every { mailTemplateService.getActiveTemplate(MessageType.EMAIL_ALREADY_EXISTS) } returns template
+        val dataSlot = slot<MailTemplateData>()
+        every { mailTemplateService.render(capture(dataSlot)) } returns rendered
+        val requestSlot = slot<MailSendRequest>()
+        every { mailSender.send(capture(requestSlot)) } returns Unit
+
+        val status =
+            mailSendService.send(
+                mailType = MessageType.EMAIL_ALREADY_EXISTS,
+                to = "USER@PSYCHO.PIZZA",
+                params =
+                    mapOf(
+                        "email" to "existing@psycho.pizza",
+                        "name" to "Kim",
+                        "joinedAt" to "2026-03-01",
+                        "url" to "https://psycho.pizza/login",
+                    ),
+            )
+
+        assertEquals(MailSendStatus.SUCCESS, status)
+        val capturedData = dataSlot.captured as EmailAlreadyExistsTemplateData
+        assertEquals("existing@psycho.pizza", capturedData.email)
+        assertEquals("Kim", capturedData.name)
+        assertEquals("2026-03-01", capturedData.joinedAt)
+        assertEquals("https://psycho.pizza/login", capturedData.url)
+        assertEquals("user@psycho.pizza", requestSlot.captured.to)
+        assertEquals("이미 가입된 이메일입니다", requestSlot.captured.subject)
+        assertEquals("<a href=\"https://psycho.pizza/login\">login</a>", requestSlot.captured.htmlContent)
+        verify(exactly = 1) { mailTemplateService.getActiveTemplate(MessageType.EMAIL_ALREADY_EXISTS) }
         verify(exactly = 1) { mailTemplateService.render(any()) }
         verify(exactly = 1) { mailSender.send(any()) }
         verify(exactly = 0) {

@@ -17,8 +17,10 @@ import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryS
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import pizza.psycho.sos.workspace.application.dto.ActiveWorkspaceMembership
+import pizza.psycho.sos.workspace.application.dto.WorkspaceMemberListItem
 import pizza.psycho.sos.workspace.application.service.WorkspaceService
 import pizza.psycho.sos.workspace.domain.model.membership.Role
+import java.time.Instant
 import java.util.UUID
 
 @WebMvcTest(WorkspaceController::class)
@@ -65,6 +67,43 @@ class WorkspaceControllerTests {
                 .andExpect(jsonPath("$.data[1].id").value(workspaceId2.toString()))
                 .andExpect(jsonPath("$.data[1].title").value("Beta"))
                 .andExpect(jsonPath("$.data[1].role").value("CREW"))
+        }
+    }
+
+    @Test
+    fun `listMembers returns workspace members for authenticated account`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000201")
+        val workspaceId = UUID.fromString("00000000-0000-0000-0000-000000000301")
+        val membershipId = UUID.fromString("00000000-0000-0000-0000-000000000401")
+        val memberAccountId = UUID.fromString("00000000-0000-0000-0000-000000000402")
+        val principal =
+            AuthenticatedAccountPrincipal(
+                accountId = accountId,
+                email = "user@psycho.pizza",
+            )
+        val joinedAt = Instant.parse("2026-03-14T11:26:28Z")
+
+        `when`(workspaceService.listMembers(workspaceId, accountId)).thenReturn(
+            listOf(
+                WorkspaceMemberListItem(
+                    membershipId = membershipId,
+                    accountId = memberAccountId,
+                    name = " Crew Member ",
+                    role = Role.CREW,
+                    joinedAt = joinedAt,
+                ),
+            ),
+        )
+
+        withPrincipal(principal) {
+            mockMvc
+                .perform(get("/api/v1/workspaces/$workspaceId/members"))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.data[0].membershipId").value(membershipId.toString()))
+                .andExpect(jsonPath("$.data[0].accountId").value(memberAccountId.toString()))
+                .andExpect(jsonPath("$.data[0].name").value("Crew Member"))
+                .andExpect(jsonPath("$.data[0].role").value("CREW"))
+                .andExpect(jsonPath("$.data[0].joinedAt").value(joinedAt.toString()))
         }
     }
 

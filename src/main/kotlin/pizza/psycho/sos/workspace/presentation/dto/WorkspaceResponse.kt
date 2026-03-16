@@ -21,4 +21,12 @@ sealed interface WorkspaceResponse {
         val accountId: String,
         val role: String,
     )
+
+    data class MemberListItem(
+        val membershipId: String,
+        val accountId: String,
+        val name: String,
+        val role: String,
+        val joinedAt: String?,
+    )
 }

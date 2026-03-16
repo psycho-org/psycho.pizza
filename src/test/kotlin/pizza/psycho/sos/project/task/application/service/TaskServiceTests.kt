@@ -17,9 +17,14 @@ import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
+import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
+import pizza.psycho.sos.project.task.application.event.handler.TaskEventSprintMembershipRegistry
+import pizza.psycho.sos.project.task.application.port.out.TaskSprintParticipationQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
 import pizza.psycho.sos.project.task.application.service.dto.TaskQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult
+import pizza.psycho.sos.project.task.domain.event.TaskDeletedEvent
 import pizza.psycho.sos.project.task.domain.model.entity.Task
 import pizza.psycho.sos.project.task.domain.repository.TaskRepository
 import java.time.Instant
@@ -29,7 +34,21 @@ import java.util.UUID
 class TaskServiceTests {
     private val taskRepository = mockk<TaskRepository>()
     private val domainEventPublisher = mockk<DomainEventPublisher>()
-    private val taskService = TaskService(taskRepository, domainEventPublisher)
+    private val sprintTaskPolicy = mockk<SprintTaskPolicy>(relaxed = true)
+    private val taskSprintParticipationQuery = mockk<TaskSprintParticipationQuery>()
+    private val sprintTaskPeriodPolicy = mockk<SprintTaskPeriodPolicy>()
+    private val sprintParticipationQuery = mockk<TaskSprintParticipationQuery>(relaxed = true)
+    private val sprintMembershipRegistry = mockk<TaskEventSprintMembershipRegistry>(relaxed = true)
+    private val taskService =
+        TaskService(
+            taskRepository,
+            domainEventPublisher,
+            sprintTaskPolicy,
+            sprintParticipationQuery,
+            sprintMembershipRegistry,
+            taskSprintParticipationQuery,
+            sprintTaskPeriodPolicy,
+        )
 
     @BeforeEach
     fun setup() {
@@ -40,6 +59,8 @@ class TaskServiceTests {
             val lambda = firstArg<() -> Any>()
             lambda()
         }
+        every { domainEventPublisher.publishAndClear(any()) } returns Unit
+        every { domainEventPublisher.publish(any<TaskDeletedEvent>()) } returns Unit
     }
 
     @AfterEach
@@ -113,6 +134,31 @@ class TaskServiceTests {
     }
 
     @Test
+    fun `워크스페이스의 backlog 태스크를 페이지네이션으로 조회한다`() {
+        val workspaceId = UUID.randomUUID()
+        val pageable = PageRequest.of(0, 10)
+        val command = TaskQuery.FindBacklogTasks(workspaceId, pageable)
+
+        val backlogTask =
+            Task
+                .create(
+                    title = "백로그 태스크",
+                    description = "설명",
+                    assigneeId = null,
+                    workspaceId = workspaceId,
+                ).apply { id = UUID.randomUUID() }
+
+        val page = PageImpl(listOf(backlogTask), pageable, 1)
+
+        every { taskRepository.findAllActiveBacklogTasks(WorkspaceId(workspaceId), pageable) } returns page
+
+        val taskList = taskService.getBacklog(command)
+
+        assertEquals(1, taskList.page.content.size)
+        assertEquals("백로그 태스크", taskList.page.content[0].title)
+    }
+
+    @Test
     fun `특정 태스크 ID로 조회 시 태스크 정보를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val taskId = UUID.randomUUID()
@@ -150,5 +196,46 @@ class TaskServiceTests {
         val result = taskService.getInformation(command)
 
         assertTrue(result is TaskResult.Failure.IdNotFound)
+    }
+
+    @Test
+    fun `태스크 삭제 시 reason 이벤트를 발행하고 삭제 결과를 반환한다`() {
+        val workspaceId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val deletedBy = UUID.randomUUID()
+        val task =
+            Task
+                .create(
+                    title = "삭제할 태스크",
+                    description = "설명",
+                    assigneeId = null,
+                    workspaceId = workspaceId,
+                ).apply {
+                    id = taskId
+                }
+
+        every { taskRepository.findActiveTaskByIdOrNull(taskId, WorkspaceId(workspaceId)) } returns task
+        every { sprintParticipationQuery.existsActiveSprintByTaskId(taskId, workspaceId) } returns false
+
+        val result =
+            taskService.remove(
+                TaskCommand.RemoveTask(
+                    workspaceId = workspaceId,
+                    id = taskId,
+                    deletedBy = deletedBy,
+                    reason = "삭제 사유",
+                ),
+            )
+
+        assertTrue(result is TaskResult.Remove)
+        result as TaskResult.Remove
+        assertEquals(1, result.count)
+        assertTrue(
+            task.domainEvents().any {
+                it is TaskDeletedEvent &&
+                    it.taskId == taskId &&
+                    it.reason == "삭제 사유"
+            },
+        )
     }
 }

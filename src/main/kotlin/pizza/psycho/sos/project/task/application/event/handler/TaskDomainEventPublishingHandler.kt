@@ -20,6 +20,7 @@ import pizza.psycho.sos.audit.application.listener.event.TaskStatusChangedEvent 
 class TaskDomainEventPublishingHandler(
     private val eventPublisher: DomainEventPublisher,
     private val sprintMembershipQuery: TaskSprintParticipationQuery,
+    private val sprintMembershipRegistry: TaskEventSprintMembershipRegistry,
 ) {
     private val log by loggerDelegate()
 
@@ -31,8 +32,10 @@ class TaskDomainEventPublishingHandler(
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handle(event: TaskDomainEvent) {
+        val isInSprint = sprintMembershipRegistry.consume(event.eventId) ?: isInAnyActiveSprint(event)
+
         // 스프린트에 속하지 않는 Task 의 이벤트는 audit 으로 전달하지 않는다
-        if (!isInAnyActiveSprint(event)) {
+        if (!isInSprint) {
             log.debug("Skip task event for non-sprint task: $event")
             return
         }
@@ -93,5 +96,10 @@ class TaskDomainEventPublishingHandler(
                         ),
                     ).also { log.info("Task deleted event: $event") }
         }
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_ROLLBACK)
+    fun clear(event: TaskDomainEvent) {
+        sprintMembershipRegistry.clear(event.eventId)
     }
 }

@@ -37,6 +37,7 @@ class SecurityConfig(
                     .permitAll()
                     .requestMatchers(
                         "/api/v1/auth/**",
+                        "/api/v1/accounts/policies/password",
                         "/api/v1/accounts/register",
                         "/api/v1/accounts/register/requests",
                         "/api/v1/accounts/register/confirmations",
