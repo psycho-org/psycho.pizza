@@ -10,6 +10,7 @@ import pizza.psycho.sos.project.project.application.port.out.ProjectPort
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
 import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
+import pizza.psycho.sos.project.project.domain.event.ProjectDeletedEvent
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
@@ -212,8 +213,15 @@ class SprintService(
                     deletableTaskIds,
                     command.deletedBy,
                     command.workspaceId,
+                    command.reason,
                 )
-            val deletedProjectCount = deleteProjects(projectIds, command.deletedBy, command.workspaceId)
+            val deletedProjectCount =
+                deleteProjects(
+                    projectSnapshots,
+                    command.deletedBy,
+                    command.workspaceId,
+                    command.reason,
+                )
             sprint.delete(command.deletedBy, command.reason)
             val deletedSprintCount = 1
 
@@ -266,6 +274,19 @@ class SprintService(
                 if (existing.size != addProjectIds.size) {
                     log.warn("update: some projectIds not found. addProjectIds={}", addProjectIds)
                     return@with SprintResult.Failure.ProjectNotFound
+                }
+
+                val conflictingAssignments =
+                    sprintRepository
+                        .findActiveSprintIdsByProjectIds(addProjectIds, workspaceId)
+                        .filterValues { sprintIds -> sprintIds.any { it != sprintId } }
+                if (conflictingAssignments.isNotEmpty()) {
+                    log.warn(
+                        "update: projects already assigned to another sprint. sprintId={}, conflicts={}",
+                        sprintId,
+                        conflictingAssignments,
+                    )
+                    return@with SprintResult.Failure.InvalidRequest
                 }
             }
 
@@ -390,25 +411,40 @@ class SprintService(
         }
 
     private fun deleteProjects(
-        projectIds: List<UUID>,
+        projects: List<ProjectSnapshot>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
+        reason: String,
     ): Int =
-        if (projectIds.isEmpty()) {
+        if (projects.isEmpty()) {
             0
         } else {
-            projectPort.deleteByIdIn(projectIds, deletedBy, workspaceId)
+            projectPort.deleteByIdIn(projects.map(ProjectSnapshot::projectId), deletedBy, workspaceId).also {
+                projects.forEach { project ->
+                    domainEventPublisher.publish(
+                        ProjectDeletedEvent(
+                            workspaceId = workspaceId.value,
+                            actorId = deletedBy,
+                            projectId = project.projectId,
+                            projectName = project.name,
+                            reason = reason,
+                            eventId = UUID.randomUUID(),
+                        ),
+                    )
+                }
+            }
         }
 
     private fun deleteTasks(
         deletableTaskIds: Collection<UUID>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
+        reason: String,
     ): Int =
         if (deletableTaskIds.isEmpty()) {
             0
         } else {
-            taskPort.deleteByIdIn(deletableTaskIds, deletedBy, workspaceId)
+            taskPort.deleteByIdIn(deletableTaskIds, deletedBy, workspaceId, reason)
         }
 
     private fun publishTaskRemovedFromSprintEvents(

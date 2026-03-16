@@ -38,6 +38,7 @@ interface TaskPort {
         ids: Collection<UUID>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
+        reason: String? = null,
     ): Int
 
     /**

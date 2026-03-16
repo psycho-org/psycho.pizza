@@ -110,6 +110,7 @@ class TaskService(
         ids: Collection<UUID>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
+        reason: String? = null,
     ): Int =
         Tx.writable {
             if (ids.isEmpty()) return@writable 0
@@ -118,7 +119,7 @@ class TaskService(
                 taskRepository
                     .findAllByIdIn(ids, workspaceId)
                     .onEach {
-                        it.delete(deletedBy)
+                        it.delete(deletedBy, reason)
                         markSprintMembership(it, sprintTaskIds.contains(it.taskId))
                     }
 
