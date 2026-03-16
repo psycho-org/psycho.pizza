@@ -54,6 +54,10 @@ dependencies {
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.7")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.7")
 
+    // sqs
+    implementation(platform("io.awspring.cloud:spring-cloud-aws-dependencies:3.2.0"))
+    implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
+
     // test
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("io.mockk:mockk:1.13.13")
