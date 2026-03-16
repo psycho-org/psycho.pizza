@@ -13,7 +13,7 @@ import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
-import pizza.psycho.sos.project.sprint.infrastructure.persistence.SprintJpaRepository
+import pizza.psycho.sos.project.sprint.infrastructure.persistence.repository.SprintJpaRepository
 import pizza.psycho.sos.project.task.domain.model.entity.Task
 import java.time.Instant
 import java.util.UUID

@@ -10,6 +10,7 @@ import pizza.psycho.sos.project.sprint.domain.event.SprintGoalChangedEvent
 import pizza.psycho.sos.project.sprint.domain.event.SprintPeriodChangedEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskAddedToSprintEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
+import pizza.psycho.sos.project.sprint.infrastructure.adapter.out.event.SprintDomainEventPublishingHandler
 import java.util.UUID
 import pizza.psycho.sos.audit.application.listener.event.SprintGoalChangedEvent as AuditSprintGoalChangedEvent
 import pizza.psycho.sos.audit.application.listener.event.SprintPeriodChangedEvent as AuditSprintPeriodChangedEvent
