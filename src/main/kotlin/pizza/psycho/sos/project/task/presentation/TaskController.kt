@@ -3,6 +3,7 @@ package pizza.psycho.sos.project.task.presentation
 import jakarta.validation.Valid
 import org.springframework.data.domain.Pageable
 import org.springframework.data.web.PageableDefault
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -10,12 +11,12 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.response.ApiResponse
 import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.common.support.pagination.PageInfoSupport
+import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.project.task.application.service.TaskService
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
 import pizza.psycho.sos.project.task.application.service.dto.TaskQuery
@@ -25,7 +26,6 @@ import pizza.psycho.sos.project.task.presentation.dto.TaskRequest
 import pizza.psycho.sos.project.task.presentation.dto.TaskResponse
 import java.util.UUID
 
-// todo: accountId AuthenticationPrincipal에서 받아오도록 변경
 @RestController
 @RequestMapping("/api/v1/workspaces/{workspaceId}/tasks")
 class TaskController(
@@ -72,29 +72,34 @@ class TaskController(
     fun remove(
         @PathVariable workspaceId: UUID,
         @PathVariable id: UUID,
-        @RequestParam(name = "account") accountId: UUID,
         @Valid @RequestBody request: TaskRequest.Delete,
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
     ): ApiResponse<*> =
         handleResult {
-            taskService.remove(TaskCommand.RemoveTask(workspaceId, id, accountId, request.reason))
+            taskService.remove(TaskCommand.RemoveTask(workspaceId, id, principal.accountId, request.reason))
         }
 
     @PatchMapping("/{id}")
     fun update(
         @PathVariable workspaceId: UUID,
         @PathVariable id: UUID,
-        @RequestParam(name = "account") accountId: UUID,
         @Valid @RequestBody request: TaskRequest.Update,
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
     ): ApiResponse<*> =
         handleResult {
-            taskService.update(request.toCommand(workspaceId, id, accountId))
+            taskService.update(request.toCommand(workspaceId, id, principal.accountId))
         }
 
     // ------------------------------------------------------------------------------------------------
 
     private fun handleResult(function: () -> TaskResult): ApiResponse<*> =
         when (val result: TaskResult = function()) {
-            is TaskResult.Remove -> responseOf(message = "Data deletion was successful.", data = TaskResponse.Remove(result.count))
+            is TaskResult.Remove ->
+                responseOf(
+                    message = "Data deletion was successful.",
+                    data = TaskResponse.Remove(result.count),
+                )
+
             is TaskResult.TaskInformation -> responseOf(data = result.toResponse())
             is TaskResult.TaskList -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
             is TaskResult.Failure.IdNotFound -> throw DomainException(TaskErrorCode.TASK_NOT_FOUND)

@@ -8,13 +8,14 @@ import org.mockito.Mockito.`when`
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.MediaType
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
@@ -27,6 +28,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.common.response.pagedResponseOf
 import pizza.psycho.sos.common.support.pagination.PageInfoSupport
 import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryService
+import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.application.service.SprintService
@@ -39,7 +41,6 @@ import java.util.UUID
 
 @WebMvcTest(
     controllers = [SprintController::class],
-    excludeAutoConfiguration = [SecurityAutoConfiguration::class],
 )
 @AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
@@ -306,22 +307,23 @@ class SprintControllerTests {
             ),
         ).thenReturn(SprintResult.Success)
 
-        mockMvc
-            .perform(
-                patch("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
-                    .param("account", accountId.toString())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(
-                        """
-                        {
-                            "name": "수정된 스프린트",
-                            "addProjectIds": ["$addProjectId"],
-                            "removeProjectIds": []
-                        }
-                        """.trimIndent(),
-                    ),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.message").value("Data modification was successful."))
+        withPrincipal(accountId) {
+            mockMvc
+                .perform(
+                    patch("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """
+                            {
+                                "name": "수정된 스프린트",
+                                "addProjectIds": ["$addProjectId"],
+                                "removeProjectIds": []
+                            }
+                            """.trimIndent(),
+                        ),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.message").value("Data modification was successful."))
+        }
     }
 
     @Test
@@ -336,15 +338,16 @@ class SprintControllerTests {
             ),
         ).thenReturn(SprintResult.Remove(sprintCount = 1, projectCount = 2, taskCount = 5))
 
-        mockMvc
-            .perform(
-                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
-                    .param("account", userId.toString())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"reason":"삭제 사유"}"""),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.data.projectCount").value(2))
-            .andExpect(jsonPath("$.data.taskCount").value(5))
+        withPrincipal(userId) {
+            mockMvc
+                .perform(
+                    delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"reason":"삭제 사유"}"""),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.projectCount").value(2))
+                .andExpect(jsonPath("$.data.taskCount").value(5))
+        }
         verify(sprintService).remove(
             SprintCommand.Remove(WorkspaceId(workspaceId), sprintId, userId, "삭제 사유"),
         )
@@ -362,13 +365,33 @@ class SprintControllerTests {
             ),
         ).thenReturn(SprintResult.Failure.IdNotFound)
 
-        mockMvc
-            .perform(
-                delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
-                    .param("account", userId.toString())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"reason":"삭제 사유"}"""),
-            ).andExpect(status().is4xxClientError)
+        withPrincipal(userId) {
+            mockMvc
+                .perform(
+                    delete("/api/v1/workspaces/$workspaceId/sprints/$sprintId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"reason":"삭제 사유"}"""),
+                ).andExpect(status().is4xxClientError)
+        }
+    }
+
+    private fun withPrincipal(
+        accountId: UUID,
+        block: () -> Unit,
+    ) {
+        val context = SecurityContextHolder.createEmptyContext()
+        context.authentication =
+            UsernamePasswordAuthenticationToken(
+                AuthenticatedAccountPrincipal(accountId = accountId, email = "test@psycho.pizza"),
+                null,
+                emptyList(),
+            )
+        SecurityContextHolder.setContext(context)
+        try {
+            block()
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
     }
 }
 

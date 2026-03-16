@@ -4,12 +4,13 @@ import org.junit.jupiter.api.Test
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.MediaType
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
@@ -21,6 +22,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.common.config.PageableProperties
 import pizza.psycho.sos.common.support.pagination.PageInfoSupport
 import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryService
+import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import pizza.psycho.sos.project.task.application.service.TaskService
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
@@ -31,7 +33,6 @@ import java.util.UUID
 
 @WebMvcTest(
     controllers = [TaskController::class],
-    excludeAutoConfiguration = [SecurityAutoConfiguration::class],
 )
 @AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
@@ -298,17 +299,37 @@ class TaskControllerTests {
             ),
         ).thenReturn(TaskResult.Remove(1))
 
-        mockMvc
-            .perform(
-                delete("/api/v1/workspaces/$workspaceId/tasks/$taskId")
-                    .param("account", accountId.toString())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"reason":"삭제 사유"}"""),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.data.count").value(1))
+        withPrincipal(accountId) {
+            mockMvc
+                .perform(
+                    delete("/api/v1/workspaces/$workspaceId/tasks/$taskId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"reason":"삭제 사유"}"""),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.count").value(1))
+        }
 
         verify(taskService).remove(
             TaskCommand.RemoveTask(workspaceId, taskId, accountId, "삭제 사유"),
         )
+    }
+
+    private fun withPrincipal(
+        accountId: UUID,
+        block: () -> Unit,
+    ) {
+        val context = SecurityContextHolder.createEmptyContext()
+        context.authentication =
+            UsernamePasswordAuthenticationToken(
+                AuthenticatedAccountPrincipal(accountId = accountId, email = "test@psycho.pizza"),
+                null,
+                emptyList(),
+            )
+        SecurityContextHolder.setContext(context)
+        try {
+            block()
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
     }
 }

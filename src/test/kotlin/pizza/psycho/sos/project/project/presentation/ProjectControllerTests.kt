@@ -4,12 +4,13 @@ import org.junit.jupiter.api.Test
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.http.MediaType
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
@@ -22,6 +23,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.common.config.PageableProperties
 import pizza.psycho.sos.common.support.pagination.PageInfoSupport
 import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryService
+import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.service.ProjectService
@@ -34,7 +36,6 @@ import java.util.UUID
 
 @WebMvcTest(
     controllers = [ProjectController::class],
-    excludeAutoConfiguration = [SecurityAutoConfiguration::class],
 )
 @AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
@@ -247,23 +248,24 @@ class ProjectControllerTests {
             ),
         )
 
-        mockMvc
-            .perform(
-                post("/api/v1/workspaces/$workspaceId/projects/$projectId/tasks")
-                    .param("account", accountId.toString())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(
-                        """
-                        {
-                            "title": "새 태스크",
-                            "description": "설명",
-                            "dueDate": "$dueDate"
-                        }
-                        """.trimIndent(),
-                    ),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.data.id").value(taskId.toString()))
-            .andExpect(jsonPath("$.data.title").value("새 태스크"))
+        withPrincipal(accountId) {
+            mockMvc
+                .perform(
+                    post("/api/v1/workspaces/$workspaceId/projects/$projectId/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """
+                            {
+                                "title": "새 태스크",
+                                "description": "설명",
+                                "dueDate": "$dueDate"
+                            }
+                            """.trimIndent(),
+                        ),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.id").value(taskId.toString()))
+                .andExpect(jsonPath("$.data.title").value("새 태스크"))
+        }
     }
 
     // ------------------------------------------------------------------------------------------------
@@ -290,22 +292,23 @@ class ProjectControllerTests {
             ),
         ).thenReturn(ProjectResult.Success)
 
-        mockMvc
-            .perform(
-                patch("/api/v1/workspaces/$workspaceId/projects/$projectId")
-                    .param("account", accountId.toString())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(
-                        """
-                        {
-                            "name": "수정된 프로젝트",
-                            "addTaskIds": ["$addTaskId"],
-                            "removeTaskIds": []
-                        }
-                        """.trimIndent(),
-                    ),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.message").value("데이터 수정에 성공하였습니다."))
+        withPrincipal(accountId) {
+            mockMvc
+                .perform(
+                    patch("/api/v1/workspaces/$workspaceId/projects/$projectId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """
+                            {
+                                "name": "수정된 프로젝트",
+                                "addTaskIds": ["$addTaskId"],
+                                "removeTaskIds": []
+                            }
+                            """.trimIndent(),
+                        ),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.message").value("데이터 수정에 성공하였습니다."))
+        }
     }
 
     @Test
@@ -327,19 +330,20 @@ class ProjectControllerTests {
             ),
         ).thenReturn(ProjectResult.Failure.IdNotFound)
 
-        mockMvc
-            .perform(
-                patch("/api/v1/workspaces/$workspaceId/projects/$projectId")
-                    .param("account", accountId.toString())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(
-                        """
-                        {
-                            "name": "수정"
-                        }
-                        """.trimIndent(),
-                    ),
-            ).andExpect(status().is4xxClientError)
+        withPrincipal(accountId) {
+            mockMvc
+                .perform(
+                    patch("/api/v1/workspaces/$workspaceId/projects/$projectId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """
+                            {
+                                "name": "수정"
+                            }
+                            """.trimIndent(),
+                        ),
+                ).andExpect(status().is4xxClientError)
+        }
     }
 
     @Test
@@ -354,16 +358,17 @@ class ProjectControllerTests {
             ),
         ).thenReturn(ProjectResult.Remove(projectCount = 1, taskCount = 3))
 
-        mockMvc
-            .perform(
-                delete("/api/v1/workspaces/$workspaceId/projects/$projectId")
-                    .param("account", "$userId")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"reason":"삭제 사유"}"""),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.message").value("프로젝트 및 하위 태스크 삭제에 성공하였습니다."))
-            .andExpect(jsonPath("$.data.projectCount").value(1))
-            .andExpect(jsonPath("$.data.taskCount").value(3))
+        withPrincipal(userId) {
+            mockMvc
+                .perform(
+                    delete("/api/v1/workspaces/$workspaceId/projects/$projectId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"reason":"삭제 사유"}"""),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.message").value("프로젝트 및 하위 태스크 삭제에 성공하였습니다."))
+                .andExpect(jsonPath("$.data.projectCount").value(1))
+                .andExpect(jsonPath("$.data.taskCount").value(3))
+        }
     }
 
     @Test
@@ -378,12 +383,32 @@ class ProjectControllerTests {
             ),
         ).thenReturn(ProjectResult.Failure.IdNotFound)
 
-        mockMvc
-            .perform(
-                delete("/api/v1/workspaces/$workspaceId/projects/$projectId")
-                    .param("account", "$userId")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"reason":"삭제 사유"}"""),
-            ).andExpect(status().is4xxClientError)
+        withPrincipal(userId) {
+            mockMvc
+                .perform(
+                    delete("/api/v1/workspaces/$workspaceId/projects/$projectId")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"reason":"삭제 사유"}"""),
+                ).andExpect(status().is4xxClientError)
+        }
+    }
+
+    private fun withPrincipal(
+        accountId: UUID,
+        block: () -> Unit,
+    ) {
+        val context = SecurityContextHolder.createEmptyContext()
+        context.authentication =
+            UsernamePasswordAuthenticationToken(
+                AuthenticatedAccountPrincipal(accountId = accountId, email = "test@psycho.pizza"),
+                null,
+                emptyList(),
+            )
+        SecurityContextHolder.setContext(context)
+        try {
+            block()
+        } finally {
+            SecurityContextHolder.clearContext()
+        }
     }
 }
