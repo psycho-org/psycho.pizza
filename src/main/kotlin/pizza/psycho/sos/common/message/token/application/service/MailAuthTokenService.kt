@@ -11,6 +11,7 @@ import pizza.psycho.sos.common.message.action.application.model.WorkspaceInviteA
 import pizza.psycho.sos.common.message.action.domain.MailActionType
 import pizza.psycho.sos.common.message.domain.MessageChannel
 import pizza.psycho.sos.common.message.domain.MessageType
+import pizza.psycho.sos.common.message.domain.exception.MessageErrorCode
 import pizza.psycho.sos.common.message.token.application.event.MailAuthVerifiedEvent
 import pizza.psycho.sos.common.message.token.application.service.dto.MailAuthTokenResult
 import pizza.psycho.sos.common.message.token.domain.model.entity.MailAuthFailureReason
@@ -62,7 +63,11 @@ class MailAuthTokenService(
             try {
                 mailAuthTokenRepository.save(retry)
             } catch (retryEx: DataIntegrityViolationException) {
-                throw DomainException("duplicate pending mail auth token", retryEx)
+                throw DomainException(
+                    MessageErrorCode.MESSAGE_MAIL_DUPLICATE_PENDING_AUTH_TOKEN,
+                    "duplicate pending mail auth token",
+                    retryEx,
+                )
             }
         }
     }

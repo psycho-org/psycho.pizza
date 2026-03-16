@@ -31,4 +31,9 @@ sealed interface TaskRequest {
         val dueDate: Patch<Instant> = Patch.Unchanged,
         val priority: Patch<Priority> = Patch.Unchanged,
     ) : TaskRequest
+
+    data class Delete(
+        @field:NotBlank
+        val reason: String,
+    ) : TaskRequest
 }

@@ -1,10 +1,13 @@
 package pizza.psycho.sos.project.project.infrastructure.persistence
 
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Component
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
+import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import java.util.UUID
@@ -98,6 +101,125 @@ interface ProjectJpaRepository :
         workspaceId: UUID,
     ): List<ProjectProgress>
 
+    @Query(
+        """
+        select new pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment(
+            ptm.taskId,
+            p.id
+        )
+        from ProjectTaskMapping ptm
+            join ptm.project p
+        where ptm.taskId in :taskIds
+          and p.workspaceId.value = :workspaceId
+          and p.deletedAt is null
+        """,
+    )
+    fun findAssignmentsByTaskIds(
+        taskIds: Collection<UUID>,
+        workspaceId: UUID,
+    ): List<TaskAssignment>
+
+    override fun findActiveProjectIdsByTaskIds(
+        taskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<TaskAssignment> =
+        if (taskIds.isEmpty()) {
+            emptyList()
+        } else {
+            findAssignmentsByTaskIds(taskIds, workspaceId.value)
+        }
+
+    @Query(
+        """
+        select ptm.taskId
+        from ProjectTaskMapping ptm
+            join ptm.project p
+            join Task t on t.id = ptm.taskId
+        where p.id = :projectId
+          and p.workspaceId.value = :workspaceId
+          and p.deletedAt is null
+          and t.deletedAt is null
+        """,
+    )
+    fun findTaskIdsByProjectId(
+        projectId: UUID,
+        workspaceId: UUID,
+    ): List<UUID>
+
+    override fun findActiveTaskIdsByProjectId(
+        projectId: UUID,
+        workspaceId: WorkspaceId,
+    ): List<UUID> = findTaskIdsByProjectId(projectId, workspaceId.value)
+
+    @Query(
+        value =
+            """
+            select ptm.taskId
+            from ProjectTaskMapping ptm
+                join ptm.project p
+                join Task t on t.id = ptm.taskId
+            where p.id = :projectId
+              and p.workspaceId.value = :workspaceId
+              and p.deletedAt is null
+              and t.deletedAt is null
+            order by ptm.id
+            """,
+        countQuery =
+            """
+            select count(ptm.taskId)
+            from ProjectTaskMapping ptm
+                join ptm.project p
+                join Task t on t.id = ptm.taskId
+            where p.id = :projectId
+              and p.workspaceId.value = :workspaceId
+              and p.deletedAt is null
+              and t.deletedAt is null
+            """,
+    )
+    fun findTaskIdsPageByProjectId(
+        projectId: UUID,
+        workspaceId: UUID,
+        pageable: Pageable,
+    ): Page<UUID>
+
+    override fun findActiveTaskIdsByProjectId(
+        projectId: UUID,
+        workspaceId: WorkspaceId,
+        pageable: Pageable,
+    ): Page<UUID> = findTaskIdsPageByProjectId(projectId, workspaceId.value, pageable)
+
+    @Query(
+        """
+        select p.id as projectId, ptm.taskId as taskId
+        from ProjectTaskMapping ptm
+            join ptm.project p
+            join Task t on t.id = ptm.taskId
+        where p.id in :projectIds
+          and p.workspaceId.value = :workspaceId
+          and p.deletedAt is null
+          and t.deletedAt is null
+        order by ptm.id
+        """,
+    )
+    fun findProjectTaskRows(
+        projectIds: Collection<UUID>,
+        workspaceId: UUID,
+    ): List<ProjectTaskRow>
+
+    override fun findActiveTaskIdsByProjectIds(
+        projectIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): Map<UUID, List<UUID>> =
+        if (projectIds.isEmpty()) {
+            emptyMap()
+        } else {
+            findProjectTaskRows(projectIds, workspaceId.value)
+                .groupBy(
+                    keySelector = { row: ProjectTaskRow -> row.getProjectId() },
+                    valueTransform = { row: ProjectTaskRow -> row.getTaskId() },
+                )
+        }
+
     fun findByIdAndWorkspaceIdValueAndDeletedAtIsNull(
         id: UUID,
         workspaceId: UUID,
@@ -107,4 +229,10 @@ interface ProjectJpaRepository :
         ids: Collection<UUID>,
         workspaceId: UUID,
     ): List<Project>
+}
+
+interface ProjectTaskRow {
+    fun getProjectId(): UUID
+
+    fun getTaskId(): UUID
 }

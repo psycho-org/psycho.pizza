@@ -2,10 +2,10 @@ package pizza.psycho.sos.analysis.application.service
 
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import pizza.psycho.sos.analysis.application.port.dto.AnalysisJobQueueItem
 import pizza.psycho.sos.analysis.domain.vo.AnalysisRequestStatus
 import pizza.psycho.sos.analysis.infrastructure.persistence.AnalysisRequestRepository
 import pizza.psycho.sos.common.support.log.loggerDelegate
-import java.util.UUID
 
 @Service
 class AnalysisJobRecoveryService(
@@ -17,7 +17,7 @@ class AnalysisJobRecoveryService(
      * RUNNING 상태의 작업을 QUEUED 상태로 DB 기준 복구
      */
     @Transactional
-    fun recoverJobs(): List<UUID> {
+    fun recoverJobs(): List<AnalysisJobQueueItem> {
         val runningJobs =
             analysisRequestRepository.findAllByStatus(AnalysisRequestStatus.RUNNING)
 
@@ -25,13 +25,15 @@ class AnalysisJobRecoveryService(
             it.markAsQueuedForRetry()
         }
 
-        val queuedJobIds =
+        val queuedJobs =
             analysisRequestRepository
                 .findAllByStatus(AnalysisRequestStatus.QUEUED)
-                .mapNotNull { it.id }
+                .mapNotNull { request ->
+                    request.id?.let { AnalysisJobQueueItem(it) }
+                }
 
-        log.info("♻️ Recovered RUNNING jobs: ${runningJobs.size}, queued jobs: ${queuedJobIds.size}")
+        log.info("♻️ Recovered RUNNING jobs: ${runningJobs.size}, queued jobs: ${queuedJobs.size}")
 
-        return queuedJobIds
+        return queuedJobs
     }
 }

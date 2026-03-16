@@ -12,11 +12,13 @@ import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequ
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.identity.account.application.service.AccountService
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
+import pizza.psycho.sos.identity.account.domain.policy.PasswordValidator
 import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryService
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
 import pizza.psycho.sos.identity.security.token.AccessTokenProvider
@@ -40,6 +42,14 @@ class AccountControllerTests {
 
     @MockitoBean
     private lateinit var activeAccountPrincipalQueryService: ActiveAccountPrincipalQueryService
+
+    @Test
+    fun `password policy returns regex string`() {
+        mockMvc
+            .perform(get("/api/v1/accounts/policies/password"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.regex").value(PasswordValidator.PATTERN))
+    }
 
     @Test
     fun `register returns email and name fields from service payload`() {

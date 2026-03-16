@@ -5,6 +5,7 @@ import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
+import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import java.util.UUID
@@ -19,13 +20,19 @@ class ProjectFacadeImpl(
     ): ProjectSnapshot =
         Tx.writable {
             val project = Project.create(workspaceId = workspaceId, name = name)
-            projectRepository.save(project).toSnapshot()
+            projectRepository.save(project).toSnapshot(emptyList())
         }
 
     override fun findProjectsByIdIn(
         projectIds: Collection<UUID>,
         workspaceId: WorkspaceId,
-    ): List<ProjectSnapshot> = projectRepository.findActiveProjectsByIdIn(projectIds, workspaceId).map { it.toSnapshot() }
+    ): List<ProjectSnapshot> {
+        val projects = projectRepository.findActiveProjectsByIdIn(projectIds, workspaceId)
+        val taskIdsByProjectId = projectRepository.findActiveTaskIdsByProjectIds(projectIds, workspaceId)
+        return projects.map { project ->
+            project.toSnapshot(taskIdsByProjectId[project.projectId].orEmpty())
+        }
+    }
 
     override fun findProgressesByProjectId(
         projectIds: List<UUID>,
@@ -44,11 +51,16 @@ class ProjectFacadeImpl(
         workspaceId: WorkspaceId,
     ): Int = projectRepository.deleteByIdIn(projectIds, deletedBy, workspaceId)
 
-    private fun Project.toSnapshot(): ProjectSnapshot =
+    override fun findActiveProjectIdsByTaskIds(
+        taskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<TaskAssignment> = projectRepository.findActiveProjectIdsByTaskIds(taskIds, workspaceId)
+
+    private fun Project.toSnapshot(taskIds: List<UUID>): ProjectSnapshot =
         ProjectSnapshot(
             projectId = projectId,
             workspaceId = workspaceId,
             name = name,
-            taskIds = taskIds(),
+            taskIds = taskIds,
         )
 }

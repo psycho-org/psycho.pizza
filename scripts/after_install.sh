@@ -25,7 +25,7 @@ echo "Loading environment variables from SSM..."
 # .env 파일 생성 (systemd EnvironmentFile 형식: KEY=VALUE)
 cat > ${ENV_FILE} <<EOF
 SPRING_PROFILES_ACTIVE=prod
-SPRING_DATASOURCE_URL=$(get_param db-url)
+SPRING_DATASOURCE_URL=jdbc:postgresql://$(get_param db-host):$(get_param db-port)/$(get_param db-name)
 SPRING_DATASOURCE_USERNAME=$(get_param db-username)
 SPRING_DATASOURCE_PASSWORD=$(get_param db-password)
 JWT_ISSUER=$(get_param jwt-issuer)
@@ -47,6 +47,8 @@ MAIL_TOKEN_VERIFY_BASE_URL=$(get_param mail-token-verify-base-url)
 MAIL_TOKEN_VERIFY_SUCCESS_URL=$(get_param mail-token-verify-success-url)
 MAIL_TOKEN_VERIFY_FAILURE_URL=$(get_param mail-token-verify-failure-url)
 OPENAI_API_KEY=$(get_param api-key)
+REQUEST_QUEUE_NAME=psycho-sqs-request-prod
+RESPONSE_QUEUE_NAME=psycho-sqs-response-prod
 EOF
 
 # 보안: .env 파일 권한 제한

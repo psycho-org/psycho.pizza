@@ -2,6 +2,7 @@ package pizza.psycho.sos.identity.account.application
 
 import org.hibernate.exception.ConstraintViolationException
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -18,6 +19,7 @@ import pizza.psycho.sos.common.domain.vo.Email
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.common.support.transaction.runner.TransactionRunner
 import pizza.psycho.sos.identity.account.application.service.AccountService
+import pizza.psycho.sos.identity.account.application.service.WorkspaceMembershipCleanupPort
 import pizza.psycho.sos.identity.account.application.service.WorkspaceOwnershipQueryService
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
 import pizza.psycho.sos.identity.account.domain.Account
@@ -42,6 +44,7 @@ class AccountServiceTests {
     private val refreshTokenService = mock(RefreshTokenService::class.java)
     private val challengeService = mock(ChallengeService::class.java)
     private val workspaceOwnershipQueryService = mock(WorkspaceOwnershipQueryService::class.java)
+    private val workspaceMembershipCleanupPort = mock(WorkspaceMembershipCleanupPort::class.java)
     private val accountService =
         AccountService(
             accountRepository,
@@ -49,6 +52,7 @@ class AccountServiceTests {
             refreshTokenService,
             challengeService,
             workspaceOwnershipQueryService,
+            workspaceMembershipCleanupPort,
         )
 
     private val testTokenId: UUID = UUID.fromString("00000000-0000-0000-0000-ffffffffffff")
@@ -56,6 +60,36 @@ class AccountServiceTests {
     @BeforeEach
     fun setUp() {
         Tx.initialize(TransactionRunner())
+    }
+
+    @Test
+    fun `find active display name by account id returns combined given and family name for active account`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000010")
+        val account =
+            Account
+                .create(
+                    email = Email.of("user@psycho.pizza"),
+                    passwordHash = "encoded-password",
+                    givenName = "Rick",
+                    familyName = "Sanchez",
+                ).also { it.id = accountId }
+
+        `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
+
+        val displayName = accountService.findActiveDisplayNameByAccountIdOrNull(accountId)
+
+        assertEquals("Rick Sanchez", displayName)
+    }
+
+    @Test
+    fun `find active display name by account id returns null when account is not active`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000011")
+
+        `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(null)
+
+        val displayName = accountService.findActiveDisplayNameByAccountIdOrNull(accountId)
+
+        assertNull(displayName)
     }
 
     @Test
@@ -436,6 +470,7 @@ class AccountServiceTests {
         assertTrue(result is Withdraw.Failure.OwnerWorkspaceExists)
         assertTrue(!token.used)
         verify(workspaceOwnershipQueryService).existsActiveOwnerMembershipByAccountId(accountId)
+        verifyNoInteractions(workspaceMembershipCleanupPort)
         verify(accountRepository, never()).save(org.mockito.ArgumentMatchers.any(Account::class.java))
         verify(refreshTokenService, never()).revokeAllByAccountId(accountId)
     }
@@ -473,6 +508,7 @@ class AccountServiceTests {
         assertEquals(accountId, account.deletedBy)
         assertTrue(token.used)
         verify(workspaceOwnershipQueryService).existsActiveOwnerMembershipByAccountId(accountId)
+        verify(workspaceMembershipCleanupPort).softDeleteActiveMembershipsByAccountId(accountId, accountId)
         verify(accountRepository).save(account)
         verify(refreshTokenService).revokeAllByAccountId(accountId)
     }

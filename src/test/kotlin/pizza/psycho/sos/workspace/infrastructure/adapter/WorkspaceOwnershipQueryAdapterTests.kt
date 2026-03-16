@@ -2,8 +2,6 @@ package pizza.psycho.sos.workspace.infrastructure.adapter
 
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.`when`
-import pizza.psycho.sos.workspace.application.dto.ActiveWorkspaceMembership
-import pizza.psycho.sos.workspace.domain.model.membership.Role
 import pizza.psycho.sos.workspace.domain.repository.WorkspaceMembershipQueryRepository
 import java.util.UUID
 import kotlin.test.assertFalse
@@ -17,13 +15,7 @@ class WorkspaceOwnershipQueryAdapterTests {
     @Test
     fun `existsActiveOwnerMembershipByAccountId returns true when owner membership exists`() {
         val accountId = UUID.randomUUID()
-        `when`(workspaceMembershipQueryRepository.findActiveWorkspaceMembershipsByAccountId(accountId)).thenReturn(
-            listOf(
-                ActiveWorkspaceMembership(UUID.randomUUID(), "Alpha", Role.OWNER),
-                ActiveWorkspaceMembership(UUID.randomUUID(), "Beta", Role.CREW),
-                ActiveWorkspaceMembership(UUID.randomUUID(), "Gamma", Role.OWNER),
-            ),
-        )
+        `when`(workspaceMembershipQueryRepository.existsActiveOwnerMembershipByAccountId(accountId)).thenReturn(true)
 
         val result = adapter.existsActiveOwnerMembershipByAccountId(accountId)
 
@@ -33,12 +25,7 @@ class WorkspaceOwnershipQueryAdapterTests {
     @Test
     fun `existsActiveOwnerMembershipByAccountId returns false when owner membership does not exist`() {
         val accountId = UUID.randomUUID()
-        `when`(workspaceMembershipQueryRepository.findActiveWorkspaceMembershipsByAccountId(accountId)).thenReturn(
-            listOf(
-                ActiveWorkspaceMembership(UUID.randomUUID(), "Alpha", Role.CREW),
-                ActiveWorkspaceMembership(UUID.randomUUID(), "Beta", Role.CREW),
-            ),
-        )
+        `when`(workspaceMembershipQueryRepository.existsActiveOwnerMembershipByAccountId(accountId)).thenReturn(false)
 
         val result = adapter.existsActiveOwnerMembershipByAccountId(accountId)
 
