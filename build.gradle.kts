@@ -77,7 +77,15 @@ kotlin {
 
 tasks.test {
     useJUnitPlatform {
-        excludeTags("tc")
+        excludeTags("tc", "integration")
+    }
+}
+
+tasks.register<Test>("integrationTest") {
+    group = "verification"
+    description = "Runs integration tests that require full Spring context and infrastructure"
+    useJUnitPlatform {
+        includeTags("integration")
     }
 }
 
