@@ -43,16 +43,6 @@ class GlobalExceptionHandlerTests {
             .andExpect(jsonPath("$.meta.retryAfterSeconds").value(43))
     }
 
-    @Test
-    @Suppress("DEPRECATION")
-    fun `legacy domain exception falls back to bad request without code`() {
-        mockMvc
-            .perform(get("/test/legacy").contentType(MediaType.APPLICATION_JSON))
-            .andExpect(status().isBadRequest)
-            .andExpect(jsonPath("$.code").doesNotExist())
-            .andExpect(jsonPath("$.message").value("legacy bad request"))
-    }
-
     @RestController
     @RequestMapping("/test")
     class TestController {
@@ -69,9 +59,5 @@ class GlobalExceptionHandlerTests {
                         retryAfterSeconds = 43,
                     ),
             )
-
-        @GetMapping("/legacy")
-        @Suppress("DEPRECATION")
-        fun legacy(): String = throw DomainException("legacy bad request")
     }
 }
