@@ -167,7 +167,10 @@ class ProjectRepositoryTests {
         task2.changeStatus(Status.DONE)
         taskRepository.save(task2)
 
-        val project = Project.create(name = "Progress Project", workspaceId = workspaceId)
+        val project =
+            projectRepository.save(
+                Project.create(name = "Progress Project", workspaceId = workspaceId),
+            )
         project.addTasks(listOf(task1.taskId, task2.taskId))
         projectRepository.save(project)
 
@@ -201,11 +204,14 @@ class ProjectRepositoryTests {
                 Task.create(title = "Shared Task", description = "desc", workspaceId = workspaceId.value),
             )
 
-        val project1 = Project.create(name = "Project A", workspaceId = workspaceId)
+        val project1 =
+            projectRepository.save(
+                Project.create(name = "Project A", workspaceId = workspaceId),
+            )
         project1.addTask(task.taskId)
         projectRepository.save(project1)
 
-        val project2 = Project.create(name = "Project B", workspaceId = workspaceId)
+        val project2 = projectRepository.save(Project.create(name = "Project B", workspaceId = workspaceId))
         project2.addTask(task.taskId)
         projectRepository.save(project2)
 

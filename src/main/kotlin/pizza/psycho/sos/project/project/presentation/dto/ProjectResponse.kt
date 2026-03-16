@@ -33,10 +33,6 @@ sealed interface ProjectResponse {
     )
 
     data class Remove(
-        val count: Int,
-    )
-
-    data class RemoveWithTasks(
         val projectCount: Int,
         val taskCount: Int,
     )

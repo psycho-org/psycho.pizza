@@ -57,6 +57,7 @@ dependencies {
     // test
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("io.mockk:mockk:1.13.13")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
     testImplementation("com.ninja-squad:springmockk:4.0.2")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")

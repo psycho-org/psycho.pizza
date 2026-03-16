@@ -17,6 +17,8 @@ import java.util.UUID
 class Membership protected constructor(
     @Column(name = "account_id", nullable = false, updatable = false)
     val accountId: UUID,
+    @Column(name = "display_name", nullable = false)
+    var displayName: String = "",
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
     var role: Role,
@@ -29,9 +31,10 @@ class Membership protected constructor(
         fun create(
             workspace: Workspace,
             accountId: UUID,
+            displayName: String = "",
             role: Role = Role.CREW,
         ): Membership {
-            val membership = Membership(accountId, role)
+            val membership = Membership(accountId, displayName, role)
             membership.workspace = workspace
             return membership
         }

@@ -217,6 +217,55 @@ class ProjectControllerTests {
             ).andExpect(status().is4xxClientError)
     }
 
+    @Test
+    fun `프로젝트에 태스크 생성 시 actor를 포함해 결과를 반환한다`() {
+        val workspaceId = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val dueDate = Instant.parse("2026-12-31T00:00:00Z")
+
+        `when`(
+            projectService.createTask(
+                ProjectCommand.CreateTask(
+                    workspaceId = WorkspaceId(workspaceId),
+                    projectId = projectId,
+                    title = "새 태스크",
+                    description = "설명",
+                    assigneeId = null,
+                    dueDate = dueDate,
+                    createdBy = accountId,
+                ),
+            ),
+        ).thenReturn(
+            ProjectResult.Task(
+                id = taskId,
+                title = "새 태스크",
+                status = Status.TODO,
+                assignee = null,
+                dueDate = dueDate,
+            ),
+        )
+
+        mockMvc
+            .perform(
+                post("/api/v1/workspaces/$workspaceId/projects/$projectId/tasks")
+                    .param("account", accountId.toString())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                            "title": "새 태스크",
+                            "description": "설명",
+                            "dueDate": "$dueDate"
+                        }
+                        """.trimIndent(),
+                    ),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.data.id").value(taskId.toString()))
+            .andExpect(jsonPath("$.data.title").value("새 태스크"))
+    }
+
     // ------------------------------------------------------------------------------------------------
     // PATCH /api/v1/workspaces/{workspaceId}/projects/{projectId}
     // ------------------------------------------------------------------------------------------------
@@ -226,6 +275,7 @@ class ProjectControllerTests {
         val workspaceId = UUID.randomUUID()
         val projectId = UUID.randomUUID()
         val addTaskId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
 
         `when`(
             projectService.modify(
@@ -235,6 +285,7 @@ class ProjectControllerTests {
                     name = "수정된 프로젝트",
                     addTaskIds = listOf(addTaskId),
                     removeTaskIds = emptyList(),
+                    updatedBy = accountId,
                 ),
             ),
         ).thenReturn(ProjectResult.Success)
@@ -242,6 +293,7 @@ class ProjectControllerTests {
         mockMvc
             .perform(
                 patch("/api/v1/workspaces/$workspaceId/projects/$projectId")
+                    .param("account", accountId.toString())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
@@ -260,6 +312,7 @@ class ProjectControllerTests {
     fun `존재하지 않는 프로젝트 수정 시 에러를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val projectId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
 
         `when`(
             projectService.modify(
@@ -269,6 +322,7 @@ class ProjectControllerTests {
                     name = "수정",
                     addTaskIds = emptyList(),
                     removeTaskIds = emptyList(),
+                    updatedBy = accountId,
                 ),
             ),
         ).thenReturn(ProjectResult.Failure.IdNotFound)
@@ -276,6 +330,7 @@ class ProjectControllerTests {
         mockMvc
             .perform(
                 patch("/api/v1/workspaces/$workspaceId/projects/$projectId")
+                    .param("account", accountId.toString())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
@@ -287,12 +342,8 @@ class ProjectControllerTests {
             ).andExpect(status().is4xxClientError)
     }
 
-    // ------------------------------------------------------------------------------------------------
-    // DELETE /api/v1/workspaces/{workspaceId}/projects/{projectId}/{userId}
-    // ------------------------------------------------------------------------------------------------
-
     @Test
-    fun `프로젝트 삭제 시 삭제 결과를 반환한다`() {
+    fun `프로젝트와 하위 태스크 삭제 시 삭제 결과를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val projectId = UUID.randomUUID()
         val userId = UUID.randomUUID()
@@ -301,36 +352,11 @@ class ProjectControllerTests {
             projectService.remove(
                 ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, userId),
             ),
-        ).thenReturn(ProjectResult.Remove(1))
+        ).thenReturn(ProjectResult.Remove(projectCount = 1, taskCount = 3))
 
         mockMvc
             .perform(
                 delete("/api/v1/workspaces/$workspaceId/projects/$projectId")
-                    .param("account", "$userId"),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.message").value("데이터 삭제에 성공하였습니다."))
-            .andExpect(jsonPath("$.data.count").value(1))
-    }
-
-    // ------------------------------------------------------------------------------------------------
-    // DELETE /api/v1/workspaces/{workspaceId}/projects/{projectId}/{userId}/with-tasks
-    // ------------------------------------------------------------------------------------------------
-
-    @Test
-    fun `프로젝트와 하위 태스크 삭제 시 삭제 결과를 반환한다`() {
-        val workspaceId = UUID.randomUUID()
-        val projectId = UUID.randomUUID()
-        val userId = UUID.randomUUID()
-
-        `when`(
-            projectService.removeWithTasks(
-                ProjectCommand.RemoveWithTasks(WorkspaceId(workspaceId), projectId, userId),
-            ),
-        ).thenReturn(ProjectResult.RemoveWithTasks(projectCount = 1, taskCount = 3))
-
-        mockMvc
-            .perform(
-                delete("/api/v1/workspaces/$workspaceId/projects/$projectId/with-tasks")
                     .param("account", "$userId"),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.message").value("프로젝트 및 하위 태스크 삭제에 성공하였습니다."))
@@ -345,14 +371,14 @@ class ProjectControllerTests {
         val userId = UUID.randomUUID()
 
         `when`(
-            projectService.removeWithTasks(
-                ProjectCommand.RemoveWithTasks(WorkspaceId(workspaceId), projectId, userId),
+            projectService.remove(
+                ProjectCommand.Remove(WorkspaceId(workspaceId), projectId, userId),
             ),
         ).thenReturn(ProjectResult.Failure.IdNotFound)
 
         mockMvc
             .perform(
-                delete("/api/v1/workspaces/$workspaceId/projects/$projectId/with-tasks")
+                delete("/api/v1/workspaces/$workspaceId/projects/$projectId")
                     .param("account", "$userId"),
             ).andExpect(status().is4xxClientError)
     }

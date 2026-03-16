@@ -1,6 +1,7 @@
 package pizza.psycho.sos.project.task.domain.model
 
 import org.springframework.test.context.ActiveProfiles
+import pizza.psycho.sos.project.task.domain.event.TaskDueDateChangedEvent
 import pizza.psycho.sos.project.task.domain.exception.InvalidDueDateException
 import pizza.psycho.sos.project.task.domain.model.entity.Task
 import pizza.psycho.sos.project.task.domain.model.vo.AssigneeId
@@ -149,11 +150,17 @@ class TaskTests {
     @Test
     fun `clearDueDate - 마감일이 초기화된다`() {
         val task = createTask()
-        task.changeDueDate(Instant.now().plusSeconds(3600), assigneeId)
+        val dueDate = Instant.now().plusSeconds(3600)
+        task.changeDueDate(dueDate, assigneeId)
 
         task.clearDueDate()
 
         assertNull(task.dueDate.value)
+        val event = task.domainEvents().last() as TaskDueDateChangedEvent
+        assertEquals(workspaceId, event.workspaceId)
+        assertEquals(task.taskId, event.taskId)
+        assertEquals(dueDate, event.fromDueDate)
+        assertNull(event.toDueDate)
     }
 }
 

@@ -44,7 +44,7 @@ class TaskController(
     @GetMapping
     fun findAllTasks(
         @PathVariable workspaceId: UUID,
-        @PageableDefault(page = 1, size = 10) pageable: Pageable,
+        @PageableDefault(page = 0, size = 10) pageable: Pageable,
     ): ApiResponse<*> =
         handleResult {
             taskService.getAll(TaskQuery.FindTasks(workspaceId, pageable))
