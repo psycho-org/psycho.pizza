@@ -9,6 +9,7 @@ import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
 import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
+import pizza.psycho.sos.project.project.domain.event.ProjectDeletedEvent
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import java.util.UUID
 
@@ -40,9 +41,10 @@ interface ProjectJpaRepository :
         projectId: UUID,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
+        reason: String?,
     ): Int =
         findByIdAndWorkspaceIdValueAndDeletedAtIsNull(projectId, workspaceId.value)
-            ?.also { it.delete(deletedBy) }
+            ?.also { it.delete(deletedBy, reason) }
             ?.let { 1 }
             ?: 0
 
@@ -50,14 +52,15 @@ interface ProjectJpaRepository :
         projectIds: Collection<UUID>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
-    ): Int {
+        reason: String?,
+    ): List<ProjectDeletedEvent> {
         if (projectIds.isEmpty()) {
-            return 0
+            return emptyList()
         }
 
         return findAllByIdInAndWorkspaceIdValueAndDeletedAtIsNull(projectIds, workspaceId.value)
-            .onEach { it.delete(deletedBy) }
-            .size
+            .onEach { it.delete(deletedBy, reason) }
+            .flatMap { project -> project.pullDomainEvents().filterIsInstance<ProjectDeletedEvent>() }
     }
 
     @Query(

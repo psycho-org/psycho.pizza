@@ -94,14 +94,15 @@ class SprintTaskInProjectDomainEventHandler(
         pruneEmittedKeys()
         val workspace = WorkspaceId(workspaceId)
 
-        val sprintIds = sprintRepository.findActiveSprintIdsByProjectId(projectId, workspace)
-        if (sprintIds.isEmpty()) {
+        val sprints = sprintRepository.findActiveSprintsByProjectId(projectId, workspace)
+        if (sprints.isEmpty()) {
             log.debug("Skip TaskAddedToSprintEvent: project not in any active sprint. projectId={}", projectId)
             return
         }
 
         taskIds.distinct().forEach { taskId ->
-            sprintIds.forEach sprintLoop@{ sprintId ->
+            sprints.forEach sprintLoop@{ sprint ->
+                val sprintId = sprint.sprintId
                 val key = TaskSprintKey(workspaceId, sprintId, taskId)
                 if (suppressedMoveKeys.remove(key)) {
                     log.debug(
@@ -128,6 +129,8 @@ class SprintTaskInProjectDomainEventHandler(
                         sprintId = sprintId,
                         taskId = taskId,
                         actorId = actorId,
+                        sprintStartDate = sprint.period.startDate,
+                        sprintEndDate = sprint.period.endDate,
                         eventId = UUID.randomUUID(),
                     ),
                 )
@@ -138,7 +141,7 @@ class SprintTaskInProjectDomainEventHandler(
             "TaskAddedToSprintEvent published for taskIds={}, projectId={}, sprintIds={}, workspaceId={}",
             taskIds,
             projectId,
-            sprintIds,
+            sprints.map { it.sprintId },
             workspaceId,
         )
     }
@@ -150,9 +153,9 @@ class SprintTaskInProjectDomainEventHandler(
         actorId: UUID?,
     ) {
         val workspace = WorkspaceId(workspaceId)
-        val sprintIds = sprintRepository.findActiveSprintIdsByProjectId(projectId, workspace)
+        val sprints = sprintRepository.findActiveSprintsByProjectId(projectId, workspace)
 
-        if (sprintIds.isEmpty()) {
+        if (sprints.isEmpty()) {
             taskIds.forEach { taskId -> clearEmittedTaskAddedKeys(workspaceId, taskId) }
             log.debug("Skip TaskRemovedFromSprintEvent: project not in any active sprint. projectId={}", projectId)
             return
@@ -162,7 +165,8 @@ class SprintTaskInProjectDomainEventHandler(
 
         taskIds.distinct().forEach { taskId ->
             val remainingSprintIds = remainingSprintIdsByTaskId[taskId].orEmpty()
-            sprintIds.forEach sprintLoop@{ sprintId ->
+            sprints.forEach sprintLoop@{ sprint ->
+                val sprintId = sprint.sprintId
                 val key = TaskSprintKey(workspaceId, sprintId, taskId)
                 val stillInSprint = remainingSprintIds.contains(sprintId)
                 if (stillInSprint) {
@@ -183,6 +187,8 @@ class SprintTaskInProjectDomainEventHandler(
                         sprintId = sprintId,
                         taskId = taskId,
                         actorId = actorId,
+                        sprintStartDate = sprint.period.startDate,
+                        sprintEndDate = sprint.period.endDate,
                         eventId = UUID.randomUUID(),
                     ),
                 )
@@ -193,7 +199,7 @@ class SprintTaskInProjectDomainEventHandler(
             "TaskRemovedFromSprintEvent published for taskIds={}, projectId={}, sprintIds={}, workspaceId={}",
             taskIds,
             projectId,
-            sprintIds,
+            sprints.map { it.sprintId },
             workspaceId,
         )
     }

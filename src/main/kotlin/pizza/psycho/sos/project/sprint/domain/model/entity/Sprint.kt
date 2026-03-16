@@ -96,8 +96,10 @@ class Sprint(
             workspaceId = workspaceId.value,
             sprintId = sprintId,
             actorId = by,
-            fromPeriod = previousPeriod.toString(),
-            toPeriod = period.toString(),
+            fromStartDate = previousPeriod.startDate,
+            fromEndDate = previousPeriod.endDate,
+            toStartDate = period.startDate,
+            toEndDate = period.endDate,
             eventId = UUID.randomUUID(),
         ).register()
     }
@@ -124,6 +126,8 @@ class Sprint(
                 sprintId = sprintId,
                 taskId = taskId,
                 actorId = by,
+                sprintStartDate = period.startDate,
+                sprintEndDate = period.endDate,
                 eventId = UUID.randomUUID(),
             ).register()
         }
@@ -149,6 +153,8 @@ class Sprint(
                 sprintId = sprintId,
                 taskId = taskId,
                 actorId = by,
+                sprintStartDate = period.startDate,
+                sprintEndDate = period.endDate,
                 eventId = UUID.randomUUID(),
             ).register()
         }

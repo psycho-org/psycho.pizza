@@ -14,10 +14,10 @@ import pizza.psycho.sos.audit.application.listener.event.SprintGoalChangedEvent
 import pizza.psycho.sos.audit.application.listener.event.SprintPeriodChangedEvent
 import pizza.psycho.sos.audit.application.listener.event.TaskAddedToSprintEvent
 import pizza.psycho.sos.audit.application.listener.event.TaskRemovedFromSprintEvent
+import pizza.psycho.sos.audit.application.listener.event.TaskStatusChangedEvent
 import pizza.psycho.sos.audit.domain.vo.AuditEventType
 import pizza.psycho.sos.audit.domain.vo.AuditTargetType
 import pizza.psycho.sos.audit.infrastructure.persistence.AuditLogRepository
-import pizza.psycho.sos.project.task.domain.event.TaskStatusChangedEvent
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.UUID
@@ -151,6 +151,7 @@ class AuditLogEventListenerTests {
         val event =
             TaskStatusChangedEvent(
                 workspaceId = UUID.randomUUID(),
+                sprintId = UUID.randomUUID(),
                 actorId = UUID.randomUUID(),
                 taskId = UUID.randomUUID(),
                 fromStatus = "TODO",

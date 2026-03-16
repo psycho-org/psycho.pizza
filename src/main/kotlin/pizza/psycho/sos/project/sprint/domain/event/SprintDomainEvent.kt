@@ -28,8 +28,10 @@ data class SprintPeriodChangedEvent(
     override val workspaceId: UUID,
     override val sprintId: UUID,
     override val actorId: UUID?,
-    val fromPeriod: String,
-    val toPeriod: String,
+    val fromStartDate: Instant,
+    val fromEndDate: Instant,
+    val toStartDate: Instant,
+    val toEndDate: Instant,
     override val eventId: UUID,
     override val occurredAt: Instant = Instant.now(),
 ) : SprintDomainEvent
@@ -40,6 +42,8 @@ data class TaskAddedToSprintEvent(
     override val sprintId: UUID,
     val taskId: UUID,
     override val actorId: UUID?,
+    val sprintStartDate: Instant,
+    val sprintEndDate: Instant,
     override val eventId: UUID,
     override val occurredAt: Instant = Instant.now(),
 ) : SprintDomainEvent
@@ -50,6 +54,8 @@ data class TaskRemovedFromSprintEvent(
     override val sprintId: UUID,
     val taskId: UUID,
     override val actorId: UUID?,
+    val sprintStartDate: Instant,
+    val sprintEndDate: Instant,
     override val eventId: UUID,
     override val occurredAt: Instant = Instant.now(),
 ) : SprintDomainEvent

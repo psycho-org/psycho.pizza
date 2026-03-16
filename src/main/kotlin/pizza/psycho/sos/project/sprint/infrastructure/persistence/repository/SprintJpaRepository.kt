@@ -23,9 +23,10 @@ interface SprintJpaRepository :
         sprintId: UUID,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
+        reason: String?,
     ): Int =
         findByIdAndWorkspaceIdValueAndDeletedAtIsNull(sprintId, workspaceId.value)
-            ?.also { it.delete(deletedBy) }
+            ?.also { it.delete(deletedBy, reason) }
             ?.let { 1 }
             ?: 0
 

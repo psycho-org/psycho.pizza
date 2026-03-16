@@ -12,6 +12,10 @@ class ReasonService(
     private val reasonRepository: ReasonRepository,
 ) : RecordReasonUseCase {
     override fun record(command: RecordReasonCommand) {
+        // MVP에서는 중복 기록을 완전히 막지 않고, 동일 eventId에 대한 중복 저장만 선조회로 완화한다.
+        if (reasonRepository.existsByEventId(command.eventId)) {
+            return
+        }
         reasonRepository.save(
             Reason(
                 reason = command.reason,

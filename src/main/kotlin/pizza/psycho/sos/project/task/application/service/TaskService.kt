@@ -9,6 +9,7 @@ import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
+import pizza.psycho.sos.project.sprint.application.port.out.dto.SprintPeriodSnapshot
 import pizza.psycho.sos.project.sprint.domain.model.vo.Period
 import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
 import pizza.psycho.sos.project.task.application.event.handler.TaskEventSprintMembershipRegistry
@@ -65,10 +66,10 @@ class TaskService(
                 taskRepository
                     .findActiveTaskByIdOrNull(command.id, WorkspaceId(command.workspaceId))
                     ?.also {
-                        val wasInActiveSprint =
-                            sprintParticipationQuery.existsActiveSprintByTaskId(it.taskId, command.workspaceId)
+                        val sprintPeriods =
+                            taskSprintParticipationQuery.findActiveSprintPeriodsByTaskId(it.taskId, command.workspaceId)
                         it.delete(command.deletedBy, command.reason)
-                        markSprintMembership(it, wasInActiveSprint)
+                        markSprintMembership(it, sprintPeriods)
                         domainEventPublisher.publishAndClear(it)
                     }?.let { 1 }
                     ?: 0
@@ -93,14 +94,15 @@ class TaskService(
         id: UUID,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
+        reason: String? = null,
     ): Int =
         Tx.writable {
             taskRepository
                 .findActiveTaskByIdOrNull(id, workspaceId)
                 ?.also {
-                    val wasInActiveSprint = sprintParticipationQuery.existsActiveSprintByTaskId(it.taskId, workspaceId.value)
-                    it.delete(deletedBy)
-                    markSprintMembership(it, wasInActiveSprint)
+                    val sprintPeriods = taskSprintParticipationQuery.findActiveSprintPeriodsByTaskId(it.taskId, workspaceId.value)
+                    it.delete(deletedBy, reason)
+                    markSprintMembership(it, sprintPeriods)
                     domainEventPublisher.publishAndClear(it)
                 }?.let { 1 }
                 ?: 0
@@ -120,7 +122,13 @@ class TaskService(
                     .findAllByIdIn(ids, workspaceId)
                     .onEach {
                         it.delete(deletedBy, reason)
-                        markSprintMembership(it, sprintTaskIds.contains(it.taskId))
+                        val sprintPeriods =
+                            if (sprintTaskIds.contains(it.taskId)) {
+                                taskSprintParticipationQuery.findActiveSprintPeriodsByTaskId(it.taskId, workspaceId.value)
+                            } else {
+                                emptyList()
+                            }
+                        markSprintMembership(it, sprintPeriods)
                     }
 
             domainEventPublisher.publishAndClearAll(tasks)
@@ -156,11 +164,17 @@ class TaskService(
 
         tasks.forEach { task ->
             if (task.status != Status.TODO) {
+                val sprintPeriods =
+                    if (membershipSnapshot.contains(task.taskId)) {
+                        taskSprintParticipationQuery.findActiveSprintPeriodsByTaskId(task.taskId, workspaceId.value)
+                    } else {
+                        emptyList()
+                    }
                 task.changeStatus(
                     status = Status.TODO,
                     by = actorId,
                 )
-                markSprintMembership(task, membershipSnapshot.contains(task.taskId))
+                markSprintMembership(task, sprintPeriods)
             }
         }
 
@@ -277,10 +291,10 @@ class TaskService(
 
     private fun markSprintMembership(
         task: Task,
-        wasInActiveSprint: Boolean,
+        sprintPeriods: List<SprintPeriodSnapshot>,
     ) {
         task.domainEvents().filterIsInstance<TaskDomainEvent>().forEach { event ->
-            sprintMembershipRegistry.register(event.eventId, wasInActiveSprint)
+            sprintMembershipRegistry.register(event.eventId, sprintPeriods)
         }
     }
 }
