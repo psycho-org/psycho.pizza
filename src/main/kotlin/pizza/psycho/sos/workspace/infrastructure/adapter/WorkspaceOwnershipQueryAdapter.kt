@@ -12,7 +12,5 @@ class WorkspaceOwnershipQueryAdapter(
 ) : WorkspaceOwnershipQueryService {
     @Transactional(readOnly = true)
     override fun existsActiveOwnerMembershipByAccountId(accountId: UUID): Boolean =
-        workspaceMembershipQueryRepository
-            .findActiveWorkspaceMembershipsByAccountId(accountId)
-            .count { it.role.isOwner() } > 0
+        workspaceMembershipQueryRepository.existsActiveOwnerMembershipByAccountId(accountId)
 }

@@ -105,6 +105,7 @@ class ChallengeServicePostgresIntegrationTests : PostgresTestContainerSupport() 
                 ChallengeStatus.PENDING,
             )
         assertEquals(newChallengeId, requireNotNull(pending).id)
+        assertEquals(pending.expiresAt, (result as RequestChallengeResult.Success).expiresAt)
     }
 
     @Test
@@ -148,6 +149,10 @@ class ChallengeServicePostgresIntegrationTests : PostgresTestContainerSupport() 
 
             assertEquals(1, results.count { it is RequestChallengeResult.Success })
             assertEquals(1, results.count { it is RequestChallengeResult.Failure.CooldownActive })
+            val cooldownResult =
+                results.first { it is RequestChallengeResult.Failure.CooldownActive } as
+                    RequestChallengeResult.Failure.CooldownActive
+            assertEquals(0, cooldownResult.retryAfterSeconds)
             assertEquals(1L, challengeRepository.count())
         } finally {
             executor.shutdownNow()

@@ -8,7 +8,7 @@ import kotlin.reflect.KClass
 @Retention(AnnotationRetention.RUNTIME)
 @Constraint(validatedBy = [PasswordValidator::class])
 annotation class StrongPassword(
-    val message: String = "StrongPassword must be ≥12 chars and include upper, lower, digit, special char",
+    val message: String = PasswordValidator.MESSAGE,
     val groups: Array<KClass<*>> = [],
     val payload: Array<KClass<out Payload>> = [],
 )

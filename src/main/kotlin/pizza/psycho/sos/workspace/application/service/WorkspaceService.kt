@@ -5,18 +5,23 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.workspace.application.dto.ActiveWorkspaceMembership
+import pizza.psycho.sos.workspace.application.dto.WorkspaceMemberListItem
+import pizza.psycho.sos.workspace.application.port.out.AccountDisplayNamePort
 import pizza.psycho.sos.workspace.domain.exception.WorkspaceErrorCode
 import pizza.psycho.sos.workspace.domain.model.membership.Membership
 import pizza.psycho.sos.workspace.domain.model.membership.Role
 import pizza.psycho.sos.workspace.domain.model.workspace.Workspace
+import pizza.psycho.sos.workspace.domain.repository.WorkspaceCommandRepository
 import pizza.psycho.sos.workspace.domain.repository.WorkspaceMembershipQueryRepository
-import pizza.psycho.sos.workspace.domain.repository.WorkspaceRepository
+import pizza.psycho.sos.workspace.domain.repository.WorkspaceQueryRepository
 import java.util.UUID
 
 @Service
 class WorkspaceService(
-    private val workspaceRepository: WorkspaceRepository,
+    private val workspaceCommandRepository: WorkspaceCommandRepository,
+    private val workspaceQueryRepository: WorkspaceQueryRepository,
     private val workspaceMembershipQueryRepository: WorkspaceMembershipQueryRepository,
+    private val accountDisplayNamePort: AccountDisplayNamePort,
 ) {
     @Transactional
     fun createWorkspace(
@@ -25,8 +30,8 @@ class WorkspaceService(
         ownerAccountId: UUID,
     ): Workspace {
         logger.info("Creating workspace. ownerAccountId={} name={}", ownerAccountId, name)
-        val workspace = Workspace.create(name, description, ownerAccountId)
-        val saved = workspaceRepository.save(workspace)
+        val workspace = Workspace.create(name, description, ownerAccountId, resolveDisplayName(ownerAccountId))
+        val saved = workspaceCommandRepository.save(workspace)
         logger.info("Workspace created. workspaceId={}", saved.id)
         return saved
     }
@@ -34,7 +39,7 @@ class WorkspaceService(
     @Transactional(readOnly = true)
     fun getWorkspace(workspaceId: UUID): Workspace {
         logger.info("Fetching workspace. workspaceId={}", workspaceId)
-        return workspaceRepository.findActiveByIdOrNull(workspaceId)
+        return workspaceQueryRepository.findActiveByIdOrNull(workspaceId)
             ?: run {
                 logger.warn("Workspace not found. workspaceId={}", workspaceId)
                 throw DomainException(WorkspaceErrorCode.WORKSPACE_NOT_FOUND)
@@ -45,6 +50,25 @@ class WorkspaceService(
     fun findActiveWorkspaceMembershipsByAccountId(accountId: UUID): List<ActiveWorkspaceMembership> {
         logger.info("Fetching active workspace memberships. accountId={}", accountId)
         return workspaceMembershipQueryRepository.findActiveWorkspaceMembershipsByAccountId(accountId)
+    }
+
+    @Transactional(readOnly = true)
+    fun listMembers(
+        workspaceId: UUID,
+        requesterAccountId: UUID,
+    ): List<WorkspaceMemberListItem> {
+        logger.info("Listing workspace members. workspaceId={} requesterAccountId={}", workspaceId, requesterAccountId)
+        requireActiveWorkspace(workspaceId)
+        workspaceMembershipQueryRepository.findRoleByWorkspaceIdAndAccountId(workspaceId, requesterAccountId)
+            ?: run {
+                logger.warn(
+                    "Membership not found for list members. workspaceId={} requesterAccountId={}",
+                    workspaceId,
+                    requesterAccountId,
+                )
+                throw DomainException(WorkspaceErrorCode.WORKSPACE_MEMBERSHIP_NOT_FOUND)
+            }
+        return workspaceMembershipQueryRepository.findActiveMembersByWorkspaceId(workspaceId)
     }
 
     @Transactional
@@ -167,7 +191,7 @@ class WorkspaceService(
         }
 
         return try {
-            workspace.addMembership(accountId, role)
+            workspace.addMembership(accountId, resolveDisplayName(accountId), role)
         } catch (ex: IllegalArgumentException) {
             logger.warn(
                 "Failed to add member. workspaceId={} requesterAccountId={} accountId={} role={} reason={}",
@@ -259,11 +283,13 @@ class WorkspaceService(
     }
 
     private fun requireActiveWorkspace(workspaceId: UUID): Workspace =
-        workspaceRepository.findActiveByIdOrNull(workspaceId)
+        workspaceQueryRepository.findActiveByIdOrNull(workspaceId)
             ?: run {
                 logger.warn("Workspace not found. workspaceId={}", workspaceId)
                 throw DomainException(WorkspaceErrorCode.WORKSPACE_NOT_FOUND)
             }
+
+    private fun resolveDisplayName(accountId: UUID): String = accountDisplayNamePort.findActiveDisplayNameByAccountIdOrNull(accountId)
 
     companion object {
         private val logger = LoggerFactory.getLogger(WorkspaceService::class.java)
