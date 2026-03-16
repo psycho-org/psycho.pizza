@@ -49,7 +49,8 @@ class TaskFacadeImpl(
         id: UUID,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
-    ): Int = taskService.deleteTaskById(id, deletedBy, workspaceId)
+        reason: String?,
+    ): Int = taskService.deleteTaskById(id, deletedBy, workspaceId, reason)
 
     override fun deleteTasksByIdIn(
         ids: Collection<UUID>,

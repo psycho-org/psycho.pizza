@@ -5,6 +5,7 @@ import org.springframework.transaction.event.TransactionPhase
 import org.springframework.transaction.event.TransactionalEventListener
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.log.loggerDelegate
+import pizza.psycho.sos.project.sprint.application.port.out.dto.SprintPeriodSnapshot
 import pizza.psycho.sos.project.task.application.port.out.TaskSprintParticipationQuery
 import pizza.psycho.sos.project.task.domain.event.TaskAssigneeChangedEvent
 import pizza.psycho.sos.project.task.domain.event.TaskDeletedEvent
@@ -24,36 +25,39 @@ class TaskDomainEventPublishingHandler(
 ) {
     private val log by loggerDelegate()
 
-    private fun isInAnyActiveSprint(event: TaskDomainEvent): Boolean =
-        sprintMembershipQuery.existsActiveSprintByTaskId(
+    private fun findActiveSprintPeriods(event: TaskDomainEvent): List<SprintPeriodSnapshot> =
+        sprintMembershipQuery.findActiveSprintPeriodsByTaskId(
             taskId = event.taskId,
             workspaceId = event.workspaceId,
         )
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun handle(event: TaskDomainEvent) {
-        val isInSprint = sprintMembershipRegistry.consume(event.eventId) ?: isInAnyActiveSprint(event)
+        val sprintPeriods = sprintMembershipRegistry.consume(event.eventId) ?: findActiveSprintPeriods(event)
 
         // 스프린트에 속하지 않는 Task 의 이벤트는 audit 으로 전달하지 않는다
-        if (!isInSprint) {
+        if (sprintPeriods.isEmpty()) {
             log.debug("Skip task event for non-sprint task: $event")
             return
         }
 
         when (event) {
             is TaskStatusChangedEvent ->
-                eventPublisher
-                    .publish(
-                        AuditTaskStatusChangedEvent(
-                            workspaceId = event.workspaceId,
-                            actorId = event.actorId,
-                            taskId = event.taskId,
-                            fromStatus = event.fromStatus,
-                            toStatus = event.toStatus,
-                            eventId = event.eventId,
-                            occurredAt = event.occurredAt,
-                        ),
-                    ).also { log.info("Task status changed event: $event") }
+                sprintPeriods
+                    .forEach { sprintPeriod ->
+                        eventPublisher.publish(
+                            AuditTaskStatusChangedEvent(
+                                workspaceId = event.workspaceId,
+                                sprintId = sprintPeriod.sprintId,
+                                actorId = event.actorId,
+                                taskId = event.taskId,
+                                fromStatus = event.fromStatus,
+                                toStatus = event.toStatus,
+                                eventId = event.eventId,
+                                occurredAt = event.occurredAt,
+                            ),
+                        )
+                    }.also { log.info("Task status changed event: $event") }
 
             is TaskAssigneeChangedEvent ->
                 eventPublisher

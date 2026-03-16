@@ -240,6 +240,7 @@ class ProjectService(
                     ?: return@writable ProjectResult.Failure.IdNotFound
 
             validateTaskIds(command)?.let { return@writable it }
+            validateRemoveTaskIds(project, command)?.let { return@writable it }
             moveRemovedTasksToBacklog(project, command)
             applyUpdates(project, command)
             eventPublisher.publishAndClear(project)
@@ -353,6 +354,24 @@ class ProjectService(
                 conflictingAssignments,
             )
             return ProjectResult.Failure.TaskAlreadyAssigned
+        }
+
+        return null
+    }
+
+    private fun validateRemoveTaskIds(
+        project: Project,
+        command: ProjectCommand.Update,
+    ): ProjectResult.Failure? {
+        if (command.removeTaskIds.isEmpty()) {
+            return null
+        }
+
+        val currentTaskIds = project.taskIds().toSet()
+        val invalidIds = command.removeTaskIds.filterNot(currentTaskIds::contains)
+        if (invalidIds.isNotEmpty()) {
+            log.warn("update: removeTaskIds contain tasks not in project. invalid={}", invalidIds)
+            return ProjectResult.Failure.TaskNotFound
         }
 
         return null
@@ -498,6 +517,12 @@ class ProjectService(
             return
         }
 
+        val removedSprintPeriodsById =
+            projectSprintParticipationQuery
+                .findActiveSprintPeriodsByProjectId(removedProjectId, workspaceId.value)
+                .filter { it.sprintId in removedSprintIds }
+                .associateBy { it.sprintId }
+
         val assignmentsByTaskId =
             assignments.groupBy(TaskAssignment::taskId) { it.projectId }
 
@@ -515,12 +540,15 @@ class ProjectService(
                 .asSequence()
                 .filterNot(remainingSprintIds::contains)
                 .forEach { sprintId ->
+                    val sprintPeriod = removedSprintPeriodsById[sprintId] ?: return@forEach
                     eventPublisher.publish(
                         TaskRemovedFromSprintEvent(
                             workspaceId = workspaceId.value,
                             sprintId = sprintId,
                             taskId = taskId,
                             actorId = actorId,
+                            sprintStartDate = sprintPeriod.startDate,
+                            sprintEndDate = sprintPeriod.endDate,
                             eventId = UUID.randomUUID(),
                         ),
                     )

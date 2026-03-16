@@ -7,6 +7,7 @@ import pizza.psycho.sos.project.project.application.port.out.ProjectPort
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
 import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
+import pizza.psycho.sos.project.project.domain.event.ProjectDeletedEvent
 import java.util.UUID
 
 @Component
@@ -32,13 +33,15 @@ class ProjectAdapter(
         projectId: UUID,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
-    ): Int = projectFacade.deleteProjectById(projectId, deletedBy, workspaceId)
+        reason: String?,
+    ): Int = projectFacade.deleteProjectById(projectId, deletedBy, workspaceId, reason)
 
     override fun deleteByIdIn(
         projectIds: Collection<UUID>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
-    ): Int = projectFacade.deleteProjectsByIdIn(projectIds, deletedBy, workspaceId)
+        reason: String?,
+    ): List<ProjectDeletedEvent> = projectFacade.deleteProjectsByIdIn(projectIds, deletedBy, workspaceId, reason)
 
     override fun findActiveProjectIdsByTaskIds(
         taskIds: Collection<UUID>,

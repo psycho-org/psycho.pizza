@@ -61,6 +61,8 @@ class TaskServiceTests {
         }
         every { domainEventPublisher.publishAndClear(any()) } returns Unit
         every { domainEventPublisher.publish(any<TaskDeletedEvent>()) } returns Unit
+        every { taskSprintParticipationQuery.findActiveSprintPeriodsByTaskId(any(), any()) } returns emptyList()
+        every { sprintParticipationQuery.findTaskIdsInActiveSprints(any(), any()) } returns emptySet()
     }
 
     @AfterEach
@@ -215,8 +217,6 @@ class TaskServiceTests {
                 }
 
         every { taskRepository.findActiveTaskByIdOrNull(taskId, WorkspaceId(workspaceId)) } returns task
-        every { sprintParticipationQuery.existsActiveSprintByTaskId(taskId, workspaceId) } returns false
-
         val result =
             taskService.remove(
                 TaskCommand.RemoveTask(

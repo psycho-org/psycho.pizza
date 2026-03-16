@@ -8,6 +8,7 @@ import io.mockk.unmockkAll
 import io.mockk.verify
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -26,6 +27,7 @@ import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.event.ProjectDeletedEvent
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
+import pizza.psycho.sos.project.sprint.application.port.out.dto.SprintPeriodSnapshot
 import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
@@ -462,6 +464,17 @@ class ProjectServiceTests {
             )
         every { sprintParticipationQuery.findActiveSprintIdsByProjectId(projectId, workspaceId.value) } returns listOf(sprintId)
         every {
+            projectSprintParticipationQuery.findActiveSprintPeriodsByProjectId(projectId, workspaceId.value)
+        } returns
+            listOf(
+                SprintPeriodSnapshot(
+                    sprintId = sprintId,
+                    workspaceId = workspaceId.value,
+                    startDate = Instant.parse("2026-01-01T00:00:00Z"),
+                    endDate = Instant.parse("2026-01-15T00:00:00Z"),
+                ),
+            )
+        every {
             sprintParticipationQuery.findActiveSprintIdsByProjectIds(setOf(otherProjectId), workspaceId.value)
         } returns mapOf(otherProjectId to setOf(otherSprintId))
 
@@ -667,6 +680,35 @@ class ProjectServiceTests {
 
         assertTrue(result is ProjectResult.Failure.InvalidRequest)
         verify(exactly = 0) { taskPort.findByIdIn(any<Collection<UUID>>(), any()) }
+        verify(exactly = 0) { eventPublisher.publishAndClear(any()) }
+    }
+
+    @Test
+    fun `프로젝트 수정 시 removeTaskIds 에 현재 프로젝트에 없는 태스크가 있으면 TaskNotFound를 반환한다`() {
+        val workspaceId = WorkspaceId(UUID.randomUUID())
+        val projectId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val missingTaskId = UUID.randomUUID()
+        val project =
+            Project.create(workspaceId = workspaceId, name = "프로젝트").apply {
+                id = projectId
+                addTask(taskId)
+            }
+
+        every { projectRepository.findActiveProjectByIdOrNull(projectId, workspaceId) } returns project
+
+        val result =
+            projectService.modify(
+                ProjectCommand.Update(
+                    workspaceId = workspaceId,
+                    projectId = projectId,
+                    removeTaskIds = listOf(missingTaskId),
+                ),
+            )
+
+        assertTrue(result is ProjectResult.Failure.TaskNotFound)
+        assertFalse(project.hasTask(missingTaskId))
+        verify(exactly = 0) { taskPort.moveSprintTasksToBacklog(any(), any(), any(), any()) }
         verify(exactly = 0) { eventPublisher.publishAndClear(any()) }
     }
 

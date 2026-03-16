@@ -32,6 +32,7 @@ interface TaskFacade {
         id: UUID,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
+        reason: String? = null,
     ): Int
 
     fun deleteTasksByIdIn(

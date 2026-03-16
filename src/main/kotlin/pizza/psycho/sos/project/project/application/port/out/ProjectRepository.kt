@@ -5,6 +5,7 @@ import org.springframework.data.domain.Pageable
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
+import pizza.psycho.sos.project.project.domain.event.ProjectDeletedEvent
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import java.util.UUID
 
@@ -33,13 +34,15 @@ interface ProjectRepository {
         projectId: UUID,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
+        reason: String? = null,
     ): Int
 
     fun deleteByIdIn(
         projectIds: Collection<UUID>,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
-    ): Int
+        reason: String? = null,
+    ): List<ProjectDeletedEvent>
 
     fun save(project: Project): Project
 

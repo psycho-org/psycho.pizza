@@ -11,6 +11,7 @@ import pizza.psycho.sos.project.sprint.domain.event.SprintPeriodChangedEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskAddedToSprintEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
 import pizza.psycho.sos.project.sprint.infrastructure.adapter.out.event.SprintDomainEventPublishingHandler
+import java.time.Instant
 import java.util.UUID
 import pizza.psycho.sos.audit.application.listener.event.SprintGoalChangedEvent as AuditSprintGoalChangedEvent
 import pizza.psycho.sos.audit.application.listener.event.SprintPeriodChangedEvent as AuditSprintPeriodChangedEvent
@@ -70,8 +71,10 @@ class SprintDomainEventPublishingHandlerTests {
                 workspaceId = UUID.randomUUID(),
                 sprintId = UUID.randomUUID(),
                 actorId = UUID.randomUUID(),
-                fromPeriod = "before",
-                toPeriod = "after",
+                fromStartDate = Instant.parse("2026-01-01T00:00:00Z"),
+                fromEndDate = Instant.parse("2026-01-08T00:00:00Z"),
+                toStartDate = Instant.parse("2026-01-02T00:00:00Z"),
+                toEndDate = Instant.parse("2026-01-09T00:00:00Z"),
                 eventId = UUID.randomUUID(),
             )
 
@@ -83,8 +86,10 @@ class SprintDomainEventPublishingHandlerTests {
                     it.workspaceId == event.workspaceId &&
                         it.sprintId == event.sprintId &&
                         it.actorId == event.actorId &&
-                        it.fromPeriod == event.fromPeriod &&
-                        it.toPeriod == event.toPeriod &&
+                        it.fromStartDate == event.fromStartDate &&
+                        it.fromEndDate == event.fromEndDate &&
+                        it.toStartDate == event.toStartDate &&
+                        it.toEndDate == event.toEndDate &&
                         it.eventId == event.eventId
                 },
             )
@@ -99,6 +104,8 @@ class SprintDomainEventPublishingHandlerTests {
                 sprintId = UUID.randomUUID(),
                 taskId = UUID.randomUUID(),
                 actorId = UUID.randomUUID(),
+                sprintStartDate = Instant.parse("2026-01-01T00:00:00Z"),
+                sprintEndDate = Instant.parse("2026-01-08T00:00:00Z"),
                 eventId = UUID.randomUUID(),
             )
 
@@ -111,6 +118,8 @@ class SprintDomainEventPublishingHandlerTests {
                         it.sprintId == event.sprintId &&
                         it.taskId == event.taskId &&
                         it.actorId == event.actorId &&
+                        it.sprintStartDate == event.sprintStartDate &&
+                        it.sprintEndDate == event.sprintEndDate &&
                         it.eventId == event.eventId
                 },
             )
@@ -125,6 +134,8 @@ class SprintDomainEventPublishingHandlerTests {
                 sprintId = UUID.randomUUID(),
                 taskId = UUID.randomUUID(),
                 actorId = UUID.randomUUID(),
+                sprintStartDate = Instant.parse("2026-01-01T00:00:00Z"),
+                sprintEndDate = Instant.parse("2026-01-08T00:00:00Z"),
                 eventId = UUID.randomUUID(),
             )
 
@@ -137,6 +148,8 @@ class SprintDomainEventPublishingHandlerTests {
                         it.sprintId == event.sprintId &&
                         it.taskId == event.taskId &&
                         it.actorId == event.actorId &&
+                        it.sprintStartDate == event.sprintStartDate &&
+                        it.sprintEndDate == event.sprintEndDate &&
                         it.eventId == event.eventId
                 },
             )

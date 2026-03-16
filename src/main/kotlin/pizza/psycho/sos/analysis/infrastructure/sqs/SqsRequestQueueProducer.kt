@@ -12,7 +12,7 @@ import java.util.UUID
 @Component
 class SqsRequestQueueProducer(
     private val sqsTemplate: SqsTemplate,
-    @Value("\${sqs.request-queue-name}")
+    @param:Value("\${sqs.request-queue-name}")
     private val queueName: String,
 ) : RequestQueueProducer {
     private val log by loggerDelegate()

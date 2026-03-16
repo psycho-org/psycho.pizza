@@ -11,8 +11,10 @@ import pizza.psycho.sos.project.project.domain.event.TaskRemovedFromProjectEvent
 import pizza.psycho.sos.project.project.domain.event.TasksAddedToProjectEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskAddedToSprintEvent
 import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
+import pizza.psycho.sos.project.sprint.domain.model.entity.Sprint
 import pizza.psycho.sos.project.sprint.domain.repository.SprintRepository
 import pizza.psycho.sos.project.sprint.infrastructure.adapter.out.event.SprintTaskInProjectDomainEventHandler
+import java.time.Instant
 import java.util.UUID
 
 class SprintTaskInProjectDomainEventHandlerTests {
@@ -29,12 +31,8 @@ class SprintTaskInProjectDomainEventHandlerTests {
         val taskId = UUID.randomUUID()
         val actorId = UUID.randomUUID()
 
-        every {
-            sprintRepository.findActiveSprintIdsByProjectId(fromProjectId, WorkspaceId(workspaceId))
-        } returns listOf(sprintId)
-        every {
-            sprintRepository.findActiveSprintIdsByProjectId(toProjectId, WorkspaceId(workspaceId))
-        } returns listOf(sprintId)
+        stubActiveSprints(fromProjectId, workspaceId, sprintId)
+        stubActiveSprints(toProjectId, workspaceId, sprintId)
         every {
             sprintRepository.findActiveSprintIdsByTaskIds(listOf(taskId), WorkspaceId(workspaceId))
         } returns mapOf(taskId to setOf(sprintId))
@@ -73,12 +71,8 @@ class SprintTaskInProjectDomainEventHandlerTests {
         val taskId = UUID.randomUUID()
         val actorId = UUID.randomUUID()
 
-        every {
-            sprintRepository.findActiveSprintIdsByProjectId(fromProjectId, WorkspaceId(workspaceId))
-        } returns listOf(sprintFrom)
-        every {
-            sprintRepository.findActiveSprintIdsByProjectId(toProjectId, WorkspaceId(workspaceId))
-        } returns listOf(sprintTo)
+        stubActiveSprints(fromProjectId, workspaceId, sprintFrom)
+        stubActiveSprints(toProjectId, workspaceId, sprintTo)
         every {
             sprintRepository.findActiveSprintIdsByTaskIds(listOf(taskId), WorkspaceId(workspaceId))
         } returns emptyMap()
@@ -126,9 +120,7 @@ class SprintTaskInProjectDomainEventHandlerTests {
         val projectId = UUID.randomUUID()
         val taskId = UUID.randomUUID()
 
-        every {
-            sprintRepository.findActiveSprintIdsByProjectId(projectId, WorkspaceId(workspaceId))
-        } returns listOf(sprintId)
+        stubActiveSprints(projectId, workspaceId, sprintId)
         val event =
             TaskAddedToProjectEvent(
                 workspaceId = workspaceId,
@@ -151,9 +143,7 @@ class SprintTaskInProjectDomainEventHandlerTests {
         val taskId1 = UUID.randomUUID()
         val taskId2 = UUID.randomUUID()
 
-        every {
-            sprintRepository.findActiveSprintIdsByProjectId(projectId, WorkspaceId(workspaceId))
-        } returns listOf(sprintId)
+        stubActiveSprints(projectId, workspaceId, sprintId)
 
         handler.handle(
             TasksAddedToProjectEvent(
@@ -166,7 +156,7 @@ class SprintTaskInProjectDomainEventHandlerTests {
         )
 
         verify(exactly = 1) {
-            sprintRepository.findActiveSprintIdsByProjectId(projectId, WorkspaceId(workspaceId))
+            sprintRepository.findActiveSprintsByProjectId(projectId, WorkspaceId(workspaceId))
         }
         verify(exactly = 2) { eventPublisher.publish(any<TaskAddedToSprintEvent>()) }
     }
@@ -180,12 +170,12 @@ class SprintTaskInProjectDomainEventHandlerTests {
         val actorId = UUID.randomUUID()
 
         every {
-            sprintRepository.findActiveSprintIdsByProjectId(projectId, WorkspaceId(workspaceId))
+            sprintRepository.findActiveSprintsByProjectId(projectId, WorkspaceId(workspaceId))
         } returnsMany
             listOf(
-                listOf(sprintId),
+                listOf(activeSprint(workspaceId, sprintId)),
                 emptyList(),
-                listOf(sprintId),
+                listOf(activeSprint(workspaceId, sprintId)),
             )
 
         val addedEvent =
@@ -225,9 +215,7 @@ class SprintTaskInProjectDomainEventHandlerTests {
         val taskId = UUID.randomUUID()
         val actorId = UUID.randomUUID()
 
-        every {
-            sprintRepository.findActiveSprintIdsByProjectId(projectId, WorkspaceId(workspaceId))
-        } returns listOf(sprintId)
+        stubActiveSprints(projectId, workspaceId, sprintId)
 
         val addedEvent =
             TaskAddedToProjectEvent(
@@ -245,6 +233,8 @@ class SprintTaskInProjectDomainEventHandlerTests {
                 sprintId = sprintId,
                 taskId = taskId,
                 actorId = actorId,
+                sprintStartDate = java.time.Instant.parse("2026-01-01T00:00:00Z"),
+                sprintEndDate = java.time.Instant.parse("2026-01-08T00:00:00Z"),
                 eventId = UUID.randomUUID(),
             ),
         )
@@ -263,12 +253,8 @@ class SprintTaskInProjectDomainEventHandlerTests {
         val taskId = UUID.randomUUID()
         val actorId = UUID.randomUUID()
 
-        every {
-            sprintRepository.findActiveSprintIdsByProjectId(fromProjectId, WorkspaceId(workspaceId))
-        } returns listOf(sharedSprintId)
-        every {
-            sprintRepository.findActiveSprintIdsByProjectId(toProjectId, WorkspaceId(workspaceId))
-        } returns listOf(sharedSprintId, newSprintId)
+        stubActiveSprints(fromProjectId, workspaceId, sharedSprintId)
+        stubActiveSprints(toProjectId, workspaceId, sharedSprintId, newSprintId)
         every {
             sprintRepository.findActiveSprintIdsByTaskIds(listOf(taskId), WorkspaceId(workspaceId))
         } returns mapOf(taskId to setOf(sharedSprintId))
@@ -313,9 +299,7 @@ class SprintTaskInProjectDomainEventHandlerTests {
         val taskId = UUID.randomUUID()
         val actorId = UUID.randomUUID()
 
-        every {
-            sprintRepository.findActiveSprintIdsByProjectId(projectId, WorkspaceId(workspaceId))
-        } returns listOf(sharedSprintId, removedSprintId)
+        stubActiveSprints(projectId, workspaceId, sharedSprintId, removedSprintId)
         every {
             sprintRepository.findActiveSprintIdsByTaskIds(listOf(taskId), WorkspaceId(workspaceId))
         } returns mapOf(taskId to setOf(sharedSprintId))
@@ -341,4 +325,27 @@ class SprintTaskInProjectDomainEventHandlerTests {
             )
         }
     }
+
+    private fun stubActiveSprints(
+        projectId: UUID,
+        workspaceId: UUID,
+        vararg sprintIds: UUID,
+    ) {
+        every {
+            sprintRepository.findActiveSprintsByProjectId(projectId, WorkspaceId(workspaceId))
+        } returns sprintIds.map { sprintId -> activeSprint(workspaceId, sprintId) }
+    }
+
+    private fun activeSprint(
+        workspaceId: UUID,
+        sprintId: UUID,
+    ): Sprint =
+        Sprint
+            .create(
+                name = "Sprint-$sprintId",
+                workspaceId = WorkspaceId(workspaceId),
+                goal = null,
+                startDate = Instant.parse("2026-01-01T00:00:00Z"),
+                endDate = Instant.parse("2026-01-08T00:00:00Z"),
+            ).also { it.id = sprintId }
 }
