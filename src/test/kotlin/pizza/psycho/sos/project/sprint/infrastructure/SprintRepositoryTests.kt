@@ -119,6 +119,7 @@ class SprintRepositoryTests {
         assertFalse(sprintRepository.existsActiveSprintByTaskIdAndSprintId(taskId, sprint.sprintId, workspaceId))
         assertFalse(sprintRepository.existsActiveSprintByTaskId(taskId, workspaceId))
         assertTrue(sprintRepository.findActiveSprintIdsByTaskId(taskId, workspaceId).isEmpty())
+        assertTrue(sprintRepository.findActiveSprintsByTaskId(taskId, workspaceId).isEmpty())
     }
 
     @Test
@@ -146,6 +147,7 @@ class SprintRepositoryTests {
         assertFalse(sprintRepository.existsActiveSprintByTaskIdAndSprintId(taskId, sprint.sprintId, workspaceId))
         assertFalse(sprintRepository.existsActiveSprintByTaskId(taskId, workspaceId))
         assertTrue(sprintRepository.findActiveSprintIdsByTaskId(taskId, workspaceId).isEmpty())
+        assertTrue(sprintRepository.findActiveSprintsByTaskId(taskId, workspaceId).isEmpty())
     }
 
     @Test

@@ -26,6 +26,7 @@ import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.model.entity.Project
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
+import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
 import pizza.psycho.sos.project.task.application.port.out.dto.SprintTaskMembershipSnapshot
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
@@ -40,8 +41,18 @@ class ProjectServiceTests {
     private val eventPublisher = mockk<DomainEventPublisher>()
     private val sprintTaskPolicy = mockk<SprintTaskPolicy>(relaxed = true)
     private val sprintParticipationQuery = mockk<ProjectSprintParticipationQuery>()
+    private val projectSprintParticipationQuery = mockk<ProjectSprintParticipationQuery>()
+    private val sprintTaskPeriodPolicy = mockk<SprintTaskPeriodPolicy>()
     private val projectService =
-        ProjectService(projectRepository, eventPublisher, taskPort, sprintTaskPolicy, sprintParticipationQuery)
+        ProjectService(
+            projectRepository,
+            eventPublisher,
+            taskPort,
+            projectSprintParticipationQuery,
+            sprintTaskPeriodPolicy,
+            sprintTaskPolicy,
+            sprintParticipationQuery,
+        )
 
     @BeforeEach
     fun setUp() {
@@ -70,6 +81,14 @@ class ProjectServiceTests {
                 )
             }
         }
+        every {
+            projectSprintParticipationQuery.findActiveSprintPeriodsByProjectId(any(), any())
+        } returns emptyList()
+        every {
+            sprintTaskPeriodPolicy.isTaskDueDateWithinSprint(any(), any())
+        } returns true
+        justRun { eventPublisher.publishAndClear(any()) }
+        justRun { eventPublisher.publishAndClearAll(any()) }
     }
 
     @AfterEach
@@ -183,6 +202,75 @@ class ProjectServiceTests {
             )
         }
         verify(exactly = 1) { taskPort.findByIdIn(listOf(activeTaskId), workspaceId) }
+    }
+
+    @Test
+    fun `프로젝트 태스크 조회 시 sprint 기간 검사는 모든 active sprint 기준으로 계산한다`() {
+        val workspaceId = WorkspaceId(UUID.randomUUID())
+        val projectId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val pageable = PageRequest.of(0, 10)
+        val command = ProjectQuery.FindTasksInProject(workspaceId, projectId, pageable)
+        val dueDate = Instant.parse("2026-01-10T00:00:00Z")
+        val project =
+            Project
+                .create(
+                    workspaceId = workspaceId,
+                    name = "프로젝트",
+                ).apply {
+                    id = projectId
+                    addTask(taskId)
+                }
+        val taskSnapshot =
+            TaskSnapshot(
+                id = taskId,
+                title = "태스크",
+                status = Status.TODO,
+                assigneeId = null,
+                dueDate = dueDate,
+            )
+        val sprintPeriods =
+            listOf(
+                pizza.psycho.sos.project.sprint.application.port.out.dto.SprintPeriodSnapshot(
+                    sprintId = UUID.randomUUID(),
+                    workspaceId = workspaceId.value,
+                    startDate = Instant.parse("2026-01-01T00:00:00Z"),
+                    endDate = Instant.parse("2026-01-15T00:00:00Z"),
+                ),
+                pizza.psycho.sos.project.sprint.application.port.out.dto.SprintPeriodSnapshot(
+                    sprintId = UUID.randomUUID(),
+                    workspaceId = workspaceId.value,
+                    startDate = Instant.parse("2026-01-12T00:00:00Z"),
+                    endDate = Instant.parse("2026-01-20T00:00:00Z"),
+                ),
+            )
+
+        every { projectRepository.findActiveProjectByIdOrNull(projectId, workspaceId) } returns project
+        every {
+            projectRepository.findActiveTaskIdsByProjectId(
+                projectId = projectId,
+                workspaceId = workspaceId,
+                pageable = pageable,
+            )
+        } returns PageImpl(listOf(taskId), pageable, 1)
+        every { taskPort.findByIdIn(listOf(taskId), workspaceId) } returns listOf(taskSnapshot)
+        every {
+            projectSprintParticipationQuery.findActiveSprintPeriodsByProjectId(projectId, workspaceId.value)
+        } returns sprintPeriods
+        every {
+            sprintTaskPeriodPolicy.isTaskDueDateWithinSprint(any(), dueDate)
+        } returnsMany listOf(true, false)
+
+        val result = projectService.getTasksInProject(command)
+
+        assertTrue(result is ProjectResult.TaskList)
+        result as ProjectResult.TaskList
+        assertEquals(
+            false,
+            result.page.content
+                .single()
+                .isWithinSprintPeriod,
+        )
     }
 
     @Test
@@ -502,6 +590,29 @@ class ProjectServiceTests {
             )
 
         assertTrue(result is ProjectResult.Failure.TaskAlreadyAssigned)
+        verify(exactly = 0) { eventPublisher.publishAndClear(any()) }
+    }
+
+    @Test
+    fun `프로젝트 수정 시 addTaskIds 에 중복 ID가 있으면 InvalidRequest를 반환한다`() {
+        val workspaceId = WorkspaceId(UUID.randomUUID())
+        val projectId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val project = Project.create(workspaceId = workspaceId, name = "프로젝트").apply { id = projectId }
+
+        every { projectRepository.findActiveProjectByIdOrNull(projectId, workspaceId) } returns project
+
+        val result =
+            projectService.modify(
+                ProjectCommand.Update(
+                    workspaceId = workspaceId,
+                    projectId = projectId,
+                    addTaskIds = listOf(taskId, taskId),
+                ),
+            )
+
+        assertTrue(result is ProjectResult.Failure.InvalidRequest)
+        verify(exactly = 0) { taskPort.findByIdIn(any<Collection<UUID>>(), any()) }
         verify(exactly = 0) { eventPublisher.publishAndClear(any()) }
     }
 
