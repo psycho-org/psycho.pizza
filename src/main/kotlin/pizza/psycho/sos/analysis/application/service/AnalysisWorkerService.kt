@@ -1,6 +1,7 @@
 package pizza.psycho.sos.analysis.application.service
 
 import org.springframework.stereotype.Service
+import pizza.psycho.sos.analysis.application.port.RequestQueueProducer
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import java.util.UUID
 
@@ -13,6 +14,7 @@ class AnalysisWorkerService(
     val analysisLifecycleService: AnalysisLifecycleService,
     private val sprintAnalysisMetricService: SprintAnalysisMetricService,
     private val analysisRequestService: AnalysisRequestService,
+    private val requestQueueProducer: RequestQueueProducer,
 ) {
     private val log by loggerDelegate()
 
@@ -36,7 +38,11 @@ class AnalysisWorkerService(
                 )
 
             step = AnalysisStep.SEND_MESSAGE_TO_SQS
-            // TODO: sqs client 호출 -> 다음 PR로 끊어가겠습니다
+            requestQueueProducer.send(
+                workspaceId = analysisRequest.workspaceId,
+                analysisRequestId = jobId,
+                payload = input,
+            )
 
             log.info("🚀 Successfully sent analysis job to SQS: $jobId")
         } catch (e: Exception) {
