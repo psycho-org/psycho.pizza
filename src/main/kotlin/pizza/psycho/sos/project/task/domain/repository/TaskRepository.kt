@@ -27,6 +27,12 @@ interface TaskRepository {
         pageable: Pageable,
     ): Page<Task>
 
+    fun findAllActiveTasksByAssigneeId(
+        workspaceId: WorkspaceId,
+        assigneeId: UUID,
+        pageable: Pageable,
+    ): Page<Task>
+
     fun findAllActiveBacklogTasks(
         workspaceId: WorkspaceId,
         pageable: Pageable,
