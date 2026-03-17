@@ -27,6 +27,7 @@ sealed interface ProjectResult {
         val status: Status,
         val assignee: Assignee? = null,
         val dueDate: Instant? = null,
+        val isWithinSprintPeriod: Boolean? = null,
     ) : ProjectResult
 
     data class TaskList(
@@ -40,10 +41,6 @@ sealed interface ProjectResult {
     ) : ProjectResult
 
     data class Remove(
-        val count: Int,
-    ) : ProjectResult
-
-    data class RemoveWithTasks(
         val projectCount: Int,
         val taskCount: Int,
     ) : ProjectResult
@@ -62,5 +59,7 @@ sealed interface ProjectResult {
         data object TaskNotFound : Failure
 
         data object InvalidRequest : Failure
+
+        data object TaskAlreadyAssigned : Failure
     }
 }

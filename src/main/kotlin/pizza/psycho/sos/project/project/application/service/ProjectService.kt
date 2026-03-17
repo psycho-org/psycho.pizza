@@ -1,21 +1,38 @@
 package pizza.psycho.sos.project.project.application.service
 
-import org.springframework.data.domain.Page
+import org.springframework.data.domain.PageImpl
 import org.springframework.stereotype.Service
+import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.common.support.transaction.helper.Tx
+import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectRepository
+import pizza.psycho.sos.project.project.application.port.out.ProjectSprintParticipationQuery
+import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
 import pizza.psycho.sos.project.project.application.service.dto.ProjectCommand
+import pizza.psycho.sos.project.project.application.service.dto.ProjectQuery
 import pizza.psycho.sos.project.project.application.service.dto.ProjectResult
 import pizza.psycho.sos.project.project.domain.model.entity.Project
+import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
+import pizza.psycho.sos.project.sprint.application.port.out.dto.SprintPeriodSnapshot
+import pizza.psycho.sos.project.sprint.domain.event.TaskRemovedFromSprintEvent
+import pizza.psycho.sos.project.sprint.domain.model.vo.Period
+import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
 import pizza.psycho.sos.project.task.application.port.out.TaskPort
+import pizza.psycho.sos.project.task.application.port.out.dto.SprintTaskMembershipSnapshot
 import pizza.psycho.sos.project.task.application.port.out.dto.TaskSnapshot
+import java.util.UUID
 
 @Service
 class ProjectService(
     private val projectRepository: ProjectRepository,
+    private val eventPublisher: DomainEventPublisher,
     private val taskPort: TaskPort,
+    private val projectSprintParticipationQuery: ProjectSprintParticipationQuery,
+    private val sprintTaskPeriodPolicy: SprintTaskPeriodPolicy,
+    private val sprintTaskPolicy: SprintTaskPolicy,
+    private val sprintParticipationQuery: ProjectSprintParticipationQuery,
 ) {
     private val log by loggerDelegate()
 
@@ -23,7 +40,7 @@ class ProjectService(
      * todo: 워크스페이스의 모든 프로젝트를 찾는 로직 추가
      */
 
-    fun getProject(command: ProjectCommand.Get): ProjectResult =
+    fun getProject(command: ProjectQuery.Find): ProjectResult =
         Tx.readable {
             log.debug("getProject: projectId={}, workspaceId={}", command.projectId, command.workspaceId)
 
@@ -43,24 +60,50 @@ class ProjectService(
                 .also { log.info("getProject success: projectId=${command.projectId}") }
         }
 
-    fun getTasksInProject(command: ProjectCommand.GetTasks): ProjectResult =
+    fun getTasksInProject(command: ProjectQuery.FindTasksInProject): ProjectResult =
         Tx.readable {
             log.debug("getTasksInProject: projectId={}, workspaceId={}", command.projectId, command.workspaceId)
 
-            val project =
-                projectRepository.findActiveProjectByIdOrNull(command.projectId, command.workspaceId)
-                    ?: run {
-                        log.warn("getTasksInProject: project not found. projectId={}", command.projectId)
-                        return@readable ProjectResult.Failure.IdNotFound
-                    }
+            projectRepository.findActiveProjectByIdOrNull(command.projectId, command.workspaceId)
+                ?: run {
+                    log.warn("getTasksInProject: project not found. projectId={}", command.projectId)
+                    return@readable ProjectResult.Failure.IdNotFound
+                }
 
-            taskPort
-                .findByIdIn(
-                    ids = project.taskIds(),
+            val taskIdsPage =
+                projectRepository.findActiveTaskIdsByProjectId(
+                    projectId = command.projectId,
                     workspaceId = command.workspaceId,
                     pageable = command.pageable,
-                ).let { ProjectResult.TaskList(it.toResult()) }
-                .also { log.info("getTasksInProject success: projectId=${command.projectId}") }
+                )
+            if (taskIdsPage.isEmpty) {
+                return@readable ProjectResult.TaskList(PageImpl(emptyList(), command.pageable, 0))
+            }
+
+            val tasksById =
+                taskPort
+                    .findByIdIn(
+                        ids = taskIdsPage.content,
+                        workspaceId = command.workspaceId,
+                    ).associateBy(TaskSnapshot::id)
+            val sprintPeriods =
+                projectSprintParticipationQuery.findActiveSprintPeriodsByProjectId(
+                    projectId = command.projectId,
+                    workspaceId = command.workspaceId.value,
+                )
+
+            ProjectResult
+                .TaskList(
+                    PageImpl(
+                        taskIdsPage.content.mapNotNull(tasksById::get).map { snapshot ->
+                            snapshot.toResult(
+                                isWithinSprintPeriod = resolveTaskSprintPeriodStatus(snapshot, sprintPeriods),
+                            )
+                        },
+                        command.pageable,
+                        taskIdsPage.totalElements,
+                    ),
+                ).also { log.info("getTasksInProject success: projectId=${command.projectId}") }
         }
 
     fun create(command: ProjectCommand.Create): ProjectResult =
@@ -78,7 +121,33 @@ class ProjectService(
                         log.warn("createTask: project not found. projectId={}", command.projectId)
                         return@writable ProjectResult.Failure.IdNotFound
                     }
+            if (command.dueDate != null) {
+                val sprintPeriods =
+                    projectSprintParticipationQuery.findActiveSprintPeriodsByProjectId(
+                        projectId = command.projectId,
+                        workspaceId = command.workspaceId.value,
+                    )
 
+                val violatesSprint =
+                    sprintPeriods.any { snapshot ->
+                        !sprintTaskPeriodPolicy.isTaskDueDateWithinSprint(
+                            Period(snapshot.startDate, snapshot.endDate),
+                            command.dueDate,
+                        )
+                    }
+
+                if (violatesSprint) {
+                    log.warn(
+                        "createTask: dueDate outside sprint period. projectId={}, dueDate={}, sprintIds={}",
+                        command.projectId,
+                        command.dueDate,
+                        sprintPeriods.map { it.sprintId },
+                    )
+                    return@writable ProjectResult.Failure.InvalidRequest
+                }
+            }
+
+            sprintTaskPolicy.validateTaskDueDateForProject(command.projectId, command.dueDate, command.workspaceId)
             val task =
                 taskPort.createTask(
                     workspaceId = command.workspaceId.value,
@@ -87,47 +156,81 @@ class ProjectService(
                     assigneeId = command.assigneeId,
                     dueDate = command.dueDate,
                 )
-            project.addTask(task.id)
+            project.addTask(task.id, command.createdBy)
+            eventPublisher.publishAndClear(project)
             log.info("createTask success: projectId=${command.projectId}, taskId=${task.id}")
             task.toResult()
         }
 
     fun remove(command: ProjectCommand.Remove): ProjectResult =
         Tx.writable {
-            projectRepository
-                .deleteById(command.projectId, command.deletedBy, command.workspaceId)
-                .let { ProjectResult.Remove(it) }
-                .also { log.info("remove success: projectId=${command.projectId}") }
-        }
-
-    fun removeWithTasks(command: ProjectCommand.RemoveWithTasks): ProjectResult =
-        Tx.writable {
             val project =
                 projectRepository.findActiveProjectByIdOrNull(command.projectId, command.workspaceId)
                     ?: run {
-                        log.warn("removeWithTasks: project not found. projectId=${command.projectId}")
+                        log.warn("remove: project not found. projectId={}", command.projectId)
                         return@writable ProjectResult.Failure.IdNotFound
                     }
-
-            val taskIds = project.taskIds()
+            val activeTaskIds = projectRepository.findActiveTaskIdsByProjectId(project.projectId, command.workspaceId)
+            val assignments = assignmentsByTaskIds(activeTaskIds, command.workspaceId)
+            val deletableTaskIds = deletableTaskIds(activeTaskIds, setOf(project.projectId), assignments)
+            val removedSprintIds =
+                sprintParticipationQuery.findActiveSprintIdsByProjectId(project.projectId, command.workspaceId.value)
+            val (sprintIdsByProjectId, taskIdsMovingToBacklog) =
+                if (removedSprintIds.isEmpty()) {
+                    emptyMap<UUID, Set<UUID>>() to emptySet()
+                } else {
+                    val remainingProjectIds =
+                        assignments
+                            .map(TaskAssignment::projectId)
+                            .filterNot { it == project.projectId }
+                            .toSet()
+                    val sprintIdsByProjectId =
+                        sprintParticipationQuery.findActiveSprintIdsByProjectIds(remainingProjectIds, command.workspaceId.value)
+                    sprintIdsByProjectId to
+                        sprintTaskPolicy.tasksMovingToBacklog(
+                            candidateTaskIds = activeTaskIds,
+                            deletableTaskIds = deletableTaskIds,
+                            assignments = assignments,
+                            removedProjectIds = setOf(project.projectId),
+                            sprintIdsByProjectId = sprintIdsByProjectId,
+                        )
+                }
+            if (taskIdsMovingToBacklog.isNotEmpty()) {
+                taskPort.moveSprintTasksToBacklog(
+                    taskIdsMovingToBacklog,
+                    command.deletedBy,
+                    command.workspaceId,
+                    SprintTaskMembershipSnapshot.of(taskIdsMovingToBacklog),
+                )
+            }
+            publishTaskRemovedFromSprintEvents(
+                taskIds = activeTaskIds,
+                assignments = assignments,
+                workspaceId = command.workspaceId,
+                removedProjectId = project.projectId,
+                removedSprintIds = removedSprintIds,
+                sprintIdsByProjectId = sprintIdsByProjectId,
+                actorId = command.deletedBy,
+            )
             val deletedTaskCount =
-                if (taskIds.isEmpty()) {
+                if (deletableTaskIds.isEmpty()) {
                     0
                 } else {
                     taskPort
-                        .deleteByIdIn(taskIds, command.deletedBy, command.workspaceId)
+                        .deleteByIdIn(deletableTaskIds, command.deletedBy, command.workspaceId, command.reason)
                         .also {
                             log.info(
-                                "removeWithTasks: tasks soft-deleted. count={}, projectId={}",
+                                "remove: tasks soft-deleted. count={}, projectId={}",
                                 it,
                                 command.projectId,
                             )
                         }
                 }
 
-            project.delete(command.deletedBy)
-            log.info("removeWithTasks success: projectId=${command.projectId}, deletedTasks=$deletedTaskCount")
-            ProjectResult.RemoveWithTasks(projectCount = 1, taskCount = deletedTaskCount)
+            project.delete(command.deletedBy, command.reason)
+            eventPublisher.publishAndClear(project)
+            log.info("remove success: projectId={}, deletedTasks={}", command.projectId, deletedTaskCount)
+            ProjectResult.Remove(projectCount = 1, taskCount = deletedTaskCount)
         }
 
     fun modify(command: ProjectCommand.Update): ProjectResult =
@@ -137,14 +240,69 @@ class ProjectService(
                     ?: return@writable ProjectResult.Failure.IdNotFound
 
             validateTaskIds(command)?.let { return@writable it }
+            moveRemovedTasksToBacklog(project, command)
             applyUpdates(project, command)
+            eventPublisher.publishAndClear(project)
 
             log.info("update success: projectId=${command.projectId}")
             ProjectResult.Success
         }
 
+    /**
+     * 프로젝트 간 Task 이동
+     */
+    fun moveTask(command: ProjectCommand.MoveTask): ProjectResult =
+        Tx.writable {
+            log.debug(
+                "moveTask: fromProjectId={}, toProjectId={}, taskId={}, workspaceId={}",
+                command.fromProjectId,
+                command.toProjectId,
+                command.taskId,
+                command.workspaceId,
+            )
+
+            val fromProject =
+                projectRepository.findActiveProjectByIdOrNull(command.fromProjectId, command.workspaceId)
+                    ?: run {
+                        log.warn("moveTask: fromProject not found. projectId=${command.fromProjectId}")
+                        return@writable ProjectResult.Failure.IdNotFound
+                    }
+
+            val toProject =
+                projectRepository.findActiveProjectByIdOrNull(command.toProjectId, command.workspaceId)
+                    ?: run {
+                        log.warn("moveTask: toProject not found. projectId=${command.toProjectId}")
+                        return@writable ProjectResult.Failure.IdNotFound
+                    }
+
+            val taskSnapshot =
+                taskPort.findByIdIn(listOf(command.taskId), command.workspaceId).singleOrNull()
+                    ?: return@writable ProjectResult.Failure.TaskNotFound
+            validateMoveTaskAssignments(command)?.let { return@writable it }
+            sprintTaskPolicy.validateTaskAssignmentsToProject(command.toProjectId, listOf(taskSnapshot), command.workspaceId)
+            moveTaskToBacklogIfLeavingLastSprint(fromProject, toProject, command)
+
+            fromProject.moveTaskTo(command.taskId, toProject, command.movedBy)
+            eventPublisher.publishAndClear(fromProject)
+            eventPublisher.publishAndClear(toProject)
+
+            log.info(
+                "moveTask success: taskId={}, fromProjectId={}, toProjectId={}",
+                command.taskId,
+                command.fromProjectId,
+                command.toProjectId,
+            )
+
+            ProjectResult.Success
+        }
+
     private fun validateTaskIds(command: ProjectCommand.Update): ProjectResult.Failure? =
         with(command) {
+            if (addTaskIds.size != addTaskIds.distinct().size) {
+                log.warn("update: addTaskIds contain duplicates. addTaskIds={}", addTaskIds)
+                return@with ProjectResult.Failure.InvalidRequest
+            }
+
             val overlap = addTaskIds.intersect(removeTaskIds.toSet())
             if (overlap.isNotEmpty()) {
                 log.warn("update: addTaskIds and removeTaskIds overlap. overlap={}", overlap)
@@ -157,10 +315,48 @@ class ProjectService(
                     log.warn("update: some taskIds not found. addTaskIds={}", addTaskIds)
                     return@with ProjectResult.Failure.TaskNotFound
                 }
+                sprintTaskPolicy.validateTaskAssignmentsToProject(projectId, existingTasks, workspaceId)
+
+                val assignments =
+                    projectRepository
+                        .findActiveProjectIdsByTaskIds(addTaskIds, workspaceId)
+                        .filter { it.projectId != projectId }
+
+                if (assignments.isNotEmpty()) {
+                    log.warn(
+                        "update: tasks already assigned to other projects. projectId={}, conflicts={}",
+                        projectId,
+                        assignments,
+                    )
+                    return@with ProjectResult.Failure.TaskAlreadyAssigned
+                }
             }
 
             null
         }
+
+    private fun validateMoveTaskAssignments(command: ProjectCommand.MoveTask): ProjectResult.Failure? {
+        val assignments =
+            projectRepository.findActiveProjectIdsByTaskIds(listOf(command.taskId), command.workspaceId)
+
+        if (assignments.isEmpty()) {
+            log.warn("moveTask: task assignment not found. taskId={}, fromProjectId={}", command.taskId, command.fromProjectId)
+            return ProjectResult.Failure.TaskNotFound
+        }
+
+        val conflictingAssignments = assignments.filter { it.projectId != command.fromProjectId }
+        if (conflictingAssignments.isNotEmpty()) {
+            log.warn(
+                "moveTask: task assigned to another project. taskId={}, fromProjectId={}, conflicts={}",
+                command.taskId,
+                command.fromProjectId,
+                conflictingAssignments,
+            )
+            return ProjectResult.Failure.TaskAlreadyAssigned
+        }
+
+        return null
+    }
 
     private fun applyUpdates(
         project: Project,
@@ -169,21 +365,192 @@ class ProjectService(
         name?.let { project.modify(it) }
 
         if (addTaskIds.isNotEmpty()) {
-            project.addTasks(addTaskIds)
+            project.addTasks(addTaskIds, updatedBy)
             log.info("update: tasks added. projectId=$projectId, taskIds=$addTaskIds")
         }
 
         if (removeTaskIds.isNotEmpty()) {
-            project.removeTasks(removeTaskIds)
+            project.removeTasks(removeTaskIds, updatedBy)
             log.info("update: tasks removed. projectId=$projectId, taskIds=$removeTaskIds")
+        }
+    }
+
+    private fun moveRemovedTasksToBacklog(
+        project: Project,
+        command: ProjectCommand.Update,
+    ) {
+        if (command.removeTaskIds.isEmpty()) {
+            return
+        }
+
+        val activeTaskIds =
+            projectRepository
+                .findActiveTaskIdsByProjectId(project.projectId, command.workspaceId)
+                .filter(command.removeTaskIds.toSet()::contains)
+        if (activeTaskIds.isEmpty()) {
+            return
+        }
+
+        moveTasksToBacklogIfLeavingLastSprint(
+            candidateTaskIds = activeTaskIds,
+            workspaceId = command.workspaceId,
+            actorId = command.updatedBy,
+            removedProjectIds = setOf(project.projectId),
+        )
+    }
+
+    private fun moveTaskToBacklogIfLeavingLastSprint(
+        fromProject: Project,
+        toProject: Project,
+        command: ProjectCommand.MoveTask,
+    ) {
+        moveTasksToBacklogIfLeavingLastSprint(
+            candidateTaskIds = listOf(command.taskId),
+            workspaceId = command.workspaceId,
+            actorId = command.movedBy,
+            removedProjectIds = setOf(fromProject.projectId),
+            addedAssignments = listOf(TaskAssignment(command.taskId, toProject.projectId)),
+        )
+    }
+
+    private fun moveTasksToBacklogIfLeavingLastSprint(
+        candidateTaskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+        actorId: UUID?,
+        removedProjectIds: Set<UUID>,
+        addedAssignments: Collection<TaskAssignment> = emptyList(),
+    ) {
+        if (candidateTaskIds.isEmpty()) {
+            return
+        }
+
+        val removedSprintIds =
+            sprintParticipationQuery
+                .findActiveSprintIdsByProjectIds(removedProjectIds, workspaceId.value)
+                .values
+                .flatten()
+                .toSet()
+        if (removedSprintIds.isEmpty()) {
+            return
+        }
+
+        val assignments =
+            (assignmentsByTaskIds(candidateTaskIds, workspaceId) + addedAssignments)
+                .distinctBy { it.taskId to it.projectId }
+        val remainingProjectIds =
+            assignments
+                .map(TaskAssignment::projectId)
+                .filterNot(removedProjectIds::contains)
+                .toSet()
+        val sprintIdsByProjectId =
+            sprintParticipationQuery.findActiveSprintIdsByProjectIds(remainingProjectIds, workspaceId.value)
+        val taskIdsMovingToBacklog =
+            sprintTaskPolicy.tasksMovingToBacklog(
+                candidateTaskIds = candidateTaskIds,
+                deletableTaskIds = emptyList(),
+                assignments = assignments,
+                removedProjectIds = removedProjectIds,
+                sprintIdsByProjectId = sprintIdsByProjectId,
+            )
+
+        if (taskIdsMovingToBacklog.isNotEmpty()) {
+            taskPort.moveSprintTasksToBacklog(
+                taskIdsMovingToBacklog,
+                actorId,
+                workspaceId,
+                SprintTaskMembershipSnapshot.of(taskIdsMovingToBacklog),
+            )
         }
     }
 
     // ----------------------------------------------------------------------------------------------
 
-    private fun Page<TaskSnapshot>.toResult(): Page<ProjectResult.Task> = map { it.toResult() }
+    private fun resolveTaskSprintPeriodStatus(
+        snapshot: TaskSnapshot,
+        sprintPeriods: List<SprintPeriodSnapshot>,
+    ): Boolean? {
+        if (sprintPeriods.isEmpty()) {
+            return null
+        }
 
-    private fun TaskSnapshot.toResult(): ProjectResult.Task =
+        return sprintPeriods.all { sprintPeriod ->
+            sprintTaskPeriodPolicy.isTaskDueDateWithinSprint(
+                Period(sprintPeriod.startDate, sprintPeriod.endDate),
+                snapshot.dueDate,
+            )
+        }
+    }
+
+    private fun publishTaskRemovedFromSprintEvents(
+        taskIds: Collection<UUID>,
+        assignments: List<TaskAssignment>,
+        workspaceId: WorkspaceId,
+        removedProjectId: UUID,
+        removedSprintIds: Collection<UUID>,
+        sprintIdsByProjectId: Map<UUID, Set<UUID>>,
+        actorId: UUID,
+    ) {
+        if (taskIds.isEmpty()) {
+            return
+        }
+
+        if (removedSprintIds.isEmpty()) {
+            return
+        }
+
+        val assignmentsByTaskId =
+            assignments.groupBy(TaskAssignment::taskId) { it.projectId }
+
+        taskIds.distinct().forEach { taskId ->
+            val remainingSprintIds =
+                assignmentsByTaskId[taskId]
+                    .orEmpty()
+                    .asSequence()
+                    .filterNot { it == removedProjectId }
+                    .flatMap { assignedProjectId ->
+                        sprintIdsByProjectId[assignedProjectId].orEmpty().asSequence()
+                    }.toSet()
+
+            removedSprintIds
+                .asSequence()
+                .filterNot(remainingSprintIds::contains)
+                .forEach { sprintId ->
+                    eventPublisher.publish(
+                        TaskRemovedFromSprintEvent(
+                            workspaceId = workspaceId.value,
+                            sprintId = sprintId,
+                            taskId = taskId,
+                            actorId = actorId,
+                            eventId = UUID.randomUUID(),
+                        ),
+                    )
+                }
+        }
+    }
+
+    private fun assignmentsByTaskIds(
+        taskIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<TaskAssignment> = projectRepository.findActiveProjectIdsByTaskIds(taskIds, workspaceId)
+
+    private fun deletableTaskIds(
+        candidateTaskIds: Collection<UUID>,
+        removedProjectIds: Set<UUID>,
+        assignments: List<TaskAssignment>,
+    ): List<UUID> {
+        if (candidateTaskIds.isEmpty()) {
+            return emptyList()
+        }
+
+        val assignmentsByTaskId =
+            assignments.groupBy(TaskAssignment::taskId) { it.projectId }
+
+        return candidateTaskIds.filter { taskId ->
+            assignmentsByTaskId[taskId].orEmpty().all(removedProjectIds::contains)
+        }
+    }
+
+    private fun TaskSnapshot.toResult(isWithinSprintPeriod: Boolean? = null): ProjectResult.Task =
         ProjectResult.Task(
             id = id,
             title = title,
@@ -193,6 +560,7 @@ class ProjectService(
                     ProjectResult.Assignee(id = id, name = "", email = "")
                 },
             dueDate = dueDate,
+            isWithinSprintPeriod = isWithinSprintPeriod,
         )
 
     private fun Project.toResult(progress: ProjectProgress = ProjectProgress(projectId, 0L, 0L)): ProjectResult =

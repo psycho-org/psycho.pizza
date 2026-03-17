@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RestController
 import pizza.psycho.sos.common.response.ApiResponse
 import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
+import pizza.psycho.sos.workspace.application.dto.ActiveWorkspaceMembership
+import pizza.psycho.sos.workspace.application.dto.WorkspaceMemberListItem
 import pizza.psycho.sos.workspace.application.service.WorkspaceService
 import pizza.psycho.sos.workspace.domain.model.workspace.Workspace
 import pizza.psycho.sos.workspace.presentation.dto.WorkspaceRequest
@@ -23,6 +25,14 @@ import java.util.UUID
 class WorkspaceController(
     private val workspaceService: WorkspaceService,
 ) {
+    @GetMapping
+    fun list(
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
+    ): ApiResponse<List<WorkspaceResponse.ListItem>> {
+        val memberships = workspaceService.findActiveWorkspaceMembershipsByAccountId(principal.accountId)
+        return responseOf(data = memberships.map { it.toListItem() })
+    }
+
     @PostMapping
     fun create(
         @Valid @RequestBody request: WorkspaceRequest.Create,
@@ -74,6 +84,17 @@ class WorkspaceController(
         )
     }
 
+    @GetMapping("/{workspaceId}/members")
+    fun listMembers(
+        @PathVariable workspaceId: UUID,
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
+    ): ApiResponse<List<WorkspaceResponse.MemberListItem>> {
+        val members = workspaceService.listMembers(workspaceId, principal.accountId)
+        return responseOf(
+            data = members.map { it.toMemberListItem() },
+        )
+    }
+
     @PostMapping("/{workspaceId}/members")
     fun addMember(
         @PathVariable workspaceId: UUID,
@@ -121,5 +142,21 @@ class WorkspaceController(
             id = id.toString(),
             name = name,
             description = description,
+        )
+
+    private fun ActiveWorkspaceMembership.toListItem(): WorkspaceResponse.ListItem =
+        WorkspaceResponse.ListItem(
+            id = workspaceId.toString(),
+            title = workspaceTitle,
+            role = role.name,
+        )
+
+    private fun WorkspaceMemberListItem.toMemberListItem(): WorkspaceResponse.MemberListItem =
+        WorkspaceResponse.MemberListItem(
+            membershipId = membershipId.toString(),
+            accountId = accountId.toString(),
+            name = name.trim(),
+            role = role.name,
+            joinedAt = joinedAt?.toString(),
         )
 }

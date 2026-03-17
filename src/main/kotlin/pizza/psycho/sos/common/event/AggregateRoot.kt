@@ -1,12 +1,28 @@
 package pizza.psycho.sos.common.event
 
 /**
- * 아래와 같이 위임받아 사용
+ * 아래 코드를 엔티티에 정의
  *
  * ```
- * class Order :
- *     BaseEntity(...),
- *     AggregateRoot by DomainEventDelegate()
+ * @Transient
+ * private var events: MutableSet<DomainEvent>? = null
+ *
+ * private fun ensureEvents(): MutableSet<DomainEvent> {
+ *     if (events == null) {
+ *         events = mutableSetOf()
+ *     }
+ *     return events!!
+ * }
+ *
+ * override fun registerEvent(event: DomainEvent) {
+ *     ensureEvents() += event
+ * }
+ *
+ * override fun domainEvents(): List<DomainEvent> =
+ *     events?.toList() ?: emptyList()
+ *
+ * override fun pullDomainEvents(): List<DomainEvent> =
+ *     domainEvents().also { events?.clear() }
  * ```
  */
 interface AggregateRoot {

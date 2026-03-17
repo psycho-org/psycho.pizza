@@ -1,5 +1,6 @@
 package pizza.psycho.sos.project.task.presentation.dto
 
+import pizza.psycho.sos.project.task.domain.model.vo.Priority
 import pizza.psycho.sos.project.task.domain.model.vo.Status
 import java.time.Instant
 import java.util.UUID
@@ -10,6 +11,7 @@ sealed interface TaskResponse {
         val title: String,
         val description: String,
         val status: Status,
+        val priority: Priority? = null,
         val assignee: Assignee? = null,
         val workspaceId: UUID,
         val dueDate: Instant?,

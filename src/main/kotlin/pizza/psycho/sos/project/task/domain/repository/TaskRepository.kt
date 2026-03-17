@@ -27,6 +27,11 @@ interface TaskRepository {
         pageable: Pageable,
     ): Page<Task>
 
+    fun findAllActiveBacklogTasks(
+        workspaceId: WorkspaceId,
+        pageable: Pageable,
+    ): Page<Task>
+
     fun findAllByIdIn(
         ids: Collection<UUID>,
         workspaceId: WorkspaceId,
@@ -37,18 +42,6 @@ interface TaskRepository {
         workspaceId: WorkspaceId,
         pageable: Pageable,
     ): Page<Task>
-
-    fun deleteById(
-        id: UUID,
-        deletedBy: UUID,
-        workspaceId: WorkspaceId,
-    ): Int
-
-    fun deleteByIdIn(
-        ids: Collection<UUID>,
-        deletedBy: UUID,
-        workspaceId: WorkspaceId,
-    ): Int
 
     fun save(task: Task): Task
 }

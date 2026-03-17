@@ -3,6 +3,7 @@ package pizza.psycho.sos.project.task.infrastructure.persistence.repository
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Component
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.task.domain.model.entity.Task
@@ -33,6 +34,51 @@ interface TaskJpaRepository :
         pageable: Pageable,
     ): Page<Task> = findAllByWorkspaceIdValueAndDeletedAtIsNull(workspaceId.value, pageable)
 
+    @Query(
+        value =
+            """
+            select t
+            from Task t
+            where t.workspaceId.value = :#{#workspaceId.value}
+              and t.deletedAt is null
+              and not exists (
+                  select s.id
+                  from pizza.psycho.sos.project.sprint.domain.model.entity.Sprint s
+                      join pizza.psycho.sos.project.sprint.domain.model.entity.SprintProjectMapping sp on sp.sprint = s
+                      join pizza.psycho.sos.project.project.domain.model.entity.Project p on p.id = sp.projectId
+                      join pizza.psycho.sos.project.project.domain.model.entity.ProjectTaskMapping ptm on ptm.project = p
+                  where s.workspaceId.value = :#{#workspaceId.value}
+                    and s.deletedAt is null
+                    and p.workspaceId.value = :#{#workspaceId.value}
+                    and p.deletedAt is null
+                    and ptm.taskId = t.id
+              )
+            """,
+        countQuery =
+            """
+            select count(t)
+            from Task t
+            where t.workspaceId.value = :#{#workspaceId.value}
+              and t.deletedAt is null
+              and not exists (
+                  select s.id
+                  from pizza.psycho.sos.project.sprint.domain.model.entity.Sprint s
+                      join pizza.psycho.sos.project.sprint.domain.model.entity.SprintProjectMapping sp on sp.sprint = s
+                      join pizza.psycho.sos.project.project.domain.model.entity.Project p on p.id = sp.projectId
+                      join pizza.psycho.sos.project.project.domain.model.entity.ProjectTaskMapping ptm on ptm.project = p
+                  where s.workspaceId.value = :#{#workspaceId.value}
+                    and s.deletedAt is null
+                    and p.workspaceId.value = :#{#workspaceId.value}
+                    and p.deletedAt is null
+                    and ptm.taskId = t.id
+              )
+            """,
+    )
+    override fun findAllActiveBacklogTasks(
+        workspaceId: WorkspaceId,
+        pageable: Pageable,
+    ): Page<Task>
+
     override fun findAllByIdIn(
         ids: Collection<UUID>,
         workspaceId: WorkspaceId,
@@ -43,30 +89,6 @@ interface TaskJpaRepository :
         workspaceId: WorkspaceId,
         pageable: Pageable,
     ): Page<Task> = findAllByIdInAndWorkspaceIdValueAndDeletedAtIsNull(ids, workspaceId.value, pageable)
-
-    override fun deleteById(
-        id: UUID,
-        deletedBy: UUID,
-        workspaceId: WorkspaceId,
-    ): Int =
-        findByIdAndWorkspaceIdValueAndDeletedAtIsNull(id, workspaceId.value)
-            ?.also { it.delete(deletedBy) }
-            ?.let { 1 }
-            ?: 0
-
-    override fun deleteByIdIn(
-        ids: Collection<UUID>,
-        deletedBy: UUID,
-        workspaceId: WorkspaceId,
-    ): Int {
-        if (ids.isEmpty()) {
-            return 0
-        }
-
-        return findAllByIdInAndWorkspaceIdValueAndDeletedAtIsNull(ids, workspaceId.value)
-            .onEach { it.delete(deletedBy) }
-            .size
-    }
 
     fun findByIdAndWorkspaceIdValue(
         id: UUID,

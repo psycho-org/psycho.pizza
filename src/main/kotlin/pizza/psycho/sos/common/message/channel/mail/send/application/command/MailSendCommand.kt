@@ -1,5 +1,6 @@
 package pizza.psycho.sos.common.message.channel.mail.send.application.command
 
+import pizza.psycho.sos.common.message.channel.mail.template.domain.data.EmailAlreadyExistsTemplateData
 import pizza.psycho.sos.common.message.channel.mail.template.domain.data.OtpTemplateData
 import pizza.psycho.sos.common.message.channel.mail.template.domain.data.WorkspaceInviteTemplateData
 import pizza.psycho.sos.common.message.domain.MessageType
@@ -22,6 +23,13 @@ sealed interface MailSendCommand {
         val templateData: OtpTemplateData,
     ) : MailSendCommand {
         val mailType: MessageType = MessageType.OTP
+    }
+
+    data class EmailAlreadyExists(
+        override val to: String,
+        val templateData: EmailAlreadyExistsTemplateData,
+    ) : MailSendCommand {
+        val mailType: MessageType = MessageType.EMAIL_ALREADY_EXISTS
     }
 
     data class General(

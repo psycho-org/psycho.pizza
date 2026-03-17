@@ -22,6 +22,7 @@ import pizza.psycho.sos.common.message.channel.mail.template.domain.model.entity
 import pizza.psycho.sos.common.message.channel.mail.template.domain.spec.MailTemplateSpecRegistry
 import pizza.psycho.sos.common.message.channel.mail.template.presentation.dto.MailTemplateResponse
 import pizza.psycho.sos.common.message.domain.MessageType
+import pizza.psycho.sos.common.message.domain.exception.MessageErrorCode
 import pizza.psycho.sos.common.response.ApiResponse
 import pizza.psycho.sos.common.response.responseOf
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
@@ -125,7 +126,11 @@ class MailSendController(
         try {
             MessageType.valueOf(mailType.trim().uppercase())
         } catch (ex: IllegalArgumentException) {
-            throw DomainException("unsupported mailType=$mailType")
+            throw DomainException(
+                MessageErrorCode.MESSAGE_MAIL_UNSUPPORTED_TYPE,
+                "unsupported mailType=$mailType",
+                ex,
+            )
         }
 
     private fun sendCommand(
