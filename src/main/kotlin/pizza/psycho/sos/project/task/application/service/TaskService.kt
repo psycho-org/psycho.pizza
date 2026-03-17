@@ -8,12 +8,15 @@ import pizza.psycho.sos.common.patch.Patch
 import pizza.psycho.sos.common.support.log.loggerDelegate
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
+import pizza.psycho.sos.project.project.application.port.out.ProjectPort
+import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.sprint.domain.model.vo.Period
 import pizza.psycho.sos.project.sprint.domain.policy.SprintTaskPeriodPolicy
 import pizza.psycho.sos.project.task.application.event.handler.TaskEventSprintMembershipRegistry
 import pizza.psycho.sos.project.task.application.port.out.TaskSprintParticipationQuery
 import pizza.psycho.sos.project.task.application.port.out.dto.SprintTaskMembershipSnapshot
+import pizza.psycho.sos.project.task.application.port.out.dto.TaskSprintSummary
 import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
 import pizza.psycho.sos.project.task.application.service.dto.TaskQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult
@@ -30,6 +33,7 @@ import java.util.UUID
 class TaskService(
     private val taskRepository: TaskRepository,
     private val domainEventPublisher: DomainEventPublisher,
+    private val projectPort: ProjectPort,
     private val sprintTaskPolicy: SprintTaskPolicy,
     private val sprintParticipationQuery: TaskSprintParticipationQuery,
     private val sprintMembershipRegistry: TaskEventSprintMembershipRegistry,
@@ -46,6 +50,46 @@ class TaskService(
     fun getAll(command: TaskQuery.FindTasks): TaskResult.TaskList =
         taskRepository.findAllActiveTasks(WorkspaceId(command.workspaceId), command.pageable).let {
             TaskResult.TaskList(it.toResult())
+        }
+
+    fun getAssignedTasks(command: TaskQuery.FindAssignedTasks): TaskResult.AssignedTaskList =
+        Tx.readable {
+            val workspaceId = WorkspaceId(command.workspaceId)
+            val page =
+                taskRepository.findAllActiveTasksByAssigneeId(
+                    workspaceId = workspaceId,
+                    assigneeId = command.assigneeId,
+                    pageable = command.pageable,
+                )
+            if (page.isEmpty) {
+                return@readable TaskResult.AssignedTaskList(
+                    page.map { task -> task.toAssignedResult(emptyList(), emptyList()) },
+                )
+            }
+
+            val taskIds = page.content.map(Task::taskId)
+            val assignments = projectPort.findActiveProjectIdsByTaskIds(taskIds, workspaceId)
+            val projectIdsByTaskId =
+                assignments
+                    .groupBy(keySelector = { it.taskId }, valueTransform = { it.projectId })
+                    .mapValues { (_, ids) -> ids.distinct() }
+            val projectsById =
+                projectPort
+                    .findByIdIn(assignments.map { it.projectId }.distinct(), workspaceId)
+                    .associateBy(ProjectSnapshot::projectId)
+            val sprintsByTaskId = taskSprintParticipationQuery.findActiveSprintsByTaskIds(taskIds, command.workspaceId)
+
+            TaskResult.AssignedTaskList(
+                page.map { task ->
+                    task.toAssignedResult(
+                        projects =
+                            projectIdsByTaskId[task.taskId]
+                                .orEmpty()
+                                .mapNotNull(projectsById::get),
+                        sprints = sprintsByTaskId[task.taskId].orEmpty(),
+                    )
+                },
+            )
         }
 
     fun getBacklog(command: TaskQuery.FindBacklogTasks): TaskResult.TaskList =
@@ -253,6 +297,41 @@ class TaskService(
                 },
             dueDate = dueDate.value,
             workspaceId = workspaceId.value,
+        )
+
+    private fun Task.toAssignedResult(
+        projects: List<ProjectSnapshot>,
+        sprints: List<TaskSprintSummary>,
+    ): TaskResult.AssignedTaskListInfo =
+        TaskResult.AssignedTaskListInfo(
+            id = taskId,
+            title = title,
+            status = status,
+            assignee =
+                assigneeId.value?.let { id ->
+                    Assignee(
+                        id = id,
+                        name = "",
+                        email = "",
+                    )
+                },
+            dueDate = dueDate.value,
+            projects =
+                projects.map { project ->
+                    TaskResult.Project(
+                        id = project.projectId,
+                        name = project.name,
+                    )
+                },
+            sprints =
+                sprints.map { sprint ->
+                    TaskResult.Sprint(
+                        id = sprint.id,
+                        name = sprint.name,
+                        startDate = sprint.startDate,
+                        endDate = sprint.endDate,
+                    )
+                },
         )
 
     private fun TaskCommand.AddTask.toDomain(): Task =

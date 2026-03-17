@@ -1,6 +1,7 @@
 package pizza.psycho.sos.project.task.presentation
 
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.doReturn
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
@@ -20,6 +21,8 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.common.config.PageableProperties
+import pizza.psycho.sos.common.response.OffsetPageInfo
+import pizza.psycho.sos.common.response.OffsetPagedApiResponse
 import pizza.psycho.sos.common.support.pagination.PageInfoSupport
 import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryService
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
@@ -29,6 +32,7 @@ import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
 import pizza.psycho.sos.project.task.application.service.dto.TaskQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult
 import pizza.psycho.sos.project.task.domain.model.vo.Status
+import pizza.psycho.sos.project.task.presentation.dto.TaskResponse
 import java.util.UUID
 
 @WebMvcTest(
@@ -189,6 +193,90 @@ class TaskControllerTests {
 
         verify(taskService).getBacklog(
             TaskQuery.FindBacklogTasks(workspaceId, pageable),
+        )
+    }
+
+    @Test
+    fun `담당자 기준 태스크 목록 조회 시 매핑된 프로젝트와 스프린트 정보를 반환한다`() {
+        val workspaceId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
+        val taskId = UUID.randomUUID()
+        val projectId = UUID.randomUUID()
+        val sprintId = UUID.randomUUID()
+        val pageable = PageRequest.of(0, 10)
+
+        val page =
+            PageImpl(
+                listOf(
+                    TaskResult.AssignedTaskListInfo(
+                        id = taskId,
+                        title = "담당 태스크",
+                        status = Status.IN_PROGRESS,
+                        assignee = TaskResult.Assignee(accountId, "", ""),
+                        dueDate = null,
+                        projects = listOf(TaskResult.Project(projectId, "프로젝트 A")),
+                        sprints =
+                            listOf(
+                                TaskResult.Sprint(
+                                    id = sprintId,
+                                    name = "스프린트 A",
+                                    startDate = java.time.Instant.parse("2026-03-01T00:00:00Z"),
+                                    endDate = java.time.Instant.parse("2026-03-31T00:00:00Z"),
+                                ),
+                            ),
+                    ),
+                ),
+                pageable,
+                1,
+            )
+
+        `when`(
+            taskService.getAssignedTasks(
+                TaskQuery.FindAssignedTasks(workspaceId, accountId, pageable),
+            ),
+        ).thenReturn(TaskResult.AssignedTaskList(page))
+        val responseData: List<TaskResponse.AssignedList> =
+            listOf(
+                TaskResponse.AssignedList(
+                    id = taskId,
+                    title = "담당 태스크",
+                    status = Status.IN_PROGRESS,
+                    assignee = TaskResponse.Assignee(accountId, "", ""),
+                    dueDate = null,
+                    projects = listOf(TaskResponse.Project(projectId, "프로젝트 A")),
+                    sprints =
+                        listOf(
+                            TaskResponse.Sprint(
+                                id = sprintId,
+                                name = "스프린트 A",
+                                startDate = java.time.Instant.parse("2026-03-01T00:00:00Z"),
+                                endDate = java.time.Instant.parse("2026-03-31T00:00:00Z"),
+                            ),
+                        ),
+                ),
+            )
+        val mappedPage = PageImpl(responseData, pageable, 1)
+        doReturn(
+            OffsetPagedApiResponse(
+                data = responseData,
+                pageInfo = OffsetPageInfo(currentPage = 1, size = 10, totalPages = 1, totalElements = 1),
+            ),
+        ).`when`(pageInfoSupport).toPageResponse(mappedPage)
+
+        mockMvc
+            .perform(
+                get("/api/v1/workspaces/$workspaceId/tasks/assignees/$accountId")
+                    .param("page", "0")
+                    .param("size", "10"),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.data[0].id").value(taskId.toString()))
+            .andExpect(jsonPath("$.data[0].projects[0].id").value(projectId.toString()))
+            .andExpect(jsonPath("$.data[0].projects[0].name").value("프로젝트 A"))
+            .andExpect(jsonPath("$.data[0].sprints[0].id").value(sprintId.toString()))
+            .andExpect(jsonPath("$.data[0].sprints[0].name").value("스프린트 A"))
+
+        verify(taskService).getAssignedTasks(
+            TaskQuery.FindAssignedTasks(workspaceId, accountId, pageable),
         )
     }
 

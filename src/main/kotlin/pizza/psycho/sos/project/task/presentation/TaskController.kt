@@ -50,6 +50,16 @@ class TaskController(
             taskService.getAll(TaskQuery.FindTasks(workspaceId, pageable))
         }
 
+    @GetMapping("/assignees")
+    fun findTasksByAssignee(
+        @PathVariable workspaceId: UUID,
+        @PageableDefault(page = 0, size = 10) pageable: Pageable,
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
+    ): ApiResponse<*> =
+        handleResult {
+            taskService.getAssignedTasks(TaskQuery.FindAssignedTasks(workspaceId, principal.accountId, pageable))
+        }
+
     @GetMapping("/backlog")
     fun findBacklogTasks(
         @PathVariable workspaceId: UUID,
@@ -102,6 +112,7 @@ class TaskController(
 
             is TaskResult.TaskInformation -> responseOf(data = result.toResponse())
             is TaskResult.TaskList -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
+            is TaskResult.AssignedTaskList -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
             is TaskResult.Failure.IdNotFound -> throw DomainException(TaskErrorCode.TASK_NOT_FOUND)
             is TaskResult.Failure.TaskInformationNotFound -> throw DomainException(TaskErrorCode.TASK_INFO_NOT_FOUND)
             is TaskResult.Failure.InvalidRequest -> throw DomainException(TaskErrorCode.INVALID_REQUEST)
@@ -152,5 +163,30 @@ class TaskController(
             assignee = assignee?.let { TaskResponse.Assignee(it.id, it.name, it.email) },
             workspaceId = workspaceId,
             dueDate = dueDate,
+        )
+
+    private fun TaskResult.AssignedTaskListInfo.toResponse(): TaskResponse.AssignedList =
+        TaskResponse.AssignedList(
+            id = id,
+            title = title,
+            status = status,
+            assignee = assignee?.let { TaskResponse.Assignee(it.id, it.name, it.email) },
+            dueDate = dueDate,
+            projects =
+                projects.map { project ->
+                    TaskResponse.Project(
+                        id = project.id,
+                        name = project.name,
+                    )
+                },
+            sprints =
+                sprints.map { sprint ->
+                    TaskResponse.Sprint(
+                        id = sprint.id,
+                        name = sprint.name,
+                        startDate = sprint.startDate,
+                        endDate = sprint.endDate,
+                    )
+                },
         )
 }

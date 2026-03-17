@@ -28,12 +28,38 @@ sealed interface TaskResult {
         val page: Page<TaskListInfo>,
     ) : TaskResult
 
+    data class AssignedTaskList(
+        val page: Page<AssignedTaskListInfo>,
+    ) : TaskResult
+
     data class TaskListInfo(
         val id: UUID,
         val title: String,
         val status: Status,
         val assignee: Assignee? = null,
         val dueDate: Instant? = null,
+    )
+
+    data class AssignedTaskListInfo(
+        val id: UUID,
+        val title: String,
+        val status: Status,
+        val assignee: Assignee? = null,
+        val dueDate: Instant? = null,
+        val projects: List<Project>,
+        val sprints: List<Sprint>,
+    )
+
+    data class Project(
+        val id: UUID,
+        val name: String,
+    )
+
+    data class Sprint(
+        val id: UUID,
+        val name: String,
+        val startDate: Instant,
+        val endDate: Instant,
     )
 
     data class Remove(

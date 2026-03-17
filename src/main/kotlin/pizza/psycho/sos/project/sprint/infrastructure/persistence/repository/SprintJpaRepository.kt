@@ -215,6 +215,16 @@ interface SprintJpaRepository :
         workspaceId: WorkspaceId,
     ): List<Sprint>
 
+    override fun findActiveSprintsByIds(
+        sprintIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<Sprint> =
+        if (sprintIds.isEmpty()) {
+            emptyList()
+        } else {
+            findAllByIdInAndWorkspaceIdValueAndDeletedAtIsNull(sprintIds, workspaceId.value)
+        }
+
     override fun findActiveSprints(
         workspaceId: WorkspaceId,
         pageable: Pageable,
@@ -288,6 +298,11 @@ interface SprintJpaRepository :
         workspaceId: UUID,
         pageable: Pageable,
     ): Page<Sprint>
+
+    fun findAllByIdInAndWorkspaceIdValueAndDeletedAtIsNull(
+        ids: Collection<UUID>,
+        workspaceId: UUID,
+    ): List<Sprint>
 }
 
 interface ProjectSprintRow {
