@@ -1,14 +1,14 @@
 spring:
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    validate-on-migrate: true
-    clean-disabled: true
   datasource:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    clean-disabled: true
   jpa:
     hibernate:
       ddl-auto: none
@@ -55,14 +55,14 @@ openai:
   api-key: ${OPENAI_API_KEY}
   model: gpt-4.1-mini
 
+server:
+  forward-headers-strategy: framework
+
 springdoc:
   api-docs:
     enabled: true
   swagger-ui:
     enabled: true
-
-server:
-  forward-headers-strategy: framework
 
 sqs:
   request-queue-name: ${REQUEST_QUEUE_NAME}
