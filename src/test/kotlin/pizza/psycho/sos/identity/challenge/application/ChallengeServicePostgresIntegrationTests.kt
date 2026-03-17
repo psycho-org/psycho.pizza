@@ -59,9 +59,7 @@ class ChallengeServicePostgresIntegrationTests : PostgresTestContainerSupport() 
     private lateinit var verificationDelivery: VerificationDelivery
 
     @BeforeEach
-    fun cleanUp() {
-        confirmationTokenRepository.deleteAllInBatch()
-        challengeRepository.deleteAllInBatch()
+    fun setUpMocks() {
         `when`(otpGenerator.generate(6)).thenReturn("123456")
         `when`(passwordEncoder.encode("123456")).thenReturn("otp-hash")
     }

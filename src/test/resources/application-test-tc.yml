@@ -25,3 +25,7 @@ challenge:
 openai:
   api-key: TEST-dummy-api-key
   model: gpt-4.1-miniguswo 
+
+sqs:
+  request-queue-name: test-queue-1
+  response-queue-name: test-queue-2

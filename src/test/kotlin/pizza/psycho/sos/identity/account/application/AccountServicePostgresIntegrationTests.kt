@@ -54,10 +54,7 @@ class AccountServicePostgresIntegrationTests : PostgresTestContainerSupport() {
     private lateinit var passwordEncoder: PasswordEncoder
 
     @BeforeEach
-    fun cleanUp() {
-        confirmationTokenRepository.deleteAllInBatch()
-        challengeRepository.deleteAllInBatch()
-        accountRepository.deleteAllInBatch()
+    fun setUpMocks() {
         `when`(passwordEncoder.encode("Password123!@#")).thenReturn("encoded-password")
     }
 
