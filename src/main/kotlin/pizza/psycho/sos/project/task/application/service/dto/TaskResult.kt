@@ -28,8 +28,9 @@ sealed interface TaskResult {
         val page: Page<TaskListInfo>,
     ) : TaskResult
 
-    data class AssignedTaskList(
+    data class AssignedTaskGroups(
         val page: Page<AssignedTaskListInfo>,
+        val sprintGroups: List<AssignedSprintGroup>,
     ) : TaskResult
 
     data class TaskListInfo(
@@ -48,6 +49,26 @@ sealed interface TaskResult {
         val dueDate: Instant? = null,
         val projects: List<Project>,
         val sprints: List<Sprint>,
+    )
+
+    data class AssignedSprintGroup(
+        val sprint: Sprint? = null,
+        val uniqueTaskCount: Int,
+        val projects: List<AssignedProjectGroup>,
+    )
+
+    data class AssignedProjectGroup(
+        val project: Project? = null,
+        val taskCount: Int,
+        val tasks: List<AssignedTask>,
+    )
+
+    data class AssignedTask(
+        val id: UUID,
+        val title: String,
+        val status: Status,
+        val assignee: Assignee? = null,
+        val dueDate: Instant? = null,
     )
 
     data class Project(

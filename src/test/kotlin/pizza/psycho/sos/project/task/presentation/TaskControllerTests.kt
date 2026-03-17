@@ -1,7 +1,6 @@
 package pizza.psycho.sos.project.task.presentation
 
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito.doReturn
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
@@ -22,7 +21,6 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPat
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import pizza.psycho.sos.common.config.PageableProperties
 import pizza.psycho.sos.common.response.OffsetPageInfo
-import pizza.psycho.sos.common.response.OffsetPagedApiResponse
 import pizza.psycho.sos.common.support.pagination.PageInfoSupport
 import pizza.psycho.sos.identity.security.principal.ActiveAccountPrincipalQueryService
 import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipal
@@ -32,7 +30,6 @@ import pizza.psycho.sos.project.task.application.service.dto.TaskCommand
 import pizza.psycho.sos.project.task.application.service.dto.TaskQuery
 import pizza.psycho.sos.project.task.application.service.dto.TaskResult
 import pizza.psycho.sos.project.task.domain.model.vo.Status
-import pizza.psycho.sos.project.task.presentation.dto.TaskResponse
 import java.util.UUID
 
 @WebMvcTest(
@@ -230,50 +227,64 @@ class TaskControllerTests {
                 1,
             )
 
+        val groupedResult =
+            TaskResult.AssignedTaskGroups(
+                page = page,
+                sprintGroups =
+                    listOf(
+                        TaskResult.AssignedSprintGroup(
+                            sprint =
+                                TaskResult.Sprint(
+                                    id = sprintId,
+                                    name = "스프린트 A",
+                                    startDate = java.time.Instant.parse("2026-03-01T00:00:00Z"),
+                                    endDate = java.time.Instant.parse("2026-03-31T00:00:00Z"),
+                                ),
+                            uniqueTaskCount = 1,
+                            projects =
+                                listOf(
+                                    TaskResult.AssignedProjectGroup(
+                                        project = TaskResult.Project(projectId, "프로젝트 A"),
+                                        taskCount = 1,
+                                        tasks =
+                                            listOf(
+                                                TaskResult.AssignedTask(
+                                                    id = taskId,
+                                                    title = "담당 태스크",
+                                                    status = Status.IN_PROGRESS,
+                                                    assignee = TaskResult.Assignee(accountId, "", ""),
+                                                    dueDate = null,
+                                                ),
+                                            ),
+                                    ),
+                                ),
+                        ),
+                    ),
+            )
+
         `when`(
             taskService.getAssignedTasks(
                 TaskQuery.FindAssignedTasks(workspaceId, accountId, pageable),
             ),
-        ).thenReturn(TaskResult.AssignedTaskList(page))
-        val responseData: List<TaskResponse.AssignedList> =
-            listOf(
-                TaskResponse.AssignedList(
-                    id = taskId,
-                    title = "담당 태스크",
-                    status = Status.IN_PROGRESS,
-                    assignee = TaskResponse.Assignee(accountId, "", ""),
-                    dueDate = null,
-                    projects = listOf(TaskResponse.Project(projectId, "프로젝트 A")),
-                    sprints =
-                        listOf(
-                            TaskResponse.Sprint(
-                                id = sprintId,
-                                name = "스프린트 A",
-                                startDate = java.time.Instant.parse("2026-03-01T00:00:00Z"),
-                                endDate = java.time.Instant.parse("2026-03-31T00:00:00Z"),
-                            ),
-                        ),
-                ),
-            )
-        val mappedPage = PageImpl(responseData, pageable, 1)
-        doReturn(
-            OffsetPagedApiResponse(
-                data = responseData,
-                pageInfo = OffsetPageInfo(currentPage = 1, size = 10, totalPages = 1, totalElements = 1),
-            ),
-        ).`when`(pageInfoSupport).toPageResponse(mappedPage)
+        ).thenReturn(groupedResult)
+        `when`(pageInfoSupport.toPageInfo(page)).thenReturn(
+            OffsetPageInfo(currentPage = 1, size = 10, totalPages = 1, totalElements = 1),
+        )
 
-        mockMvc
-            .perform(
-                get("/api/v1/workspaces/$workspaceId/tasks/assignees/$accountId")
-                    .param("page", "0")
-                    .param("size", "10"),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.data[0].id").value(taskId.toString()))
-            .andExpect(jsonPath("$.data[0].projects[0].id").value(projectId.toString()))
-            .andExpect(jsonPath("$.data[0].projects[0].name").value("프로젝트 A"))
-            .andExpect(jsonPath("$.data[0].sprints[0].id").value(sprintId.toString()))
-            .andExpect(jsonPath("$.data[0].sprints[0].name").value("스프린트 A"))
+        withPrincipal(accountId) {
+            mockMvc
+                .perform(
+                    get("/api/v1/workspaces/$workspaceId/tasks/me")
+                        .param("page", "0")
+                        .param("size", "10"),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.data.pageInfo.currentPage").value(1))
+                .andExpect(jsonPath("$.data.sprintGroups[0].uniqueTaskCount").value(1))
+                .andExpect(jsonPath("$.data.sprintGroups[0].sprint.id").value(sprintId.toString()))
+                .andExpect(jsonPath("$.data.sprintGroups[0].projects[0].taskCount").value(1))
+                .andExpect(jsonPath("$.data.sprintGroups[0].projects[0].project.id").value(projectId.toString()))
+                .andExpect(jsonPath("$.data.sprintGroups[0].projects[0].tasks[0].id").value(taskId.toString()))
+        }
 
         verify(taskService).getAssignedTasks(
             TaskQuery.FindAssignedTasks(workspaceId, accountId, pageable),

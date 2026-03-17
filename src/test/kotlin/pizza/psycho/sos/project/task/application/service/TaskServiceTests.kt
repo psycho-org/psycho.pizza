@@ -18,6 +18,7 @@ import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.project.common.domain.model.vo.WorkspaceId
 import pizza.psycho.sos.project.project.application.port.out.ProjectPort
+import pizza.psycho.sos.project.project.application.port.out.ProjectSprintParticipationQuery
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
 import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
@@ -39,6 +40,7 @@ class TaskServiceTests {
     private val taskRepository = mockk<TaskRepository>()
     private val domainEventPublisher = mockk<DomainEventPublisher>()
     private val projectPort = mockk<ProjectPort>(relaxed = true)
+    private val projectSprintParticipationQuery = mockk<ProjectSprintParticipationQuery>(relaxed = true)
     private val sprintTaskPolicy = mockk<SprintTaskPolicy>(relaxed = true)
     private val taskSprintParticipationQuery = mockk<TaskSprintParticipationQuery>()
     private val sprintTaskPeriodPolicy = mockk<SprintTaskPeriodPolicy>()
@@ -49,6 +51,7 @@ class TaskServiceTests {
             taskRepository,
             domainEventPublisher,
             projectPort,
+            projectSprintParticipationQuery,
             sprintTaskPolicy,
             sprintParticipationQuery,
             sprintMembershipRegistry,
@@ -73,6 +76,7 @@ class TaskServiceTests {
         every { domainEventPublisher.publish(any<TaskDeletedEvent>()) } returns Unit
         every { taskSprintParticipationQuery.findActiveSprintPeriodsByTaskId(any(), any()) } returns emptyList()
         every { taskSprintParticipationQuery.findActiveSprintsByTaskIds(any(), any()) } returns emptyMap()
+        every { projectSprintParticipationQuery.findActiveSprintIdsByProjectIds(any(), any()) } returns emptyMap()
         every { sprintParticipationQuery.findTaskIdsInActiveSprints(any(), any()) } returns emptySet()
     }
 
@@ -172,7 +176,7 @@ class TaskServiceTests {
     }
 
     @Test
-    fun `담당자 기준 태스크 조회 시 프로젝트와 스프린트 정보를 함께 반환한다`() {
+    fun `담당자 기준 태스크 조회 시 sprint와 project로 그룹핑된 결과와 count를 반환한다`() {
         val workspaceId = UUID.randomUUID()
         val assigneeId = UUID.randomUUID()
         val taskId = UUID.randomUUID()
@@ -216,32 +220,36 @@ class TaskServiceTests {
                         ),
                     ),
             )
+        every { projectSprintParticipationQuery.findActiveSprintIdsByProjectIds(listOf(projectId), workspaceId) } returns
+            mapOf(projectId to setOf(sprintId))
 
         val result = taskService.getAssignedTasks(command)
 
-        assertEquals(1, result.page.content.size)
-        assertEquals("담당 태스크", result.page.content[0].title)
-        assertEquals(
-            1,
-            result.page.content[0]
-                .projects.size,
-        )
+        assertEquals(1, result.page.totalElements)
+        assertEquals(1, result.sprintGroups.size)
+        assertEquals(1, result.sprintGroups[0].uniqueTaskCount)
+        assertEquals("스프린트 A", result.sprintGroups[0].sprint?.name)
+        assertEquals(1, result.sprintGroups[0].projects.size)
+        assertEquals(1, result.sprintGroups[0].projects[0].taskCount)
         assertEquals(
             "프로젝트 A",
-            result.page.content[0]
+            result.sprintGroups[0]
                 .projects[0]
-                .name,
+                .project
+                ?.name,
         )
         assertEquals(
             1,
-            result.page.content[0]
-                .sprints.size,
+            result.sprintGroups[0]
+                .projects[0]
+                .tasks.size,
         )
         assertEquals(
-            "스프린트 A",
-            result.page.content[0]
-                .sprints[0]
-                .name,
+            "담당 태스크",
+            result.sprintGroups[0]
+                .projects[0]
+                .tasks[0]
+                .title,
         )
     }
 

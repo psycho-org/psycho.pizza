@@ -1,5 +1,6 @@
 package pizza.psycho.sos.project.task.presentation.dto
 
+import pizza.psycho.sos.common.response.OffsetPageInfo
 import pizza.psycho.sos.project.task.domain.model.vo.Priority
 import pizza.psycho.sos.project.task.domain.model.vo.Status
 import java.time.Instant
@@ -25,14 +26,9 @@ sealed interface TaskResponse {
         val dueDate: Instant? = null,
     ) : TaskResponse
 
-    data class AssignedList(
-        val id: UUID,
-        val title: String,
-        val status: Status,
-        val assignee: Assignee? = null,
-        val dueDate: Instant? = null,
-        val projects: kotlin.collections.List<Project>,
-        val sprints: kotlin.collections.List<Sprint>,
+    data class AssignedGrouped(
+        val pageInfo: OffsetPageInfo,
+        val sprintGroups: kotlin.collections.List<SprintGroup>,
     ) : TaskResponse
 
     data class Assignee(
@@ -51,6 +47,26 @@ sealed interface TaskResponse {
         val name: String,
         val startDate: Instant,
         val endDate: Instant,
+    )
+
+    data class SprintGroup(
+        val sprint: Sprint? = null,
+        val uniqueTaskCount: Int,
+        val projects: kotlin.collections.List<ProjectGroup>,
+    )
+
+    data class ProjectGroup(
+        val project: Project? = null,
+        val taskCount: Int,
+        val tasks: kotlin.collections.List<AssignedTask>,
+    )
+
+    data class AssignedTask(
+        val id: UUID,
+        val title: String,
+        val status: Status,
+        val assignee: Assignee? = null,
+        val dueDate: Instant? = null,
     )
 
     data class Remove(
