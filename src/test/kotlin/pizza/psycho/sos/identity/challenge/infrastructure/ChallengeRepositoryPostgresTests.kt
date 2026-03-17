@@ -1,8 +1,6 @@
 package pizza.psycho.sos.identity.challenge.infrastructure
 
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -31,16 +29,6 @@ import java.time.Instant
 class ChallengeRepositoryPostgresTests : PostgresTestContainerSupport() {
     @Autowired
     private lateinit var challengeRepository: ChallengeRepository
-
-    @BeforeEach
-    fun cleanUp() {
-        challengeRepository.deleteAllInBatch()
-    }
-
-    @AfterEach
-    fun tearDown() {
-        challengeRepository.deleteAllInBatch()
-    }
 
     @Test
     fun `duplicate pending challenges for same email and operation are rejected`() {
