@@ -14,9 +14,7 @@ data class BusinessNotifyPayload(
     val openaiState: String,
     @JsonProperty("postprocess_state")
     val postprocessState: String,
-//    @JsonProperty("result_fetch_status")
-//    val resultFetchStatus: String,
-    val result: Any?,
+    val result: String,
     val error: Map<String, Any>?,
     @JsonProperty("occurred_at")
     val occurredAt: LocalDateTime,
