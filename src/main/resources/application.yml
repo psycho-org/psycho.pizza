@@ -1,8 +1,6 @@
 spring:
-  config:
-    import: optional:file:.env[.properties]
   profiles:
-    default: ${SPRING_PROFILES_ACTIVE}
+    active: ${SPRING_PROFILES_ACTIVE:prod}
   flyway:
     placeholder-replacement: false
 
@@ -11,9 +9,3 @@ management:
     web:
       exposure:
         include: health
-
-mail:
-  token:
-    verify-base-url: http://localhost:8080/api/v1/mails/verify
-    verify-success-url: http://localhost:8080/mail/verify-success.html
-    verify-failure-url: http://localhost:8080/mail/verify-failure.html
