@@ -57,9 +57,15 @@ class AnalysisCompletionConsumer(
         try {
             val payload = objectMapper.readValue(message.body(), BusinessNotifyPayload::class.java)
 
-            // externalRequestId가 psycho.pizza의 jobId (UUID)
-            val id = UUID.fromString(payload.externalRequestId)
-            analysisLifecycleService.completeAnalysis(id, payload.result)
+            // externalRequestId = psycho.pizza jobId (UUID)
+            val jobId = UUID.fromString(payload.externalRequestId)
+
+            // 분석 요청 완료 처리 (running -> done) & 분석 리포트 반영
+            analysisLifecycleService.complete(
+                jobId = jobId,
+                runId = payload.jobId.toString(),
+                result = payload.result.analysis,
+            )
 
             // 메시지 삭제
             val deleteRequest =

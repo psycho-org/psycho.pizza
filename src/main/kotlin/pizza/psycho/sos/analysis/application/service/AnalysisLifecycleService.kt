@@ -5,6 +5,7 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import pizza.psycho.sos.analysis.domain.entity.AnalysisRequest
 import pizza.psycho.sos.analysis.domain.exception.AnalysisErrorCode
+import pizza.psycho.sos.analysis.infrastructure.persistence.AnalysisReportRepository
 import pizza.psycho.sos.analysis.infrastructure.persistence.AnalysisRequestRepository
 import pizza.psycho.sos.common.handler.DomainException
 import java.util.UUID
@@ -16,6 +17,7 @@ import java.util.UUID
 @Service
 class AnalysisLifecycleService(
     private val analysisRequestRepository: AnalysisRequestRepository,
+    private val analysisReportRepository: AnalysisReportRepository,
 ) {
     @Transactional
     fun markRunning(id: UUID) {
@@ -33,12 +35,22 @@ class AnalysisLifecycleService(
     }
 
     @Transactional
-    fun completeAnalysis(
-        id: UUID,
-        result: Any?,
+    fun complete(
+        jobId: UUID,
+        runId: String,
+        result: String,
     ) {
-        val analysisRequest = getAnalysisRequestEntity(id)
+        // running -> done
+        val analysisRequest = getAnalysisRequestEntity(jobId)
         analysisRequest.complete(result)
+
+        // save report
+        val analysisReport =
+            analysisReportRepository.findByAnalysisRequestId(jobId)
+                ?: throw DomainException(AnalysisErrorCode.ANALYSIS_REPORT_NOT_FOUND)
+
+        analysisReport.attachRunId(runId)
+        analysisReport.attachAiInsight(result)
     }
 
     private fun getAnalysisRequestEntity(id: UUID): AnalysisRequest =
