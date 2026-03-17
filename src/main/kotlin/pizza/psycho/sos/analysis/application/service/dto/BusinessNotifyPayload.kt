@@ -1,7 +1,7 @@
 package pizza.psycho.sos.analysis.application.service.dto
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import java.time.LocalDateTime
+import java.time.Instant
 
 data class BusinessNotifyPayload(
     @param:JsonProperty("job_id")
@@ -17,7 +17,7 @@ data class BusinessNotifyPayload(
     val result: ResultPayload,
     val error: Map<String, Any>?,
     @param:JsonProperty("occurred_at")
-    val occurredAt: LocalDateTime,
+    val occurredAt: Instant,
 ) {
     data class ResultPayload(
         val analysis: String,
