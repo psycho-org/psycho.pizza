@@ -78,6 +78,11 @@ interface SprintRepository {
         workspaceId: WorkspaceId,
     ): List<Sprint>
 
+    fun findActiveSprintsByIds(
+        sprintIds: Collection<UUID>,
+        workspaceId: WorkspaceId,
+    ): List<Sprint>
+
     fun deleteById(
         sprintId: UUID,
         deletedBy: UUID,
