@@ -48,7 +48,7 @@ MAIL_TOKEN_VERIFY_SUCCESS_URL=$(get_param mail-token-verify-success-url)
 MAIL_TOKEN_VERIFY_FAILURE_URL=$(get_param mail-token-verify-failure-url)
 OPENAI_API_KEY=$(get_param api-key)
 REQUEST_QUEUE_NAME=$(get_param request-queue-name)
-RESPONSE_QUEUE_NAME=$(get_param response-queue-name)
+BUSINESS_NOTIFY_URL=$(get_param business-notify-sqs-queue-url)
 EOF
 
 # 보안: .env 파일 권한 제한

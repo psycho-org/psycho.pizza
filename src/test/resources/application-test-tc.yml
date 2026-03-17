@@ -35,4 +35,4 @@ openai:
 
 sqs:
   request-queue-name: test-queue-1
-  response-queue-name: test-queue-2
+  response-queue-url: test-queue-2

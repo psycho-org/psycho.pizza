@@ -39,4 +39,4 @@ openai:
 
 sqs:
   request-queue-name: ${REQUEST_QUEUE_NAME:psycho-sqs-request-prod}
-  response-queue-name: ${RESPONSE_QUEUE_NAME:psycho-sqs-response-prod}
+  response-queue-url: test-response-queue-url
