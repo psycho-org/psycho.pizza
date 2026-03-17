@@ -54,4 +54,27 @@ class AnalysisReport(
     fun attachRunId(runId: String) {
         this.runId = runId
     }
+
+    companion object {
+        fun create(
+            analysisRequestId: UUID,
+            workspaceId: UUID,
+            targetType: AnalysisTargetType,
+            targetId: UUID,
+            scoreTotal: Int,
+            scoreVersion: String,
+            categoryPenalties: String,
+            penaltyDetails: String,
+        ): AnalysisReport =
+            AnalysisReport(
+                analysisRequestId = analysisRequestId,
+                workspaceId = workspaceId,
+                targetType = targetType,
+                targetId = targetId,
+                scoreTotal = scoreTotal,
+                scoreVersion = scoreVersion,
+                categoryPenalties = categoryPenalties,
+                penaltyDetails = penaltyDetails,
+            )
+    }
 }

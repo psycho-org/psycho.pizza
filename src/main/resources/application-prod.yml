@@ -26,6 +26,15 @@ spring:
           auth: true
           starttls:
             enable: true
+  cloud:
+    aws:
+      sqs:
+        enabled: true
+      region:
+        static: ${AWS_REGION:ap-northeast-2}
+      credentials:
+        access-key: ${AWS_ACCESS_KEY_ID}
+        secret-key: ${AWS_SECRET_ACCESS_KEY}
 
 security:
   jwt:
@@ -66,4 +75,4 @@ springdoc:
 
 sqs:
   request-queue-name: ${REQUEST_QUEUE_NAME}
-  response-queue-name: ${RESPONSE_QUEUE_NAME}
+  response-queue-url: ${BUSINESS_NOTIFY_URL}
