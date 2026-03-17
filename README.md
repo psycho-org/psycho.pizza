@@ -1,1 +1,44 @@
 # psycho.pizza
+
+Spring Boot API 서버입니다.
+
+## 설정값 외부화
+
+로컬 실행은 루트 `.env` 또는 시스템 환경변수로 주입합니다.
+
+```bash
+cp .env.example .env
+```
+
+AWS EC2 + CodeDeploy 기준으로는 [`sos-app.service`](/Users/kimjiwon/Workspace/psycho/psycho.pizza/sos-app.service)가 `/home/ubuntu/app/.env`를 읽습니다.
+즉 민감정보와 환경별 URL은 배포 아티팩트에 박지 말고 서버의 `.env` 또는 배포 환경변수로 관리하면 됩니다.
+
+기본적으로 아래 값들은 외부 주입 대상입니다.
+
+```bash
+SPRING_PROFILES_ACTIVE=prod
+SPRING_DATASOURCE_URL=
+SPRING_DATASOURCE_USERNAME=
+SPRING_DATASOURCE_PASSWORD=
+MAIL_USERNAME=
+MAIL_PASSWORD=
+JWT_ISSUER=
+JWT_ACCESS_TOKEN_VALIDITY_SECONDS=
+JWT_REFRESH_TOKEN_VALIDITY_SECONDS=
+JWT_REFRESH_COOKIE_NAME=
+JWT_REFRESH_COOKIE_PATH=
+JWT_REFRESH_COOKIE_SAME_SITE=
+JWT_REFRESH_COOKIE_SECURE=true
+JWT_SECRET=
+OTP_LENGTH=
+OTP_TTL_SECONDS=
+OTP_MAX_ATTEMPTS=
+OTP_REQUEST_COOLDOWN=
+CONFIRMATION_TOKEN_TTL_SECONDS=
+MAIL_TOKEN_VERIFY_BASE_URL=
+MAIL_TOKEN_VERIFY_SUCCESS_URL=
+MAIL_TOKEN_VERIFY_FAILURE_URL=
+OPENAI_API_KEY=
+REQUEST_QUEUE_NAME=
+RESPONSE_QUEUE_NAME=
+```

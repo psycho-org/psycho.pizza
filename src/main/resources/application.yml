@@ -14,6 +14,6 @@ management:
 
 mail:
   token:
-    verify-base-url: http://localhost:8080/api/v1/mails/verify
-    verify-success-url: http://localhost:8080/mail/verify-success.html
-    verify-failure-url: http://localhost:8080/mail/verify-failure.html
+    verify-base-url: ${MAIL_TOKEN_VERIFY_BASE_URL:http://localhost:8080/api/v1/mails/verify}
+    verify-success-url: ${MAIL_TOKEN_VERIFY_SUCCESS_URL:http://localhost:8080/mail/verify-success.html}
+    verify-failure-url: ${MAIL_TOKEN_VERIFY_FAILURE_URL:http://localhost:8080/mail/verify-failure.html}
