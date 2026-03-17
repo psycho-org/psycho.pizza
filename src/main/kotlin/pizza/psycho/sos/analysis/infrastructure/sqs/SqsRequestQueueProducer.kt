@@ -24,9 +24,11 @@ class SqsRequestQueueProducer(
     ) {
         val message =
             SqsRequestQueueItem(
-                workspaceId = workspaceId,
-                analysisRequestId = analysisRequestId,
-                payload = payload,
+                externalRequestId = analysisRequestId,
+                resultFetchUrl = "https://your-domain/api/v1/analysis/requests/$analysisRequestId/result",
+                openaiRequest = payload,
+                tenant = null,
+                context = null,
             )
 
         log.info(

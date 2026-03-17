@@ -7,6 +7,10 @@ enum class AnalysisErrorCode(
     override val status: HttpStatus,
     override val message: String,
 ) : BaseErrorCode {
+    ANALYSIS_REPORT_NOT_FOUND(
+        HttpStatus.NOT_FOUND,
+        "분석 리포트가 없습니다.",
+    ),
     INVALID_ANALYSIS_STATE(
         HttpStatus.NOT_FOUND,
         "유효하지 않은 분석 요청 상태입니다.",

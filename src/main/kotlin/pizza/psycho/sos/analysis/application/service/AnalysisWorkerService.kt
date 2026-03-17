@@ -30,7 +30,7 @@ class AnalysisWorkerService(
             val analysisRequest = analysisRequestService.getAnalysisRequest(jobId)
 
             step = AnalysisStep.CALCULATE_METRICS
-
+            // TODO: score 계산 -> report 저장
             val input =
                 sprintAnalysisMetricService.buildInput(
                     workspaceId = analysisRequest.workspaceId,

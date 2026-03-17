@@ -4,9 +4,11 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import pizza.psycho.sos.analysis.application.service.dto.AnalysisCommand
 import pizza.psycho.sos.analysis.application.service.dto.AnalysisResult
+import pizza.psycho.sos.analysis.domain.entity.AnalysisReport
 import pizza.psycho.sos.analysis.domain.entity.AnalysisRequest
 import pizza.psycho.sos.analysis.domain.event.AnalysisRequestCreatedEvent
 import pizza.psycho.sos.analysis.domain.exception.AnalysisErrorCode
+import pizza.psycho.sos.analysis.infrastructure.persistence.AnalysisReportRepository
 import pizza.psycho.sos.analysis.infrastructure.persistence.AnalysisRequestRepository
 import pizza.psycho.sos.common.event.DomainEventPublisher
 import pizza.psycho.sos.common.handler.DomainException
@@ -15,6 +17,7 @@ import java.util.UUID
 @Service
 class AnalysisRequestService(
     private val analysisRequestRepository: AnalysisRequestRepository,
+    private val analysisReportRepository: AnalysisReportRepository,
     private val domainEventPublisher: DomainEventPublisher,
 ) {
     @Transactional
@@ -33,6 +36,19 @@ class AnalysisRequestService(
         val analysisRequestId = saved.id ?: throw DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_ID_NOT_GENERATED)
         val createdAt = saved.createdAt ?: throw DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_CREATED_AT_NOT_GENERATED)
 
+        analysisReportRepository.save(
+            AnalysisReport.create(
+                analysisRequestId = analysisRequestId,
+                workspaceId = command.workspaceId,
+                targetType = saved.targetType,
+                targetId = command.sprintId,
+                scoreTotal = 0,
+                scoreVersion = "v2",
+                categoryPenalties = "[]",
+                penaltyDetails = "[]",
+            ),
+        )
+
         // NOTE: commit 단계에서 실패 시 DB와 큐가 불일치할 수 있으므로 이벤트로 처리합니다.
         domainEventPublisher.publish(AnalysisRequestCreatedEvent(analysisRequestId))
 
@@ -50,16 +66,4 @@ class AnalysisRequestService(
             .orElseThrow {
                 DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_NOT_FOUND)
             }
-
-    @Transactional
-    fun complete(id: UUID) {
-        val analysisRequest =
-            analysisRequestRepository
-                .findById(id)
-                .orElseThrow {
-                    DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_NOT_FOUND)
-                }
-
-        analysisRequest.markAsDone()
-    }
 }

@@ -1,4 +1,4 @@
-package pizza.psycho.sos.common.config
+package pizza.psycho.sos.analysis.infrastructure.sqs.config
 
 import io.awspring.cloud.sqs.operations.SqsTemplate
 import org.springframework.context.annotation.Bean

@@ -87,6 +87,7 @@ interface SprintRepository {
         sprintId: UUID,
         deletedBy: UUID,
         workspaceId: WorkspaceId,
+        reason: String? = null,
     ): Int
 
     fun save(sprint: Sprint): Sprint

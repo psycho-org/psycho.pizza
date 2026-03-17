@@ -5,9 +5,11 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Test
 import pizza.psycho.sos.common.event.DomainEventPublisher
+import pizza.psycho.sos.project.sprint.application.port.out.dto.SprintPeriodSnapshot
 import pizza.psycho.sos.project.task.application.port.out.TaskSprintParticipationQuery
 import pizza.psycho.sos.project.task.domain.event.TaskDeletedEvent
 import pizza.psycho.sos.project.task.domain.event.TaskStatusChangedEvent
+import java.time.Instant
 import java.util.UUID
 import pizza.psycho.sos.audit.application.listener.event.TaskDeletedEvent as AuditTaskDeletedEvent
 import pizza.psycho.sos.audit.application.listener.event.TaskStatusChangedEvent as AuditTaskStatusChangedEvent
@@ -31,7 +33,17 @@ class TaskDomainEventPublishingHandlerTests {
                 eventId = UUID.randomUUID(),
             )
 
-        sprintMembershipRegistry.register(event.eventId, true)
+        sprintMembershipRegistry.register(
+            event.eventId,
+            listOf(
+                SprintPeriodSnapshot(
+                    sprintId = UUID.randomUUID(),
+                    workspaceId = workspaceId,
+                    startDate = Instant.parse("2026-01-01T00:00:00Z"),
+                    endDate = Instant.parse("2026-01-08T00:00:00Z"),
+                ),
+            ),
+        )
         handler.handle(event)
 
         verify(exactly = 1) {
@@ -57,13 +69,27 @@ class TaskDomainEventPublishingHandlerTests {
                 eventId = UUID.randomUUID(),
             )
 
-        sprintMembershipRegistry.register(event.eventId, true)
+        val sprintId = UUID.randomUUID()
+        sprintMembershipRegistry.register(
+            event.eventId,
+            listOf(
+                SprintPeriodSnapshot(
+                    sprintId = sprintId,
+                    workspaceId = workspaceId,
+                    startDate = Instant.parse("2026-01-01T00:00:00Z"),
+                    endDate = Instant.parse("2026-01-08T00:00:00Z"),
+                ),
+            ),
+        )
         handler.handle(event)
 
         verify(exactly = 1) {
             eventPublisher.publish(
                 match<AuditTaskStatusChangedEvent> {
-                    it.taskId == taskId && it.fromStatus == "IN_PROGRESS" && it.toStatus == "TODO"
+                    it.taskId == taskId &&
+                        it.sprintId == sprintId &&
+                        it.fromStatus == "IN_PROGRESS" &&
+                        it.toStatus == "TODO"
                 },
             )
         }
@@ -82,7 +108,7 @@ class TaskDomainEventPublishingHandlerTests {
                 eventId = UUID.randomUUID(),
             )
 
-        every { sprintMembershipQuery.existsActiveSprintByTaskId(taskId, workspaceId) } returns false
+        every { sprintMembershipQuery.findActiveSprintPeriodsByTaskId(taskId, workspaceId) } returns emptyList()
 
         handler.handle(event)
 

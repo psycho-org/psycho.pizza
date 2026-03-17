@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
-import pizza.psycho.sos.analysis.application.service.AnalysisLifecycleService
 import pizza.psycho.sos.analysis.application.service.AnalysisRequestService
 import pizza.psycho.sos.analysis.application.service.dto.AnalysisCommand
 import pizza.psycho.sos.analysis.presentation.dto.AnalysisRequest
@@ -21,7 +20,6 @@ import pizza.psycho.sos.identity.security.principal.AuthenticatedAccountPrincipa
 @RequestMapping("/api/v1/analysis-requests")
 class AnalysisController(
     private val analysisRequestService: AnalysisRequestService,
-    private val analysisLifecycleService: AnalysisLifecycleService,
 ) {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -48,19 +46,6 @@ class AnalysisController(
                 ),
             status = HttpStatus.CREATED,
             message = "분석 요청이 성공적으로 생성되었습니다.",
-        )
-    }
-
-    @PostMapping("/complete")
-    @ResponseStatus(HttpStatus.OK)
-    fun createAnalysisReport(
-        @RequestBody body: AnalysisRequest.CompleteAnalysisReport,
-    ): ApiResponse<AnalysisResponse.CreateAnalysisReportResponse> {
-        analysisRequestService.complete(id = body.jobId)
-
-        return responseOf(
-            status = HttpStatus.OK,
-            message = "분석 요청이 완료(DONE) 처리되었습니다.",
         )
     }
 }

@@ -7,6 +7,5 @@ enum class AuditTargetType(
     val description: String,
 ) {
     TASK("Task"),
-    PROJECT("Project"),
     SPRINT("Sprint"),
 }
