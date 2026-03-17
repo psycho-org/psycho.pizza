@@ -16,7 +16,7 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest
 import java.util.UUID
 
 @Component
-class AnalysisCompletionConsumer(
+class SqsResponseQueueConsumer(
     private val sqsAsyncClient: SqsAsyncClient,
     private val objectMapper: ObjectMapper,
     private val analysisLifecycleService: AnalysisLifecycleService,
