@@ -63,3 +63,7 @@ springdoc:
 
 server:
   forward-headers-strategy: framework
+
+sqs:
+  request-queue-name: ${REQUEST_QUEUE_NAME}
+  response-queue-name: ${RESPONSE_QUEUE_NAME}
