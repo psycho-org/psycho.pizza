@@ -13,7 +13,7 @@
 --
 -- 의도:
 -- 1) W11은 핵심 담당자 이탈 이후 인수인계와 재배치 비용이 누적되는 시나리오다.
--- 2) membership 이탈 자체는 analysis-report-seed-lifecycle.sql 에서 memberships soft delete 로 반영한다.
+-- 2) membership 이탈 자체는 18-analysis-report-seed-lifecycle.sql 에서 memberships soft delete 로 반영한다.
 --    이탈 히스토리 타임라인은 analysis-report-lifecycle-history.md 에 별도로 남긴다.
 -- 3) audit_log 에서는 그 결과로 발생한 assignee 재지정, 공백, 일정 지연, 취소를 중심으로 표현한다.
 -- 4) 특히 W11은 이탈 이후 일정이 크게 늘어지도록 due date 연장과 상태 회귀를 여러 건 넣는다.
@@ -367,6 +367,7 @@ insert into public.audit_log (
     event_type,
     from_value,
     to_value,
+    event_id,
     occurred_at,
     created_at,
     updated_at
@@ -380,6 +381,13 @@ select
     ra.event_type,
     ra.from_value,
     ra.to_value,
+    (
+        substr(md5(ra.id::text || ':event'), 1, 8) || '-' ||
+        substr(md5(ra.id::text || ':event'), 9, 4) || '-' ||
+        substr(md5(ra.id::text || ':event'), 13, 4) || '-' ||
+        substr(md5(ra.id::text || ':event'), 17, 4) || '-' ||
+        substr(md5(ra.id::text || ':event'), 21, 12)
+    )::uuid,
     ra.occurred_at,
     now(),
     now()

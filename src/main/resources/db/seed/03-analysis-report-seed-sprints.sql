@@ -12,6 +12,7 @@ insert into public.sprints (
     deleted_at,
     deleted_by,
     name,
+    goal,
     start_date,
     end_date,
     workspace_id
@@ -23,6 +24,7 @@ select
     null,
     null,
     v.name,
+    left(split_part(v.name, ' - ', 2), 120),
     v.start_date::timestamp,
     v.end_date::timestamp,
     v.workspace_id::uuid

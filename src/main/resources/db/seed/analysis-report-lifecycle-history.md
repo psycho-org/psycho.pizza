@@ -11,7 +11,7 @@
 - 현재 `audit_log`는 `target_type`이 `TASK`, `PROJECT`, `SPRINT`만 가능하다.
 - 현재 `event_type`도 `AuditEventType` enum으로 고정되어 있어
   `MEMBERSHIP_LEFT`, `WORKSPACE_CLOSED` 같은 이벤트를 직접 넣지 않는다.
-- 따라서 lifecycle 자체는 아래 문서와 `analysis-report-seed-lifecycle.sql`로 표현하고,
+- 따라서 lifecycle 자체는 아래 문서와 `18-analysis-report-seed-lifecycle.sql`로 표현하고,
   audit에는 그 영향(task 지연, 재배정, 취소, 공백 종료)만 남긴다.
 
 ## W11_Member_Churn
@@ -72,6 +72,6 @@
 
 ## 관련 파일
 
-- `src/main/resources/db/seed/analysis-report-seed-lifecycle.sql`
-- `src/main/resources/db/seed/analysis-report-seed-audit-log-w11.sql`
-- `src/main/resources/db/seed/analysis-report-seed-audit-log-w12.sql`
+- `src/main/resources/db/seed/18-analysis-report-seed-lifecycle.sql`
+- `src/main/resources/db/seed/16-analysis-report-seed-audit-log-w11.sql`
+- `src/main/resources/db/seed/17-analysis-report-seed-audit-log-w12.sql`

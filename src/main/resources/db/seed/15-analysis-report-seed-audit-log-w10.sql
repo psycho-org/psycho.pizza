@@ -503,6 +503,7 @@ insert into public.audit_log (
     event_type,
     from_value,
     to_value,
+    event_id,
     occurred_at,
     created_at,
     updated_at
@@ -516,6 +517,13 @@ select
     ra.event_type,
     ra.from_value,
     ra.to_value,
+    (
+        substr(md5(ra.id::text || ':event'), 1, 8) || '-' ||
+        substr(md5(ra.id::text || ':event'), 9, 4) || '-' ||
+        substr(md5(ra.id::text || ':event'), 13, 4) || '-' ||
+        substr(md5(ra.id::text || ':event'), 17, 4) || '-' ||
+        substr(md5(ra.id::text || ':event'), 21, 12)
+    )::uuid,
     ra.occurred_at,
     now(),
     now()

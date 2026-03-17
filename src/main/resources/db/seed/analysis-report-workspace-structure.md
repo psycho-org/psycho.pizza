@@ -2,8 +2,8 @@
 
 ## Flyway 기준
 
-- 이 seed 문서 묶음은 현재 DB 스키마 기준 `Flyway v8`까지 반영된 상태를 기준으로 작성되었다.
-- 특히 `accounts.display_name` 제거(`V8__drop_account_display_name.sql`) 이후 구조를 기준으로 본다.
+- 이 seed 문서 묶음은 현재 DB 스키마 기준 `Flyway v14`까지 반영된 상태를 기준으로 작성되었다.
+- 특히 `tasks.priority`(`V9`), `memberships.display_name`(`V10`), `sprints.goal`(`V12`), `analysis_metric_count`(`V13`), `reasons`(`V14`)를 포함한 최신 구조를 기준으로 본다.
 
 ## 목적
 
@@ -132,10 +132,10 @@
 
 ## 관련 파일
 
-- `src/main/resources/db/seed/analysis-report-seed-workspaces.sql`
-- `src/main/resources/db/seed/analysis-report-seed-memberships.sql`
-- `src/main/resources/db/seed/analysis-report-seed-sprints.sql`
-- `src/main/resources/db/seed/analysis-report-seed-projects.sql`
-- `src/main/resources/db/seed/analysis-report-seed-tasks.sql`
-- `src/main/resources/db/seed/analysis-report-seed-lifecycle.sql`
+- `src/main/resources/db/seed/01-analysis-report-seed-workspaces.sql`
+- `src/main/resources/db/seed/02-analysis-report-seed-memberships.sql`
+- `src/main/resources/db/seed/03-analysis-report-seed-sprints.sql`
+- `src/main/resources/db/seed/04-analysis-report-seed-projects.sql`
+- `src/main/resources/db/seed/05-analysis-report-seed-tasks.sql`
+- `src/main/resources/db/seed/18-analysis-report-seed-lifecycle.sql`
 - `src/main/resources/db/seed/analysis-report-workspace-structure-summary.sql`

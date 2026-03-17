@@ -2,7 +2,7 @@
 
 ## 목적
 
-- `analysis-report-seed-projects.sql`에 정의한 프로젝트 이름을 기준으로, 각 스프린트 하위의 세부 업무 흐름을 정리한다.
+- `04-analysis-report-seed-projects.sql`에 정의한 프로젝트 이름을 기준으로, 각 스프린트 하위의 세부 업무 흐름을 정리한다.
 - 이후 `tasks`를 만들 때 프로젝트 단위로 업무를 잘게 분해할 수 있도록 기준 스토리를 제공한다.
 
 ## W00_Current_In_Progress

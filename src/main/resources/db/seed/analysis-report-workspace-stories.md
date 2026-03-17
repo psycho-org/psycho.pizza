@@ -2,7 +2,7 @@
 
 ## 목적
 
-- `analysis-report-seed-sprints.sql`에 정의한 스프린트 이름을 바탕으로, 각 워크스페이스 단위의 업무 흐름과 맥락을 문서화한다.
+- `03-analysis-report-seed-sprints.sql`에 정의한 스프린트 이름을 바탕으로, 각 워크스페이스 단위의 업무 흐름과 맥락을 문서화한다.
 - 이후 `projects`, `tasks`, `audit_log`, `analysis_report` 시드 설계 시 참조할 수 있는 서술형 기준을 만든다.
 
 ## W00_Current_In_Progress
@@ -279,7 +279,7 @@
 
 ## 목적
 
-- `analysis-report-seed-sprints.sql`에 정의한 스프린트 이름을 바탕으로, 각 워크스페이스 단위의 업무 흐름과 맥락을 문서화한다.
+- `03-analysis-report-seed-sprints.sql`에 정의한 스프린트 이름을 바탕으로, 각 워크스페이스 단위의 업무 흐름과 맥락을 문서화한다.
 - 이후 `projects`, `tasks`, `audit_log`, `analysis_report` 시드 설계 시 참조할 수 있는 서술형 기준을 만든다.
 
 ## W01_Elite_Delivery

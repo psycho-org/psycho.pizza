@@ -90,6 +90,7 @@ sprint_task_counts as (
 select
     w.name as workspace_name,
     s.name as sprint_name,
+    s.goal as sprint_goal,
     s.start_date,
     s.end_date,
     coalesce(spc.project_count, 0) as project_count,
@@ -136,6 +137,7 @@ order by w.name, s.start_date, p.name;
 select
     w.name as workspace_name,
     t.title as backlog_task_title,
+    t.priority,
     t.status,
     t.due_date,
     t.assignee_id

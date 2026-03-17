@@ -52,7 +52,7 @@
 
 ### 3-4. 최신 스키마 메모
 
-- `accounts.display_name` 컬럼은 최신 migration(`V8`) 기준 제거되었다.
+- `accounts.display_name` 컬럼은 최신 migration 기준 제거되었고, 이후 `tasks.priority`(`V9`), `memberships.display_name`(`V10`), `sprints.goal`(`V12`), `analysis_metric_count`(`V13`), `reasons`(`V14`)가 추가되었다.
 - 따라서 직군 해석은 DB 컬럼이 아니라 `A01~A30` account key 분포표와 `email` 규칙(`seed+aNN@psycho.local`)을 기준으로 본다.
 
 ## 4) Workspace 12개 점수 시나리오

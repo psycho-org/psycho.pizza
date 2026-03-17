@@ -417,7 +417,32 @@ task_seed as (
         case
             when ado.workspace_id is not null then ado.due_date
             else tsb.due_date
-        end as due_date
+        end as due_date,
+        case
+            when tsb.workspace_id in (
+                '10000000-0000-0000-0000-000000000005'::uuid,
+                '10000000-0000-0000-0000-000000000006'::uuid,
+                '10000000-0000-0000-0000-000000000007'::uuid,
+                '10000000-0000-0000-0000-000000000008'::uuid,
+                '10000000-0000-0000-0000-000000000009'::uuid,
+                '10000000-0000-0000-0000-000000000010'::uuid,
+                '10000000-0000-0000-0000-000000000011'::uuid,
+                '10000000-0000-0000-0000-000000000012'::uuid
+            )
+            and coalesce(aso.status, tsb.status) = 'TODO'
+            and (
+                tsb.assignee_id is null
+                or tsb.task_order >= 5
+                or mod(tsb.project_order + tsb.task_order, 4) = 0
+            )
+                then null
+            when coalesce(aso.status, tsb.status) = 'IN_PROGRESS' then 'HIGH'
+            when coalesce(aso.status, tsb.status) = 'TODO' and tsb.task_order <= 2 then 'HIGH'
+            when coalesce(aso.status, tsb.status) = 'TODO' then 'MEDIUM'
+            when coalesce(aso.status, tsb.status) = 'DONE' and tsb.task_order <= 2 then 'MEDIUM'
+            when coalesce(aso.status, tsb.status) = 'CANCELLED' then 'LOW'
+            else 'LOW'
+        end as priority
     from task_seed_base tsb
     left join audit_status_overrides aso
         on aso.workspace_id = tsb.workspace_id
@@ -438,6 +463,7 @@ insert into public.tasks (
     assignee_id,
     description,
     due_date,
+    priority,
     status,
     title,
     workspace_id
@@ -451,6 +477,7 @@ select
     ts.assignee_id,
     ts.description,
     ts.due_date,
+    ts.priority,
     ts.status,
     ts.title,
     ts.workspace_id
@@ -470,6 +497,7 @@ insert into public.tasks (
     assignee_id,
     description,
     due_date,
+    priority,
     status,
     title,
     workspace_id
@@ -483,6 +511,7 @@ select
     v.assignee_id::uuid,
     v.description,
     v.due_date::timestamp,
+    v.priority,
     v.status,
     v.title,
     v.workspace_id::uuid
@@ -493,6 +522,7 @@ from (
             null,
             '프로젝트로 아직 배치되지 않은 backlog 항목으로, 우선순위 검토 전까지 대기한다.',
             null,
+            null,
             'TODO',
             'W00 Backlog 01 - VIP 문의 자동 분류 개선안 검토',
             '10000000-0000-0000-0000-000000000000'
@@ -501,6 +531,7 @@ from (
             '51000000-0000-0000-0000-000000000002',
             null,
             '다음 스프린트 후보로 남겨 둔 backlog 항목으로, 현재는 프로젝트 미배치 상태다.',
+            null,
             null,
             'TODO',
             'W00 Backlog 02 - 반복 공지 템플릿 다국어 확장',
@@ -511,6 +542,7 @@ from (
             null,
             '운영 권한 정리 관련 요청이 backlog로만 남아 있으며 아직 실행 project가 없다.',
             null,
+            null,
             'TODO',
             'W00 Backlog 03 - 운영 캘린더 권한 정리',
             '10000000-0000-0000-0000-000000000000'
@@ -519,6 +551,7 @@ from (
             '51000000-0000-0000-0000-000000000004',
             null,
             '정산 예외 후속 분류 작업은 우선순위만 잡힌 채 project 편성 전 backlog에 머물러 있다.',
+            null,
             null,
             'TODO',
             'W00 Backlog 04 - 정산 예외 케이스 후속 분류',
@@ -529,11 +562,12 @@ from (
             null,
             '신규 교육 콘텐츠 개편 아이템은 차기 sprint 검토용 backlog로 유지한다.',
             null,
+            null,
             'TODO',
             'W00 Backlog 05 - 신규 파트너 교육 콘텐츠 개편 후보 수집',
             '10000000-0000-0000-0000-000000000000'
         )
-) as v(id, assignee_id, description, due_date, status, title, workspace_id)
+) as v(id, assignee_id, description, due_date, priority, status, title, workspace_id)
 where not exists (
     select 1
     from public.tasks t

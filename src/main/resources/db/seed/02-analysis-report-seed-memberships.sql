@@ -1,26 +1,37 @@
 -- Workspace Membership 시드 데이터
 -- analysis-report-seed-data-planning.md 의 워크스페이스별 인원 배치 반영
 
-insert into public.memberships (
-    id,
-    created_at,
-    updated_at,
-    deleted_at,
-    deleted_by,
-    account_id,
-    role,
-    workspace_id
-)
-select
-    gen_random_uuid(),
-    now(),
-    now(),
-    null,
-    null,
-    v.account_id::uuid,
-    v.role,
-    v.workspace_id::uuid
-from (
+with workspace_join_base as (
+    select *
+    from (
+        values
+            ('10000000-0000-0000-0000-000000000000'::uuid, '2026-02-12 09:00:00'::timestamp),
+            ('10000000-0000-0000-0000-000000000001'::uuid, '2025-12-30 09:00:00'::timestamp),
+            ('10000000-0000-0000-0000-000000000002'::uuid, '2025-12-31 09:00:00'::timestamp),
+            ('10000000-0000-0000-0000-000000000003'::uuid, '2025-12-29 09:00:00'::timestamp),
+            ('10000000-0000-0000-0000-000000000004'::uuid, '2025-12-28 09:00:00'::timestamp),
+            ('10000000-0000-0000-0000-000000000005'::uuid, '2025-12-30 13:00:00'::timestamp),
+            ('10000000-0000-0000-0000-000000000006'::uuid, '2025-12-29 13:00:00'::timestamp),
+            ('10000000-0000-0000-0000-000000000007'::uuid, '2026-01-05 09:00:00'::timestamp),
+            ('10000000-0000-0000-0000-000000000008'::uuid, '2025-12-31 14:00:00'::timestamp),
+            ('10000000-0000-0000-0000-000000000009'::uuid, '2026-01-02 09:00:00'::timestamp),
+            ('10000000-0000-0000-0000-000000000010'::uuid, '2025-12-29 15:00:00'::timestamp),
+            ('10000000-0000-0000-0000-000000000011'::uuid, '2026-01-03 09:00:00'::timestamp),
+            ('10000000-0000-0000-0000-000000000012'::uuid, '2025-12-30 15:00:00'::timestamp)
+    ) as v(workspace_id, joined_base_at)
+),
+membership_seed as (
+    select
+        v.account_id::uuid as account_id,
+        v.role,
+        v.workspace_id::uuid as workspace_id,
+        wjb.joined_base_at
+            + ((row_number() over (
+                partition by v.workspace_id
+                order by case when v.role = 'OWNER' then 0 else 1 end, v.account_id
+            ) - 1) * interval '4 hours')
+            + (mod(abs(hashtext(v.account_id || v.workspace_id::text)), 5) * interval '17 minutes') as joined_at
+    from (
     values
         -- W00_Current_In_Progress (10명)
         ('00000000-0000-0000-0000-000000000001', 'OWNER', '10000000-0000-0000-0000-000000000000'),
@@ -186,12 +197,39 @@ from (
         ('00000000-0000-0000-0000-000000000014', 'CREW',  '10000000-0000-0000-0000-000000000012'),
         ('00000000-0000-0000-0000-000000000020', 'CREW',  '10000000-0000-0000-0000-000000000012'),
         ('00000000-0000-0000-0000-000000000028', 'CREW',  '10000000-0000-0000-0000-000000000012')
-) as v(account_id, role, workspace_id)
+    ) as v(account_id, role, workspace_id)
+    join workspace_join_base wjb
+        on wjb.workspace_id = v.workspace_id::uuid
+)
+insert into public.memberships (
+    id,
+    created_at,
+    updated_at,
+    deleted_at,
+    deleted_by,
+    account_id,
+    display_name,
+    role,
+    workspace_id
+)
+select
+    gen_random_uuid(),
+    ms.joined_at,
+    ms.joined_at + interval '5 minutes',
+    null,
+    null,
+    ms.account_id,
+    left(trim(concat(coalesce(a.given_name, ''), ' ', coalesce(a.family_name, ''))), 255),
+    ms.role,
+    ms.workspace_id
+from membership_seed ms
+join public.accounts a
+    on a.id = ms.account_id
 where not exists (
     select 1
     from public.memberships m
-    where m.account_id = v.account_id::uuid
-      and m.workspace_id = v.workspace_id::uuid
+    where m.account_id = ms.account_id
+      and m.workspace_id = ms.workspace_id
       and m.deleted_at is null
       and m.deleted_by is null
 );

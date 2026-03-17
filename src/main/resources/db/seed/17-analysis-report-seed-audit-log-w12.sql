@@ -15,7 +15,7 @@
 --
 -- 의도:
 -- 1) W12는 진행 중이던 workspace가 중간에 닫히는 종료 시나리오다.
--- 2) workspace 종료 자체는 analysis-report-seed-lifecycle.sql 에서 workspaces / memberships soft delete 로 반영한다.
+-- 2) workspace 종료 자체는 18-analysis-report-seed-lifecycle.sql 에서 workspaces / memberships soft delete 로 반영한다.
 -- 3) audit_log 에서는 종료 전까지 나타난 목표 축소, 급한 태스크 투입, 취소, 미완료 잔존을 중심으로 표현한다.
 -- 4) 2026-02-18 18:30 이후에는 workspace 종료로 추가 진행 로그가 더 이상 발생하지 않는 흐름을 의도한다.
 
@@ -227,6 +227,7 @@ insert into public.audit_log (
     event_type,
     from_value,
     to_value,
+    event_id,
     occurred_at,
     created_at,
     updated_at
@@ -240,6 +241,13 @@ select
     ra.event_type,
     ra.from_value,
     ra.to_value,
+    (
+        substr(md5(ra.id::text || ':event'), 1, 8) || '-' ||
+        substr(md5(ra.id::text || ':event'), 9, 4) || '-' ||
+        substr(md5(ra.id::text || ':event'), 13, 4) || '-' ||
+        substr(md5(ra.id::text || ':event'), 17, 4) || '-' ||
+        substr(md5(ra.id::text || ':event'), 21, 12)
+    )::uuid,
     ra.occurred_at,
     now(),
     now()
