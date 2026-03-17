@@ -33,27 +33,13 @@ JAVAC="$JAVA_HOME_21/bin/javac"
 JAVA="$JAVA_HOME_21/bin/java"
 
 POSTGRES_JAR="$(find "$HOME/.gradle/caches/modules-2/files-2.1/org.postgresql/postgresql" -name 'postgresql-*.jar' | grep -v sources | sort | tail -n 1)"
-SPRING_JDBC_JAR="$(find "$HOME/.gradle/caches/modules-2/files-2.1/org.springframework/spring-jdbc" -name 'spring-jdbc-*.jar' | grep -v sources | sort | tail -n 1)"
-SPRING_CORE_JAR="$(find "$HOME/.gradle/caches/modules-2/files-2.1/org.springframework/spring-core" -name 'spring-core-*.jar' | grep -v sources | sort | tail -n 1)"
-SPRING_BEANS_JAR="$(find "$HOME/.gradle/caches/modules-2/files-2.1/org.springframework/spring-beans" -name 'spring-beans-*.jar' | grep -v sources | sort | tail -n 1)"
-SPRING_TX_JAR="$(find "$HOME/.gradle/caches/modules-2/files-2.1/org.springframework/spring-tx" -name 'spring-tx-*.jar' | grep -v sources | sort | tail -n 1)"
-SPRING_JCL_JAR="$(find "$HOME/.gradle/caches/modules-2/files-2.1/org.springframework/spring-jcl" -name 'spring-jcl-*.jar' | grep -v sources | sort | tail -n 1)"
 
-for jar in \
-  "$POSTGRES_JAR" \
-  "$SPRING_JDBC_JAR" \
-  "$SPRING_CORE_JAR" \
-  "$SPRING_BEANS_JAR" \
-  "$SPRING_TX_JAR" \
-  "$SPRING_JCL_JAR"
-do
-  if [ ! -f "$jar" ]; then
-    echo "[ERROR] Missing runtime jar: $jar" >&2
-    exit 1
-  fi
-done
+if [ ! -f "$POSTGRES_JAR" ]; then
+  echo "[ERROR] Missing PostgreSQL JDBC jar: $POSTGRES_JAR" >&2
+  exit 1
+fi
 
-CLASSPATH="$POSTGRES_JAR:$SPRING_JDBC_JAR:$SPRING_CORE_JAR:$SPRING_BEANS_JAR:$SPRING_TX_JAR:$SPRING_JCL_JAR"
+CLASSPATH="$POSTGRES_JAR"
 RUNNER_SRC="/tmp/ApplyAnalysisReportSeed.java"
 RUNNER_CLASS="/tmp/ApplyAnalysisReportSeed.class"
 
@@ -67,9 +53,8 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.jdbc.datasource.init.ScriptUtils;
 
 public class ApplyAnalysisReportSeed {
     public static void main(String[] args) throws Exception {
@@ -87,7 +72,7 @@ public class ApplyAnalysisReportSeed {
             connection.setAutoCommit(false);
             try {
                 for (String file : args) {
-                    ScriptUtils.executeSqlScript(connection, new FileSystemResource(file));
+                    executeSqlFile(connection, file);
                     System.out.println("Applied: " + file);
                 }
 
@@ -191,21 +176,155 @@ public class ApplyAnalysisReportSeed {
         try (Statement statement = connection.createStatement()) {
             int deletedMetric = statement.executeUpdate("delete from public.analysis_metric_count");
             System.out.println("Deleted analysis_metric_count rows: " + deletedMetric);
-            executeSql(statement, Files.readString(Path.of(analysisMetricSeedFile), StandardCharsets.UTF_8));
+            executeSqlText(statement, Files.readString(Path.of(analysisMetricSeedFile), StandardCharsets.UTF_8));
 
             int deletedReason = statement.executeUpdate(
                 "delete from public.reasons where event_type in ('CANCEL', 'DELETE')"
             );
             System.out.println("Deleted reasons: " + deletedReason);
-            executeSql(statement, Files.readString(Path.of(reasonSeedFile), StandardCharsets.UTF_8));
+            executeSqlText(statement, Files.readString(Path.of(reasonSeedFile), StandardCharsets.UTF_8));
         }
     }
 
-    private static void executeSql(Statement statement, String sql) throws SQLException {
-        String cleaned = sql.replaceAll("(?m)^--.*$", "").trim();
-        if (!cleaned.isEmpty()) {
-            statement.execute(cleaned);
+    private static void executeSqlFile(Connection connection, String file) throws SQLException, IOException {
+        String sql = Files.readString(Path.of(file), StandardCharsets.UTF_8);
+        try (Statement statement = connection.createStatement()) {
+            executeSqlText(statement, sql);
         }
+    }
+
+    private static void executeSqlText(Statement statement, String sql) throws SQLException {
+        for (String part : splitSqlStatements(sql)) {
+            String trimmed = part.trim();
+            if (!trimmed.isEmpty()) {
+                statement.execute(trimmed);
+            }
+        }
+    }
+
+    private static List<String> splitSqlStatements(String sql) {
+        List<String> statements = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+        boolean inLineComment = false;
+        boolean inBlockComment = false;
+        String dollarQuoteTag = null;
+
+        for (int i = 0; i < sql.length(); i++) {
+            char c = sql.charAt(i);
+            char next = i + 1 < sql.length() ? sql.charAt(i + 1) : '\0';
+
+            if (inLineComment) {
+                current.append(c);
+                if (c == '\n') {
+                    inLineComment = false;
+                }
+                continue;
+            }
+
+            if (inBlockComment) {
+                current.append(c);
+                if (c == '*' && next == '/') {
+                    current.append(next);
+                    i++;
+                    inBlockComment = false;
+                }
+                continue;
+            }
+
+            if (dollarQuoteTag != null) {
+                current.append(c);
+                if (c == '$') {
+                    String remaining = sql.substring(i);
+                    if (remaining.startsWith(dollarQuoteTag)) {
+                        for (int j = 1; j < dollarQuoteTag.length(); j++) {
+                            current.append(dollarQuoteTag.charAt(j));
+                        }
+                        i += dollarQuoteTag.length() - 1;
+                        dollarQuoteTag = null;
+                    }
+                }
+                continue;
+            }
+
+            if (!inSingleQuote && !inDoubleQuote) {
+                if (c == '-' && next == '-') {
+                    current.append(c).append(next);
+                    i++;
+                    inLineComment = true;
+                    continue;
+                }
+
+                if (c == '/' && next == '*') {
+                    current.append(c).append(next);
+                    i++;
+                    inBlockComment = true;
+                    continue;
+                }
+
+                if (c == '$') {
+                    int end = i + 1;
+                    while (end < sql.length()) {
+                        char tagChar = sql.charAt(end);
+                        if (tagChar == '$') {
+                            String candidate = sql.substring(i, end + 1);
+                            if (candidate.matches("\\$[A-Za-z0-9_]*\\$")) {
+                                current.append(candidate);
+                                i = end;
+                                dollarQuoteTag = candidate;
+                                break;
+                            }
+                            break;
+                        }
+                        if (!(Character.isLetterOrDigit(tagChar) || tagChar == '_')) {
+                            break;
+                        }
+                        end++;
+                    }
+                    if (dollarQuoteTag != null) {
+                        continue;
+                    }
+                }
+            }
+
+            if (c == '\'' && !inDoubleQuote) {
+                current.append(c);
+                if (inSingleQuote && next == '\'') {
+                    current.append(next);
+                    i++;
+                } else {
+                    inSingleQuote = !inSingleQuote;
+                }
+                continue;
+            }
+
+            if (c == '"' && !inSingleQuote) {
+                current.append(c);
+                if (inDoubleQuote && next == '"') {
+                    current.append(next);
+                    i++;
+                } else {
+                    inDoubleQuote = !inDoubleQuote;
+                }
+                continue;
+            }
+
+            if (c == ';' && !inSingleQuote && !inDoubleQuote) {
+                statements.add(current.toString());
+                current.setLength(0);
+                continue;
+            }
+
+            current.append(c);
+        }
+
+        if (!current.toString().trim().isEmpty()) {
+            statements.add(current.toString());
+        }
+
+        return statements;
     }
 
     private static void printSummary(Connection connection) throws SQLException {
