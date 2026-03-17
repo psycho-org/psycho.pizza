@@ -50,6 +50,16 @@ class TaskController(
             taskService.getAll(TaskQuery.FindTasks(workspaceId, pageable))
         }
 
+    @GetMapping("/me")
+    fun findTasksByAssignee(
+        @PathVariable workspaceId: UUID,
+        @PageableDefault(page = 0, size = 10) pageable: Pageable,
+        @AuthenticationPrincipal principal: AuthenticatedAccountPrincipal,
+    ): ApiResponse<*> =
+        handleResult {
+            taskService.getAssignedTasks(TaskQuery.FindAssignedTasks(workspaceId, principal.accountId, pageable))
+        }
+
     @GetMapping("/backlog")
     fun findBacklogTasks(
         @PathVariable workspaceId: UUID,
@@ -102,6 +112,7 @@ class TaskController(
 
             is TaskResult.TaskInformation -> responseOf(data = result.toResponse())
             is TaskResult.TaskList -> pageInfoSupport.toPageResponse(result.page.map { it.toResponse() })
+            is TaskResult.AssignedTaskGroups -> responseOf(data = result.toResponse())
             is TaskResult.Failure.IdNotFound -> throw DomainException(TaskErrorCode.TASK_NOT_FOUND)
             is TaskResult.Failure.TaskInformationNotFound -> throw DomainException(TaskErrorCode.TASK_INFO_NOT_FOUND)
             is TaskResult.Failure.InvalidRequest -> throw DomainException(TaskErrorCode.INVALID_REQUEST)
@@ -152,5 +163,51 @@ class TaskController(
             assignee = assignee?.let { TaskResponse.Assignee(it.id, it.name, it.email) },
             workspaceId = workspaceId,
             dueDate = dueDate,
+        )
+
+    private fun TaskResult.AssignedTaskGroups.toResponse(): TaskResponse.AssignedGrouped =
+        TaskResponse.AssignedGrouped(
+            pageInfo = pageInfoSupport.toPageInfo(page),
+            sprintGroups =
+                sprintGroups.map { sprintGroup ->
+                    TaskResponse.SprintGroup(
+                        sprint =
+                            sprintGroup.sprint?.let { sprint ->
+                                TaskResponse.Sprint(
+                                    id = sprint.id,
+                                    name = sprint.name,
+                                    startDate = sprint.startDate,
+                                    endDate = sprint.endDate,
+                                )
+                            },
+                        uniqueTaskCount = sprintGroup.uniqueTaskCount,
+                        projects =
+                            sprintGroup.projects.map { projectGroup ->
+                                TaskResponse.ProjectGroup(
+                                    project =
+                                        projectGroup.project?.let { project ->
+                                            TaskResponse.Project(
+                                                id = project.id,
+                                                name = project.name,
+                                            )
+                                        },
+                                    taskCount = projectGroup.taskCount,
+                                    tasks =
+                                        projectGroup.tasks.map { task ->
+                                            TaskResponse.AssignedTask(
+                                                id = task.id,
+                                                title = task.title,
+                                                status = task.status,
+                                                assignee =
+                                                    task.assignee?.let { assignee ->
+                                                        TaskResponse.Assignee(assignee.id, assignee.name, assignee.email)
+                                                    },
+                                                dueDate = task.dueDate,
+                                            )
+                                        },
+                                )
+                            },
+                    )
+                },
         )
 }
