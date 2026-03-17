@@ -10,7 +10,6 @@ import pizza.psycho.sos.project.project.application.port.out.ProjectPort
 import pizza.psycho.sos.project.project.application.port.out.dto.ProjectSnapshot
 import pizza.psycho.sos.project.project.application.port.out.dto.TaskAssignment
 import pizza.psycho.sos.project.project.application.port.out.query.ProjectProgress
-import pizza.psycho.sos.project.project.domain.event.ProjectDeletedEvent
 import pizza.psycho.sos.project.sprint.application.policy.SprintTaskPolicy
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintCommand
 import pizza.psycho.sos.project.sprint.application.service.dto.SprintQuery
@@ -419,20 +418,15 @@ class SprintService(
         if (projects.isEmpty()) {
             0
         } else {
-            projectPort.deleteByIdIn(projects.map(ProjectSnapshot::projectId), deletedBy, workspaceId).also {
-                projects.forEach { project ->
-                    domainEventPublisher.publish(
-                        ProjectDeletedEvent(
-                            workspaceId = workspaceId.value,
-                            actorId = deletedBy,
-                            projectId = project.projectId,
-                            projectName = project.name,
-                            reason = reason,
-                            eventId = UUID.randomUUID(),
-                        ),
-                    )
-                }
-            }
+            projectPort
+                .deleteByIdIn(
+                    projectIds = projects.map(ProjectSnapshot::projectId),
+                    deletedBy = deletedBy,
+                    workspaceId = workspaceId,
+                    reason = reason,
+                ).also { deletedEvents ->
+                    deletedEvents.forEach(domainEventPublisher::publish)
+                }.size
         }
 
     private fun deleteTasks(
@@ -453,6 +447,9 @@ class SprintService(
         workspaceId: WorkspaceId,
         actorId: UUID,
     ) {
+        val sprint =
+            sprintRepository.findActiveSprintByIdOrNull(sprintId, workspaceId)
+                ?: return
         taskIds
             .distinct()
             .forEach { taskId ->
@@ -462,6 +459,8 @@ class SprintService(
                         sprintId = sprintId,
                         taskId = taskId,
                         actorId = actorId,
+                        sprintStartDate = sprint.period.startDate,
+                        sprintEndDate = sprint.period.endDate,
                         eventId = UUID.randomUUID(),
                     ),
                 )

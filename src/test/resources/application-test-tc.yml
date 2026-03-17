@@ -10,6 +10,13 @@ spring:
     port: 587
     username: test@psycho.pizza
     password: test-password
+  cloud:
+    aws:
+      region:
+        static: ap-northeast-2
+      credentials:
+        access-key: test-dummy-access-key-id
+        secret-key: test-dummy-secret-access-key
 
 security:
   jwt:
@@ -28,4 +35,4 @@ openai:
 
 sqs:
   request-queue-name: test-queue-1
-  response-queue-name: test-queue-2
+  response-queue-url: test-queue-2

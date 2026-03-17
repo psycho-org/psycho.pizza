@@ -1,7 +1,8 @@
 package pizza.psycho.sos.audit.application.listener
 
-import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component
+import org.springframework.transaction.event.TransactionPhase
+import org.springframework.transaction.event.TransactionalEventListener
 import pizza.psycho.sos.audit.application.listener.event.SprintGoalChangedEvent
 import pizza.psycho.sos.audit.application.listener.event.SprintPeriodChangedEvent
 import pizza.psycho.sos.audit.application.listener.event.TaskAddedToSprintEvent
@@ -15,14 +16,22 @@ import pizza.psycho.sos.audit.application.service.AuditLogService
 import pizza.psycho.sos.audit.domain.vo.AuditEventType
 import pizza.psycho.sos.audit.domain.vo.AuditTargetType
 
+/*
+ * Domain Event를 수신하여 AuditLog를 저장하는 이벤트 리스너
+ */
 @Component
 class AuditLogEventListener(
     private val auditLogService: AuditLogService,
 ) {
-    // --- 🔥 Sprint 관련 이벤트 리스너 ---
+    // --- Sprint ---
 
-    @EventListener
-    fun handle(event: SprintGoalChangedEvent) {
+    // MVP-03
+    @TransactionalEventListener(
+        // NOTE: 트랜잭션 안에서 실행되면 AFTER_COMMIT 실행, 트랜잭션 없으면 즉시 실행
+        phase = TransactionPhase.AFTER_COMMIT,
+        fallbackExecution = true,
+    )
+    fun on(event: SprintGoalChangedEvent) {
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
             actorId = event.actorId,
@@ -36,23 +45,31 @@ class AuditLogEventListener(
         )
     }
 
-    @EventListener
-    fun handle(event: SprintPeriodChangedEvent) {
+    // MVP-03
+    @TransactionalEventListener(
+        phase = TransactionPhase.AFTER_COMMIT,
+        fallbackExecution = true,
+    )
+    fun on(event: SprintPeriodChangedEvent) {
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
             actorId = event.actorId,
             targetType = AuditTargetType.SPRINT,
             targetId = event.sprintId,
             auditEventType = AuditEventType.SPRINT_PERIOD_CHANGED,
-            fromValue = event.fromPeriod,
-            toValue = event.toPeriod,
+            fromValue = "${event.fromStartDate}~${event.fromEndDate}",
+            toValue = "${event.toStartDate}~${event.toEndDate}",
             eventId = event.eventId,
             occurredAt = event.occurredAt,
         )
     }
 
-    @EventListener
-    fun handle(event: TaskAddedToSprintEvent) {
+    // MVP-03
+    @TransactionalEventListener(
+        phase = TransactionPhase.AFTER_COMMIT,
+        fallbackExecution = true,
+    )
+    fun on(event: TaskAddedToSprintEvent) {
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
             actorId = event.actorId,
@@ -66,8 +83,12 @@ class AuditLogEventListener(
         )
     }
 
-    @EventListener
-    fun handle(event: TaskRemovedFromSprintEvent) {
+    // MVP-03
+    @TransactionalEventListener(
+        phase = TransactionPhase.AFTER_COMMIT,
+        fallbackExecution = true,
+    )
+    fun on(event: TaskRemovedFromSprintEvent) {
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
             actorId = event.actorId,
@@ -81,10 +102,14 @@ class AuditLogEventListener(
         )
     }
 
-    // --- 🔥 Task 관련 이벤트 리스너 ---
+    // --- Task ---
 
-    @EventListener
-    fun handle(event: TaskStatusChangedEvent) {
+    // MVP-03
+    @TransactionalEventListener(
+        phase = TransactionPhase.AFTER_COMMIT,
+        fallbackExecution = true,
+    )
+    fun on(event: TaskStatusChangedEvent) {
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
             actorId = event.actorId,
@@ -98,8 +123,12 @@ class AuditLogEventListener(
         )
     }
 
-    @EventListener
-    fun handle(event: TaskAssigneeChangedEvent) {
+    @TransactionalEventListener(
+        phase = TransactionPhase.AFTER_COMMIT,
+        fallbackExecution = true,
+    )
+    fun on(event: TaskAssigneeChangedEvent) {
+        /*
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
             actorId = event.actorId,
@@ -111,10 +140,15 @@ class AuditLogEventListener(
             eventId = event.eventId,
             occurredAt = event.occurredAt,
         )
+         */
     }
 
-    @EventListener
-    fun handle(event: TaskDueDateChangedEvent) {
+    @TransactionalEventListener(
+        phase = TransactionPhase.AFTER_COMMIT,
+        fallbackExecution = true,
+    )
+    fun on(event: TaskDueDateChangedEvent) {
+        /*
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
             actorId = event.actorId,
@@ -126,10 +160,15 @@ class AuditLogEventListener(
             eventId = event.eventId,
             occurredAt = event.occurredAt,
         )
+         */
     }
 
-    @EventListener
-    fun handle(event: TaskProjectChangedEvent) {
+    @TransactionalEventListener(
+        phase = TransactionPhase.AFTER_COMMIT,
+        fallbackExecution = true,
+    )
+    fun on(event: TaskProjectChangedEvent) {
+        /*
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
             actorId = event.actorId,
@@ -141,10 +180,15 @@ class AuditLogEventListener(
             eventId = event.eventId,
             occurredAt = event.occurredAt,
         )
+         */
     }
 
-    @EventListener
-    fun handle(event: TaskDeletedEvent) {
+    @TransactionalEventListener(
+        phase = TransactionPhase.AFTER_COMMIT,
+        fallbackExecution = true,
+    )
+    fun on(event: TaskDeletedEvent) {
+        /*
         auditLogService.createAuditLog(
             workspaceId = event.workspaceId,
             actorId = event.actorId,
@@ -156,5 +200,6 @@ class AuditLogEventListener(
             eventId = event.eventId,
             occurredAt = event.occurredAt,
         )
+         */
     }
 }

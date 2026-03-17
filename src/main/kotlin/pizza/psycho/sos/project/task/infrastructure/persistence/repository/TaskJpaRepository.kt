@@ -34,6 +34,17 @@ interface TaskJpaRepository :
         pageable: Pageable,
     ): Page<Task> = findAllByWorkspaceIdValueAndDeletedAtIsNull(workspaceId.value, pageable)
 
+    override fun findAllActiveTasksByAssigneeId(
+        workspaceId: WorkspaceId,
+        assigneeId: UUID,
+        pageable: Pageable,
+    ): Page<Task> =
+        findAllByWorkspaceIdValueAndAssigneeIdValueAndDeletedAtIsNull(
+            workspaceId = workspaceId.value,
+            assigneeId = assigneeId,
+            pageable = pageable,
+        )
+
     @Query(
         value =
             """
@@ -107,6 +118,12 @@ interface TaskJpaRepository :
 
     fun findAllByWorkspaceIdValueAndDeletedAtIsNull(
         workspaceId: UUID,
+        pageable: Pageable,
+    ): Page<Task>
+
+    fun findAllByWorkspaceIdValueAndAssigneeIdValueAndDeletedAtIsNull(
+        workspaceId: UUID,
+        assigneeId: UUID,
         pageable: Pageable,
     ): Page<Task>
 

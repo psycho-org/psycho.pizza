@@ -77,6 +77,20 @@ class AnalysisRequest(
     }
 
     /**
+     * RUNNING -> DONE with result
+     */
+    fun complete(result: Any?) {
+        if (status != AnalysisRequestStatus.RUNNING) {
+            throw DomainException(
+                AnalysisErrorCode.INVALID_ANALYSIS_STATE,
+                "분석 요청 상태가 RUNNING일 때만 완료할 수 있습니다. (현재 상태=$status)",
+            )
+        }
+        status = AnalysisRequestStatus.DONE
+        completedAt = Instant.now()
+    }
+
+    /**
      * RUNNING -> FAILED
      * - completedAt 기록 + errorMessage 저장
      */

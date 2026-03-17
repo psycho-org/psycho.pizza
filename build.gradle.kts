@@ -49,6 +49,12 @@ dependencies {
     // OpenAPI (Swagger UI)
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.15")
 
+    // AWS SDK
+    implementation("software.amazon.awssdk:sqs")
+
+    // Kotlin Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
+
     // jwt
     implementation("io.jsonwebtoken:jjwt-api:0.12.7")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.7")
