@@ -58,6 +58,8 @@ import java.util.List;
 
 public class ApplyAnalysisReportSeed {
     public static void main(String[] args) throws Exception {
+        Class.forName("org.postgresql.Driver");
+
         String url = System.getenv("SPRING_DATASOURCE_URL");
         String user = System.getenv("SPRING_DATASOURCE_USERNAME");
         String password = System.getenv("SPRING_DATASOURCE_PASSWORD");
