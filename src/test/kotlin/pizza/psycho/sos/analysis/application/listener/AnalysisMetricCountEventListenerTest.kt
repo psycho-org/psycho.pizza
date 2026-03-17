@@ -2,9 +2,11 @@ package pizza.psycho.sos.analysis.application.listener
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.analysis.domain.vo.AnalysisEventSubtype
 import pizza.psycho.sos.analysis.infrastructure.persistence.AnalysisMetricCountRepository
 import pizza.psycho.sos.audit.application.listener.event.SprintGoalChangedEvent
@@ -15,7 +17,9 @@ import pizza.psycho.sos.audit.application.listener.event.TaskStatusChangedEvent
 import java.time.Instant
 import java.util.UUID
 
+@Tag("integration")
 @SpringBootTest
+@ActiveProfiles("test")
 class AnalysisMetricCountEventListenerTest {
     @Autowired
     private lateinit var listener: AnalysisMetricCountEventListener
