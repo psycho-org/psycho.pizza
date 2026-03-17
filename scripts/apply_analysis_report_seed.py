@@ -3,11 +3,8 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
-import subprocess
 import sys
 from pathlib import Path
-from typing import Iterable
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -125,51 +122,6 @@ def summary_queries() -> list[str]:
     ]
 
 
-def jdbc_to_psql(url: str) -> tuple[str, str, str]:
-    match = re.match(r"jdbc:postgresql://([^:/]+)(?::(\d+))?/([^?]+)", url)
-    if not match:
-        raise SystemExit(f"Unsupported PostgreSQL JDBC URL format: {url}")
-    host = match.group(1)
-    port = match.group(2) or "5432"
-    dbname = match.group(3)
-    return host, port, dbname
-
-
-def run_psql(url: str, username: str, password: str, files: Iterable[Path]) -> None:
-    psql = shutil.which("psql")
-    if not psql:
-        raise FileNotFoundError("psql not found")
-
-    host, port, dbname = jdbc_to_psql(url)
-    env = os.environ.copy()
-    env["PGPASSWORD"] = password
-
-    print("Applying seed files with psql:")
-    for file in files:
-        print(f" - {file}")
-        subprocess.run(
-            [psql, "-v", "ON_ERROR_STOP=1", "-h", host, "-p", port, "-U", username, "-d", dbname, "-f", str(file)],
-            check=True,
-            env=env,
-        )
-
-    extra_sql = [
-        sync_sprint_goals_sql(),
-        sync_task_priorities_sql(),
-        "delete from public.analysis_metric_count;",
-        (SEED_DIR / "19-analysis-report-seed-analysis-metric-count.sql").read_text(encoding="utf-8"),
-        "delete from public.reasons where event_type in ('CANCEL', 'DELETE');",
-        (SEED_DIR / "20-analysis-report-seed-reasons.sql").read_text(encoding="utf-8"),
-    ]
-
-    for sql in extra_sql + summary_queries():
-        subprocess.run(
-            [psql, "-v", "ON_ERROR_STOP=1", "-h", host, "-p", port, "-U", username, "-d", dbname, "-c", sql],
-            check=True,
-            env=env,
-        )
-
-
 def connect_python(url: str, username: str, password: str):
     try:
         import psycopg  # type: ignore
@@ -186,7 +138,10 @@ def connect_python(url: str, username: str, password: str):
         pass
 
     raise SystemExit(
-        "No PostgreSQL client available. Install `psql` or Python package `psycopg`/`psycopg2` and retry."
+        "Python PostgreSQL driver not found even after bootstrap.\n"
+        "Try one of these manually and rerun:\n"
+        "  python3.9 -m pip install 'psycopg[binary]'\n"
+        "  python3.9 -m pip install psycopg2-binary"
     )
 
 
@@ -334,10 +289,6 @@ def main() -> None:
     files = ordered_seed_files()
     if not files:
         raise SystemExit(f"No ordered seed files found in {SEED_DIR}")
-
-    if shutil.which("psql"):
-        run_psql(url, username, password, files)
-        return
 
     run_python(url, username, password, files)
 
