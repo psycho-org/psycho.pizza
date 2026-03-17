@@ -20,7 +20,7 @@ class SqsResponseQueueConsumer(
     private val sqsAsyncClient: SqsAsyncClient,
     private val objectMapper: ObjectMapper,
     private val analysisLifecycleService: AnalysisLifecycleService,
-    @Value("\${aws.sqs.response-queue-url}")
+    @param:Value("\${sqs.response-queue-url}")
     private val responseQueueUrl: String,
 ) {
     private val log by loggerDelegate()
