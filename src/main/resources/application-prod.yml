@@ -56,9 +56,8 @@ challenge:
 
 mail:
   token:
-    verify-base-url: ${MAIL_TOKEN_VERIFY_BASE_URL}
-    verify-success-url: ${MAIL_TOKEN_VERIFY_SUCCESS_URL}
-    verify-failure-url: ${MAIL_TOKEN_VERIFY_FAILURE_URL}
+    verify-base-url: ${MAIL_TOKEN_VERIFY_BASE_URL:https://www.psycho.pizza/api/v1/mails/verify}
+    frontend-base-url: ${MAIL_TOKEN_FRONTEND_BASE_URL:https://www.psycho.pizza}
 
 openai:
   api-key: ${OPENAI_API_KEY}
