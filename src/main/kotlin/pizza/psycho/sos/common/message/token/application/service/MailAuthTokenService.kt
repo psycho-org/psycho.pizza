@@ -17,6 +17,7 @@ import pizza.psycho.sos.common.message.token.application.service.dto.MailAuthTok
 import pizza.psycho.sos.common.message.token.domain.model.entity.MailAuthFailureReason
 import pizza.psycho.sos.common.message.token.domain.model.entity.MailAuthToken
 import pizza.psycho.sos.common.message.token.domain.repository.MailAuthTokenRepository
+import pizza.psycho.sos.common.support.log.loggerDelegate
 import java.security.SecureRandom
 import java.time.Instant
 
@@ -26,6 +27,8 @@ class MailAuthTokenService(
     private val entityManager: EntityManager,
     private val eventPublisher: ApplicationEventPublisher,
 ) {
+    private val log by loggerDelegate()
+
     @Transactional
     fun issue(
         mailType: MessageType,
@@ -74,24 +77,42 @@ class MailAuthTokenService(
 
     @Transactional
     fun verify(token: String): MailAuthTokenResult {
-        val entity = mailAuthTokenRepository.findByTokenWithParams(token) ?: return MailAuthTokenResult.NotFound
+        log.info("mail auth verify start: tokenPrefix={}", tokenPrefix(token))
+        val entity =
+            mailAuthTokenRepository.findByTokenWithParams(token)
+                ?: run {
+                    log.info("[...] mail auth verify not found: tokenPrefix={}", tokenPrefix(token))
+                    return MailAuthTokenResult.NotFound
+                }
 
         if (entity.isVerified()) {
+            log.info("[...] mail auth verify already verified: tokenPrefix={}, tokenId={}", tokenPrefix(token), entity.id)
             return MailAuthTokenResult.AlreadyVerified(entity)
         }
 
         if (entity.isFailed()) {
+            log.info("[...] mail auth verify already failed: tokenPrefix={}, tokenId={}", tokenPrefix(token), entity.id)
             return MailAuthTokenResult.Failed(entity)
         }
 
         if (entity.isExpired()) {
+            log.info("[...] mail auth verify expired: tokenPrefix={}, tokenId={}", tokenPrefix(token), entity.id)
             entity.fail(MailAuthFailureReason.EXPIRED)
+            log.info("[...] mail auth verify marked expired failure: tokenPrefix={}, tokenId={}", tokenPrefix(token), entity.id)
             return MailAuthTokenResult.Expired(entity)
         }
 
+        log.info(
+            "[...] mail auth verify building action request: tokenPrefix={}, tokenId={}, actionType={}",
+            tokenPrefix(token),
+            entity.id,
+            entity.actionType,
+        )
         val actionRequest = toActionRequest(entity.actionType, entity.paramsMap())
+        log.info("[...] mail auth verify updating token state: tokenPrefix={}, tokenId={}", tokenPrefix(token), entity.id)
         entity.verify()
         entity.markActionPending()
+        log.info("[...] mail auth verify publishing event: tokenPrefix={}, tokenId={}", tokenPrefix(token), entity.id)
         eventPublisher.publishEvent(
             MailAuthVerifiedEvent(
                 mailType = entity.mailType,
@@ -99,6 +120,7 @@ class MailAuthTokenService(
                 actionRequest = actionRequest,
             ),
         )
+        log.info("[...] mail auth verify success: tokenPrefix={}, tokenId={}", tokenPrefix(token), entity.id)
         return MailAuthTokenResult.Verified(entity)
     }
 
@@ -141,4 +163,6 @@ class MailAuthTokenService(
         pendingTokens.forEach { mailAuthTokenRepository.save(it) }
         entityManager.flush()
     }
+
+    private fun tokenPrefix(token: String): String = token.take(8)
 }

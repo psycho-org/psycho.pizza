@@ -13,6 +13,7 @@ import pizza.psycho.sos.common.message.domain.exception.MessageErrorCode
 import pizza.psycho.sos.common.message.token.application.service.MailAuthTokenService
 import pizza.psycho.sos.common.message.token.application.service.dto.MailAuthTokenResult
 import pizza.psycho.sos.common.message.token.infrastructure.config.MailTokenProperties
+import pizza.psycho.sos.common.support.log.loggerDelegate
 import java.net.URI
 
 @Validated
@@ -22,22 +23,33 @@ class MailAuthController(
     private val mailAuthTokenService: MailAuthTokenService,
     private val mailTokenProperties: MailTokenProperties,
 ) {
+    private val log by loggerDelegate()
+
     @GetMapping("/verify")
     fun verify(
         @RequestParam @NotBlank token: String,
     ): ResponseEntity<Void> {
+        log.info("[ENTRY] mail verify entry: tokenPrefix={}", tokenPrefix(token))
+
         val result = mailAuthTokenService.verify(token)
         val targetUrl =
             when (result) {
                 is MailAuthTokenResult.Verified,
                 is MailAuthTokenResult.AlreadyVerified,
-                -> requireUrl(mailTokenProperties.verifySuccessUrl, "mail.token.verify-success-url")
+                -> workspaceInviteResultUrl(success = true)
 
                 is MailAuthTokenResult.Expired,
                 is MailAuthTokenResult.Failed,
                 MailAuthTokenResult.NotFound,
-                -> requireUrl(mailTokenProperties.verifyFailureUrl, "mail.token.verify-failure-url")
+                -> workspaceInviteResultUrl(success = false)
             }
+
+        log.info(
+            "[EXIT] mail verify exit: tokenPrefix={}, result={}, redirect={}",
+            tokenPrefix(token),
+            result::class.simpleName,
+            targetUrl,
+        )
         return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(targetUrl)).build()
     }
 
@@ -50,4 +62,13 @@ class MailAuthController(
                 MessageErrorCode.MESSAGE_MAIL_VERIFY_URL_REQUIRED,
                 "$name is required",
             )
+
+    private fun workspaceInviteResultUrl(success: Boolean): String {
+        val baseUrl = requireUrl(mailTokenProperties.frontendBaseUrl, "mail.token.frontend-base-url")
+        val normalizedBaseUrl = baseUrl.trimEnd('/')
+        val path = if (success) "workspace-invite/success" else "workspace-invite/failure"
+        return "$normalizedBaseUrl/$path"
+    }
+
+    private fun tokenPrefix(token: String): String = token.take(8)
 }
