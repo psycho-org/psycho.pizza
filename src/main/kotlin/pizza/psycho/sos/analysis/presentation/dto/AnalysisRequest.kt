@@ -6,13 +6,6 @@ import java.util.UUID
 sealed interface AnalysisRequest {
     data class CreateAnalysisRequest(
         @field:NotNull
-        var workspaceId: UUID,
-        @field:NotNull
         var sprintId: UUID,
     ) : AnalysisRequest
-
-    data class CompleteAnalysisReport(
-        @field:NotNull
-        var jobId: UUID,
-    )
 }
