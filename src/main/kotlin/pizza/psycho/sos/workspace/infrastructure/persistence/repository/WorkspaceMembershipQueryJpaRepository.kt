@@ -17,6 +17,20 @@ interface WorkspaceMembershipQueryJpaRepository :
     JpaRepository<Membership, UUID> {
     @Query(
         """
+        select count(m) > 0
+        from Membership m
+        where m.workspace.id = :workspaceId
+          and m.accountId = :accountId
+          and m.deletedAt is null
+        """,
+    )
+    override fun existsActiveMembershipByWorkspaceIdAndAccountId(
+        @Param("workspaceId") workspaceId: UUID,
+        @Param("accountId") accountId: UUID,
+    ): Boolean
+
+    @Query(
+        """
         select m.role
         from Membership m
         where m.workspace.id = :workspaceId
