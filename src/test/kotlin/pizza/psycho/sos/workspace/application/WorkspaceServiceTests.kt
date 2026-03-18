@@ -7,6 +7,7 @@ import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.workspace.application.dto.ActiveWorkspaceMembership
 import pizza.psycho.sos.workspace.application.dto.WorkspaceMemberListItem
 import pizza.psycho.sos.workspace.application.port.out.AccountDisplayNamePort
+import pizza.psycho.sos.workspace.application.service.WorkspaceMembershipExistenceService
 import pizza.psycho.sos.workspace.application.service.WorkspaceService
 import pizza.psycho.sos.workspace.domain.exception.WorkspaceErrorCode
 import pizza.psycho.sos.workspace.domain.model.membership.Role
@@ -34,6 +35,10 @@ class WorkspaceServiceTests {
             workspaceQueryRepository,
             workspaceMembershipQueryRepository,
             accountDisplayNamePort,
+        )
+    private val workspaceMembershipExistenceService =
+        WorkspaceMembershipExistenceService(
+            workspaceMembershipQueryRepository,
         )
 
     @Test
@@ -79,6 +84,23 @@ class WorkspaceServiceTests {
         val result = service.findActiveWorkspaceMembershipsByAccountId(accountId)
 
         assertEquals(memberships, result)
+    }
+
+    @Test
+    fun `existsActiveMembership delegates to membership repository`() {
+        val workspaceId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
+        Mockito
+            .`when`(
+                workspaceMembershipQueryRepository.existsActiveMembershipByWorkspaceIdAndAccountId(workspaceId, accountId),
+            ).thenReturn(true)
+
+        val result = workspaceMembershipExistenceService.existsActiveMembership(workspaceId, accountId)
+
+        assertTrue(result)
+        Mockito
+            .verify(workspaceMembershipQueryRepository)
+            .existsActiveMembershipByWorkspaceIdAndAccountId(workspaceId, accountId)
     }
 
     @Test
