@@ -6,6 +6,11 @@ import pizza.psycho.sos.workspace.domain.model.membership.Role
 import java.util.UUID
 
 interface WorkspaceMembershipQueryRepository {
+    fun existsActiveMembershipByWorkspaceIdAndAccountId(
+        workspaceId: UUID,
+        accountId: UUID,
+    ): Boolean
+
     fun findRoleByWorkspaceIdAndAccountId(
         workspaceId: UUID,
         accountId: UUID,

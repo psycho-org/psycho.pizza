@@ -2,6 +2,7 @@ package pizza.psycho.sos.workspace.infrastructure.persistence.repository
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
@@ -20,6 +21,47 @@ class WorkspaceMembershipQueryJpaRepositoryTests {
 
     @Autowired
     private lateinit var workspaceCommandJpaRepository: WorkspaceCommandJpaRepository
+
+    @Test
+    fun `existsActiveMembershipByWorkspaceIdAndAccountId returns true when membership exists`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000921")
+        val savedWorkspace = workspaceCommandJpaRepository.save(Workspace.create("Omicron", "desc", accountId))
+
+        val result =
+            workspaceMembershipQueryJpaRepository.existsActiveMembershipByWorkspaceIdAndAccountId(savedWorkspace.id!!, accountId)
+
+        assertTrue(result)
+    }
+
+    @Test
+    fun `existsActiveMembershipByWorkspaceIdAndAccountId returns false when membership is deleted`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000923")
+        val workspace =
+            Workspace.create("Pi", "desc", accountId).also {
+                it.memberships.first().delete(UUID.fromString("00000000-0000-0000-0000-000000000924"))
+            }
+        val savedWorkspace = workspaceCommandJpaRepository.save(workspace)
+
+        val result =
+            workspaceMembershipQueryJpaRepository.existsActiveMembershipByWorkspaceIdAndAccountId(savedWorkspace.id!!, accountId)
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun `existsActiveMembershipByWorkspaceIdAndAccountId returns false when workspace is deleted`() {
+        val accountId = UUID.fromString("00000000-0000-0000-0000-000000000925")
+        val workspace =
+            Workspace.create("Rho", "desc", accountId).also {
+                it.delete(UUID.fromString("00000000-0000-0000-0000-000000000926"))
+            }
+        val savedWorkspace = workspaceCommandJpaRepository.save(workspace)
+
+        val result =
+            workspaceMembershipQueryJpaRepository.existsActiveMembershipByWorkspaceIdAndAccountId(savedWorkspace.id!!, accountId)
+
+        assertFalse(result)
+    }
 
     @Test
     fun `findActiveWorkspaceMembershipsByAccountId returns active memberships`() {
