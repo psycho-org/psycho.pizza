@@ -45,7 +45,7 @@ class WorkspaceServiceTests {
     fun `createWorkspace - creates and saves workspace`() {
         val ownerAccountId = UUID.randomUUID()
         Mockito
-            .`when`(accountDisplayNamePort.findActiveDisplayNameByAccountIdOrNull(ownerAccountId))
+            .`when`(accountDisplayNamePort.findActiveDisplayNameByAccountId(ownerAccountId))
             .thenReturn("Owner Name")
 
         val workspace = service.createWorkspace("Test", "Desc", ownerAccountId)
@@ -145,7 +145,7 @@ class WorkspaceServiceTests {
                 workspaceMembershipQueryRepository.findRoleByWorkspaceIdAndAccountId(workspaceId, ownerAccountId),
             ).thenReturn(Role.OWNER)
         Mockito
-            .`when`(accountDisplayNamePort.findActiveDisplayNameByAccountIdOrNull(crewAccountId))
+            .`when`(accountDisplayNamePort.findActiveDisplayNameByAccountId(crewAccountId))
             .thenReturn("Crew Member")
 
         val membership = service.addMember(workspaceId, ownerAccountId, crewAccountId, Role.CREW)

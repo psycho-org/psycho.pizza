@@ -2,7 +2,6 @@ package pizza.psycho.sos.identity.account.application
 
 import org.hibernate.exception.ConstraintViolationException
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -16,6 +15,7 @@ import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.test.context.ActiveProfiles
 import pizza.psycho.sos.common.domain.vo.Email
+import pizza.psycho.sos.common.handler.DomainException
 import pizza.psycho.sos.common.support.transaction.helper.Tx
 import pizza.psycho.sos.common.support.transaction.runner.TransactionRunner
 import pizza.psycho.sos.identity.account.application.service.AccountService
@@ -23,6 +23,7 @@ import pizza.psycho.sos.identity.account.application.service.WorkspaceMembership
 import pizza.psycho.sos.identity.account.application.service.WorkspaceOwnershipQueryService
 import pizza.psycho.sos.identity.account.application.service.dto.AccountCommand
 import pizza.psycho.sos.identity.account.domain.Account
+import pizza.psycho.sos.identity.account.domain.exception.AccountErrorCode
 import pizza.psycho.sos.identity.account.infrastructure.AccountRepository
 import pizza.psycho.sos.identity.authentication.application.service.RefreshTokenService
 import pizza.psycho.sos.identity.challenge.application.service.ChallengeService
@@ -32,6 +33,7 @@ import pizza.psycho.sos.identity.challenge.domain.ConfirmationToken
 import pizza.psycho.sos.identity.challenge.domain.vo.OperationType
 import java.time.Instant
 import java.util.UUID
+import kotlin.test.assertFailsWith
 import pizza.psycho.sos.identity.account.application.service.dto.RegisterAccountResult as Register
 import pizza.psycho.sos.identity.account.application.service.dto.UpdateNameAccountResult as UpdateName
 import pizza.psycho.sos.identity.account.application.service.dto.UpdatePasswordAccountResult as UpdatePassword
@@ -76,20 +78,23 @@ class AccountServiceTests {
 
         `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
 
-        val displayName = accountService.findActiveDisplayNameByAccountIdOrNull(accountId)
+        val displayName = accountService.findActiveDisplayNameByAccountId(accountId)
 
         assertEquals("Rick Sanchez", displayName)
     }
 
     @Test
-    fun `find active display name by account id returns null when account is not active`() {
+    fun `find active display name by account id throws account not found when account is not active`() {
         val accountId = UUID.fromString("00000000-0000-0000-0000-000000000011")
 
         `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(null)
 
-        val displayName = accountService.findActiveDisplayNameByAccountIdOrNull(accountId)
+        val exception =
+            assertFailsWith<DomainException> {
+                accountService.findActiveDisplayNameByAccountId(accountId)
+            }
 
-        assertNull(displayName)
+        assertEquals(AccountErrorCode.ACCOUNT_NOT_FOUND, exception.errorCode)
     }
 
     @Test
