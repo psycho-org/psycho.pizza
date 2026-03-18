@@ -7,6 +7,5 @@ import org.springframework.stereotype.Component
 @ConfigurationProperties(prefix = "mail.token")
 data class MailTokenProperties(
     var verifyBaseUrl: String = "",
-    var verifySuccessUrl: String = "",
-    var verifyFailureUrl: String = "",
+    var frontendBaseUrl: String = "",
 )
