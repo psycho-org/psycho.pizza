@@ -19,9 +19,11 @@ interface WorkspaceMembershipQueryJpaRepository :
         """
         select count(m) > 0
         from Membership m
-        where m.workspace.id = :workspaceId
+        join m.workspace w
+        where w.id = :workspaceId
           and m.accountId = :accountId
           and m.deletedAt is null
+          and w.deletedAt is null
         """,
     )
     override fun existsActiveMembershipByWorkspaceIdAndAccountId(
