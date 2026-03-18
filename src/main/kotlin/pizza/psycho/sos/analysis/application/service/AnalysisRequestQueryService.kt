@@ -19,28 +19,19 @@ class AnalysisRequestQueryService(
         workspaceId: UUID,
         sprintId: UUID,
     ): AnalysisResponse.GetAnalysisRequestList.Response {
-        val requests =
+        val items =
             analysisRequestRepository
-                .findAllByWorkspaceIdAndTargetIdOrderByCreatedAtDesc(
+                .findAnalysisRequestListItems(
                     workspaceId = workspaceId,
                     sprintId = sprintId,
-                )
-
-        val items =
-            requests.map { request ->
-                val report = analysisReportRepository.findByAnalysisRequestId(request.id!!)
-
-                AnalysisResponse.GetAnalysisRequestList.Item(
-                    analysisRequestId =
-                        request.id
-                            ?: throw DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_NOT_FOUND),
-                    status = request.status,
-                    hasReport = report?.aiInsight != null,
-                    requestedAt =
-                        request.createdAt
-                            ?: throw DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_NOT_FOUND),
-                )
-            }
+                ).map { row ->
+                    AnalysisResponse.GetAnalysisRequestList.Item(
+                        analysisRequestId = row.analysisRequestId,
+                        status = row.status,
+                        hasReport = row.hasReport,
+                        requestedAt = row.requestedAt,
+                    )
+                }
 
         return AnalysisResponse.GetAnalysisRequestList.Response(
             items = items,
