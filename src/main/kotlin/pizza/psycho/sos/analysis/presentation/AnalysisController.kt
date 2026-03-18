@@ -4,6 +4,7 @@ import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -69,17 +70,16 @@ class AnalysisController(
             message = "분석 요청 목록 조회에 성공했습니다.",
         )
 
-    /*
     @GetMapping("/{analysisRequestId}/report")
     fun getAnalysisRequestReport(
         @PathVariable analysisRequestId: UUID,
     ): ApiResponse<AnalysisResponse.GetAnalysisRequestReport.Response> =
         responseOf(
-            data = analysisRequestQueryService.getAnalysisRequestReport(
-                analysisRequestId = analysisRequestId,
-            ),
+            data =
+                analysisRequestQueryService.getAnalysisRequestReport(
+                    analysisRequestId = analysisRequestId,
+                ),
             status = HttpStatus.OK,
             message = "분석 요청 리포트 조회에 성공했습니다.",
         )
-     */
 }

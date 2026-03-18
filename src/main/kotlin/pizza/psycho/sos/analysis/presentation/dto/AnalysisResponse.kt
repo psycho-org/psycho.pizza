@@ -26,19 +26,23 @@ sealed interface AnalysisResponse {
 
     sealed interface GetAnalysisRequestReport {
         data class Response(
+            val workspaceId: UUID,
+            val sprintId: UUID,
             val analysisRequestId: UUID,
             val status: AnalysisRequestStatus,
-            val requestedAt: Instant,
-            val result: Result?,
+            val totalScore: Int,
+            val result: String?, // <- 🔥 TODO: json 형식으로 가도록 2차 수정!
+            val createdAt: Instant?,
+//            val result: Result?,
         ) : AnalysisResponse
 
-        data class Result(
-            val reportId: UUID,
-            val summary: String,
-            val strength: String?,
-            val risk: String?,
-            val recommendation: String?,
-            val reportedAt: Instant,
-        )
+//        data class Result(
+//            val reportId: UUID,
+//            val summary: String,
+//            val strength: String?,
+//            val risk: String?,
+//            val recommendation: String?,
+//            val reportedAt: Instant,
+//        )
     }
 }

@@ -47,33 +47,25 @@ class AnalysisRequestQueryService(
         )
     }
 
-    /*
-    fun getAnalysisRequestReport(
-        analysisRequestId: UUID,
-    ): AnalysisResponse.GetAnalysisRequestReport.Response {
+    fun getAnalysisRequestReport(analysisRequestId: UUID): AnalysisResponse.GetAnalysisRequestReport.Response {
         val request =
-            analysisRequestRepository.findById(analysisRequestId)
+            analysisRequestRepository
+                .findById(analysisRequestId)
                 .orElseThrow {
-                    NoSuchElementException("Analysis request not found. analysisRequestId=$analysisRequestId")
+                    DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_NOT_FOUND)
                 }
 
-        val report = analysisReportRepository.findByAnalysisRequestId(analysisRequestId)
+        val report =
+            analysisReportRepository.findByAnalysisRequestId(analysisRequestId)
 
         return AnalysisResponse.GetAnalysisRequestReport.Response(
-            analysisRequestId = request.id!!,
+            workspaceId = request.workspaceId,
+            sprintId = request.targetId,
+            analysisRequestId = analysisRequestId,
             status = request.status,
-            requestedAt = request.createdAt,
-            result = report?.let {
-                AnalysisResponse.GetAnalysisRequestReport.Result(
-                    reportId = it.id!!,
-                    summary = it.summary,
-                    strength = it.strength,
-                    risk = it.risk,
-                    recommendation = it.recommendation,
-                    reportedAt = it.createdAt,
-                )
-            },
+            totalScore = report?.scoreTotal ?: 0,
+            result = report?.aiInsight, // <- 🔥 TODO: json 형식으로 가도록 2차 수정!
+            createdAt = report?.createdAt,
         )
     }
-     */
 }
