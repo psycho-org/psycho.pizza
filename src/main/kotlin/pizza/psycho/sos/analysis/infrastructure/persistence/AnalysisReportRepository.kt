@@ -8,4 +8,9 @@ import java.util.UUID
 @Repository
 interface AnalysisReportRepository : JpaRepository<AnalysisReport, UUID> {
     fun findByAnalysisRequestId(analysisRequestId: UUID): AnalysisReport?
+
+    fun findAllByWorkspaceIdAndTargetIdOrderByCreatedAtDesc(
+        workspaceId: UUID,
+        sprintId: UUID,
+    ): List<AnalysisReport>
 }

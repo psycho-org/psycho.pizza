@@ -10,9 +10,4 @@ sealed interface AnalysisRequest {
         @field:NotNull
         var sprintId: UUID,
     ) : AnalysisRequest
-
-    data class CompleteAnalysisReport(
-        @field:NotNull
-        var jobId: UUID,
-    )
 }
