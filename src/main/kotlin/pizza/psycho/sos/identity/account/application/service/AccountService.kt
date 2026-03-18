@@ -34,11 +34,7 @@ class AccountService(
             .findByEmailValueIgnoreCaseAndDeletedAtIsNull(Email.of(email).value)
             ?.id
 
-    /**
-     * [WARNING]
-     * * THIS METHOD ACTUALLY THROWS `DomainException(ACCOUNT_NOT_FOUND)` IN CASE THE RESULT IS NULL
-     */
-    fun findActiveDisplayNameByAccountIdOrNull(accountId: UUID): String {
+    fun findActiveDisplayNameByAccountId(accountId: UUID): String {
         val account =
             accountRepository.findByIdAndDeletedAtIsNull(accountId)
                 ?: throw DomainException(AccountErrorCode.ACCOUNT_NOT_FOUND)

@@ -75,7 +75,7 @@ class AccountServiceTests {
 
         `when`(accountRepository.findByIdAndDeletedAtIsNull(accountId)).thenReturn(account)
 
-        val displayName = accountService.findActiveDisplayNameByAccountIdOrNull(accountId)
+        val displayName = accountService.findActiveDisplayNameByAccountId(accountId)
 
         assertEquals("Rick Sanchez", displayName)
     }
@@ -88,7 +88,7 @@ class AccountServiceTests {
 
         val exception =
             assertFailsWith<DomainException> {
-                accountService.findActiveDisplayNameByAccountIdOrNull(accountId)
+                accountService.findActiveDisplayNameByAccountId(accountId)
             }
 
         assertEquals(AccountErrorCode.ACCOUNT_NOT_FOUND, exception.errorCode)
