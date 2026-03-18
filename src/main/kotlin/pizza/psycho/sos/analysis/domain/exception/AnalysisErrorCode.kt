@@ -7,6 +7,10 @@ enum class AnalysisErrorCode(
     override val status: HttpStatus,
     override val message: String,
 ) : BaseErrorCode {
+    ANALYSIS_INVALID_MEMBERSHIP(
+        HttpStatus.FORBIDDEN,
+        "워크스페이스에 대한 접근 권한이 없습니다.",
+    ),
     ANALYSIS_REPORT_NOT_FOUND(
         HttpStatus.NOT_FOUND,
         "분석 리포트가 없습니다.",
