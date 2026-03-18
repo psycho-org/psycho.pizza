@@ -35,7 +35,7 @@ class AnalysisRequestQueryService(
                         request.id
                             ?: throw DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_NOT_FOUND),
                     status = request.status,
-                    hasReport = report != null,
+                    hasReport = report?.aiInsight != null,
                     requestedAt =
                         request.createdAt
                             ?: throw DomainException(AnalysisErrorCode.ANALYSIS_REQUEST_NOT_FOUND),
